@@ -11,7 +11,6 @@ FlamAudioProcessor::FlamAudioProcessor()
                          )
     , parameters(*this, nullptr, juce::Identifier("FLAM"), createParameterLayout())
 {
-    std::cout << "[FLAM] FlamAudioProcessor constructor called" << std::endl;
     humanizationParam = dynamic_cast<juce::AudioParameterFloat*>(
         parameters.getParameter("humanization"));
     masterVolumeParam = dynamic_cast<juce::AudioParameterFloat*>(
@@ -99,7 +98,6 @@ void FlamAudioProcessor::changeProgramName(int index, const juce::String& newNam
 
 void FlamAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
-    std::cout << "[FLAM] prepareToPlay called: " << sampleRate << " Hz, " << samplesPerBlock << " samples" << std::endl;
     engine.prepareToPlay(sampleRate, samplesPerBlock);
     updateEngineParameters();
 }
@@ -137,13 +135,11 @@ void FlamAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::Mi
 
 bool FlamAudioProcessor::hasEditor() const
 {
-    std::cout << "[FLAM] hasEditor() called, returning true" << std::endl;
     return true;
 }
 
 juce::AudioProcessorEditor* FlamAudioProcessor::createEditor()
 {
-    std::cout << "[FLAM] createEditor() called" << std::endl;
     return new FlamAudioProcessorEditor(*this);
 }
 

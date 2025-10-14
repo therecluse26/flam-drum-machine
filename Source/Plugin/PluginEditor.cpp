@@ -7,7 +7,6 @@ FlamAudioProcessorEditor::FlamAudioProcessorEditor(FlamAudioProcessor& p)
     : AudioProcessorEditor(&p)
     , audioProcessor(p)
 {
-    std::cout << "[FLAM] FlamAudioProcessorEditor constructor called" << std::endl;
     titleLabel.setText("FLAM - Free Layered Audio Machine", juce::dontSendNotification);
     titleLabel.setFont(juce::Font(24.0f, juce::Font::bold));
     titleLabel.setJustificationType(juce::Justification::centredTop);
@@ -69,7 +68,6 @@ FlamAudioProcessorEditor::FlamAudioProcessorEditor(FlamAudioProcessor& p)
     setupDrumPads();
 
     setSize(1000, 700);
-    std::cout << "[FLAM] FlamAudioProcessorEditor initialized, size set to 1000x700" << std::endl;
 }
 
 FlamAudioProcessorEditor::~FlamAudioProcessorEditor() = default;
@@ -215,10 +213,6 @@ void FlamAudioProcessorEditor::setupDrumPads()
 
 void FlamAudioProcessorEditor::triggerDrumPad(int midiNote, float velocity)
 {
-    std::cout << "[FLAM] Pad triggered: Note " << midiNote
-              << ", Velocity " << velocity << std::endl;
-
-    // Trigger the note directly in the engine
     audioProcessor.getEngine()->triggerNote(midiNote, velocity, 0);
 }
 
@@ -236,13 +230,9 @@ void FlamAudioProcessorEditor::loadKitButtonClicked()
             auto file = fc.getResult();
             if (file.existsAsFile())
             {
-                std::cout << "[FLAM] Kit file selected: " << file.getFullPathName() << std::endl;
-
-                // Update UI immediately (we're already on message thread here)
                 kitNameLabel.setText(file.getFileNameWithoutExtension(),
                                    juce::dontSendNotification);
 
-                // Load kit (this will spawn its own background thread)
                 audioProcessor.getEngine()->loadKit(file);
 
                 // TODO: Rebuild drum pads based on loaded kit

@@ -9,12 +9,9 @@ FlamKitLoader::~FlamKitLoader() = default;
 
 std::unique_ptr<DrumKit> FlamKitLoader::loadKit(const juce::File& kitFile)
 {
-    std::cout << "[FlamKitLoader] Loading kit from: " << kitFile.getFullPathName() << std::endl;
-
     if (!kitFile.existsAsFile())
     {
         lastError = "Kit file does not exist: " + kitFile.getFullPathName();
-        std::cout << "[FlamKitLoader] ERROR: " << lastError << std::endl;
         return nullptr;
     }
 
@@ -22,7 +19,6 @@ std::unique_ptr<DrumKit> FlamKitLoader::loadKit(const juce::File& kitFile)
     if (content.isEmpty())
     {
         lastError = "Could not read kit file: " + kitFile.getFullPathName();
-        std::cout << "[FlamKitLoader] ERROR: " << lastError << std::endl;
         return nullptr;
     }
 
@@ -36,23 +32,17 @@ std::unique_ptr<DrumKit> FlamKitLoader::loadKit(const juce::File& kitFile)
     else
     {
         lastError = "Unsupported file format (expected .yaml or .yml): " + extension;
-        std::cout << "[FlamKitLoader] ERROR: " << lastError << std::endl;
         return nullptr;
     }
 
     if (!kit)
     {
         lastError = "Failed to parse kit file";
-        std::cout << "[FlamKitLoader] ERROR: " << lastError << std::endl;
         return nullptr;
     }
 
-    std::cout << "[FlamKitLoader] Parsed kit: " << kit->name
-              << " with " << kit->pieces.size() << " pieces" << std::endl;
-
     // Resolve relative sample file paths
     const auto kitDirectory = kitFile.getParentDirectory();
-    std::cout << "[FlamKitLoader] Kit directory: " << kitDirectory.getFullPathName() << std::endl;
 
     for (auto& piece : kit->pieces)
     {
@@ -60,39 +50,21 @@ std::unique_ptr<DrumKit> FlamKitLoader::loadKit(const juce::File& kitFile)
         {
             for (auto& layer : articulation.layers)
             {
-                // Get the path string
                 auto pathString = layer.sampleFile.getFullPathName();
 
-                // Only resolve if it's not already an absolute path
                 if (!juce::File::isAbsolutePath(pathString))
                 {
-                    // It's relative - resolve relative to kit directory
                     layer.sampleFile = kitDirectory.getChildFile(pathString);
-                    std::cout << "[FlamKitLoader] Resolved relative: " << pathString
-                              << " -> " << layer.sampleFile.getFullPathName() << std::endl;
                 }
                 else
                 {
-                    // It's already absolute (shouldn't happen, but handle it)
-                    std::cout << "[FlamKitLoader] Path is already absolute: " << pathString << std::endl;
-
                     // Check if it looks like it was incorrectly resolved from CWD
-                    // If so, try to extract just the relative part
                     auto cwdPrefix = juce::File::getCurrentWorkingDirectory().getFullPathName() + "/";
                     if (pathString.startsWith(cwdPrefix))
                     {
-                        // Strip the CWD prefix to get the relative part
                         auto relativePart = pathString.substring(cwdPrefix.length());
                         layer.sampleFile = kitDirectory.getChildFile(relativePart);
-                        std::cout << "[FlamKitLoader] Fixed CWD-relative path: " << relativePart
-                                  << " -> " << layer.sampleFile.getFullPathName() << std::endl;
                     }
-                }
-
-                if (!layer.sampleFile.existsAsFile())
-                {
-                    std::cout << "[FlamKitLoader] WARNING: Sample file not found: "
-                              << layer.sampleFile.getFullPathName() << std::endl;
                 }
             }
         }
@@ -100,11 +72,9 @@ std::unique_ptr<DrumKit> FlamKitLoader::loadKit(const juce::File& kitFile)
 
     if (kit && validateKit(*kit))
     {
-        std::cout << "[FlamKitLoader] Kit loaded and validated successfully" << std::endl;
         return kit;
     }
 
-    std::cout << "[FlamKitLoader] ERROR: Kit validation failed" << std::endl;
     return nullptr;
 }
 
@@ -247,14 +217,10 @@ std::unique_ptr<DrumKit> FlamKitLoader::parseYamlKit(const juce::String& content
                 kit->pieces.push_back(piece);
             }
         }
-
-        std::cout << "[YAMLParser] Successfully parsed kit with " << kit->pieces.size()
-                  << " pieces using yaml-cpp" << std::endl;
     }
     catch (const YAML::Exception& e)
     {
         lastError = "YAML parsing error: " + juce::String(e.what());
-        std::cout << "[YAMLParser] ERROR: " << lastError << std::endl;
         return nullptr;
     }
 

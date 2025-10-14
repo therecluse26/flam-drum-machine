@@ -57,15 +57,10 @@ void FlamEngine::loadKit(const juce::File& kitFile)
     // Launch the entire kit loading process on a background thread to prevent UI freeze
     juce::Thread::launch([this, kitFile]()
     {
-        std::cout << "[FlamEngine] Loading kit on background thread..." << std::endl;
         auto kit = kitLoader->loadKit(kitFile);
         if (kit)
         {
             voiceManager->loadKit(std::move(kit));
-        }
-        else
-        {
-            std::cout << "[FlamEngine] Failed to load kit: " << kitLoader->getLastError() << std::endl;
         }
     });
 }
