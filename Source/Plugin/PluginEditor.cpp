@@ -2,6 +2,7 @@
 #include "PluginEditor.h"
 #include "../Formats/FlamKitLoader.h"
 #include <thread>
+#include <cmath>
 
 namespace flam {
 
@@ -9,8 +10,8 @@ namespace flam {
 class KitTileComponent : public juce::Component
 {
 public:
-    KitTileComponent(const juce::File& kitFile, std::function<void(juce::File)> onSelect)
-        : file(kitFile), selectCallback(onSelect)
+    KitTileComponent(const juce::File& kitFile, std::function<void(juce::File)> onSelect, std::function<void(juce::File)> onDelete)
+        : file(kitFile), selectCallback(onSelect), deleteCallback(onDelete)
     {
         // Load kit metadata
         auto loader = std::make_unique<FlamKitLoader>();
@@ -21,6 +22,18 @@ public:
         {
             coverImage = juce::ImageFileFormat::loadFrom(kit->coverImageFile);
         }
+
+        // Create delete button
+        deleteButton = std::make_unique<juce::TextButton>("X");
+        deleteButton->setSize(24, 24);
+        deleteButton->onClick = [this]() {
+            if (deleteCallback)
+                deleteCallback(file);
+        };
+        deleteButton->setAlpha(0.0f); // Hidden by default
+        deleteButton->setMouseCursor(juce::MouseCursor::PointingHandCursor);
+        deleteButton->addMouseListener(this, false); // Don't consume events
+        addAndMakeVisible(deleteButton.get());
     }
 
     void paint(juce::Graphics& g) override
@@ -90,32 +103,142 @@ public:
         }
     }
 
-    void mouseEnter(const juce::MouseEvent&) override
+    void resized() override
+    {
+        // Position delete button in top-right corner
+        deleteButton->setBounds(getWidth() - 32, 8, 24, 24);
+    }
+
+    void mouseEnter(const juce::MouseEvent& e) override
     {
         isMouseOver = true;
+        updateDeleteButtonVisibility();
         repaint();
     }
 
-    void mouseExit(const juce::MouseEvent&) override
+    void mouseExit(const juce::MouseEvent& e) override
     {
-        isMouseOver = false;
-        repaint();
+        // Only hide if we're actually leaving the component entirely
+        // Don't hide when entering a child component (like the delete button)
+        if (!getLocalBounds().contains(e.getPosition()))
+        {
+            isMouseOver = false;
+            updateDeleteButtonVisibility();
+            repaint();
+        }
     }
 
-    void mouseUp(const juce::MouseEvent&) override
+    void mouseMove(const juce::MouseEvent& e) override
     {
-        if (selectCallback)
-            selectCallback(file);
+        // Keep button visible if mouse is within bounds
+        if (getLocalBounds().contains(e.getPosition()))
+        {
+            isMouseOver = true;
+            updateDeleteButtonVisibility();
+        }
+    }
+
+    void updateDeleteButtonVisibility()
+    {
+        deleteButton->setAlpha(isMouseOver ? 1.0f : 0.0f);
+    }
+
+    void mouseUp(const juce::MouseEvent& e) override
+    {
+        // Don't select if clicking on delete button
+        if (!deleteButton->getBounds().contains(e.getPosition()))
+        {
+            if (selectCallback)
+                selectCallback(file);
+        }
     }
 
 private:
     juce::File file;
     std::function<void(juce::File)> selectCallback;
+    std::function<void(juce::File)> deleteCallback;
     std::unique_ptr<DrumKit> kit;
     juce::Image coverImage;
+    std::unique_ptr<juce::TextButton> deleteButton;
     bool isMouseOver = false;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(KitTileComponent)
+};
+
+// File browser for adding external kits
+class FileBrowserWindow : public juce::DocumentWindow,
+                          public juce::FileBrowserListener
+{
+public:
+    FileBrowserWindow(FlamAudioProcessorEditor* editor)
+        : DocumentWindow("Add Kit from File System",
+                        juce::Desktop::getInstance().getDefaultLookAndFeel()
+                            .findColour(juce::ResizableWindow::backgroundColourId),
+                        DocumentWindow::closeButton)
+        , owner(editor)
+        , wildcard("flamkit.yaml", "*", "FLAM Kit Files")
+        , browser(juce::FileBrowserComponent::openMode |
+                  juce::FileBrowserComponent::canSelectFiles |
+                  juce::FileBrowserComponent::canSelectDirectories,
+                  juce::File::getSpecialLocation(juce::File::userHomeDirectory),
+                  &wildcard,
+                  nullptr)
+    {
+        browser.addListener(this);
+        setContentOwned(&browser, true);
+        setResizable(true, true);
+        centreWithSize(600, 400);
+        setVisible(true);
+        setAlwaysOnTop(true);
+    }
+
+    ~FileBrowserWindow() override
+    {
+        browser.removeListener(this);
+    }
+
+    void closeButtonPressed() override
+    {
+        owner->fileBrowserWindow.reset();
+    }
+
+    void selectionChanged() override {}
+    void fileClicked(const juce::File&, const juce::MouseEvent&) override {}
+
+    void fileDoubleClicked(const juce::File& file) override
+    {
+        juce::File kitFile = file;
+
+        // If it's a directory, look for flamkit.yaml inside it
+        if (file.isDirectory())
+            kitFile = file.getChildFile("flamkit.yaml");
+
+        // If the selected file is named flamkit.yaml, use it
+        if (kitFile.existsAsFile() && kitFile.getFileName() == "flamkit.yaml")
+        {
+            // Add to kit library (persists to settings)
+            owner->addKitToLibrary(kitFile);
+
+            // Load the kit
+            owner->loadKitFromPath(kitFile);
+
+            // Refresh the kit list
+            owner->scanForKits();
+            owner->fileBrowserWindow.reset();
+
+            // Reopen kit browser with updated list
+            owner->openKitBrowser();
+        }
+    }
+
+    void browserRootChanged(const juce::File&) override {}
+
+private:
+    FlamAudioProcessorEditor* owner;
+    juce::WildcardFileFilter wildcard;
+    juce::FileBrowserComponent browser;
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(FileBrowserWindow)
 };
 
 // Kit browser window showing grid of kits
@@ -129,6 +252,16 @@ public:
                         DocumentWindow::closeButton)
         , owner(editor)
     {
+        mainContent = std::make_unique<juce::Component>();
+
+        // Create "Add Kit" button at the top
+        addKitButton = std::make_unique<juce::TextButton>("Add Kit from File System");
+        addKitButton->onClick = [this]() {
+            owner->kitBrowserWindow.reset();
+            owner->openFileBrowser();
+        };
+        mainContent->addAndMakeVisible(addKitButton.get());
+
         viewport = std::make_unique<juce::Viewport>();
         content = std::make_unique<juce::Component>();
 
@@ -143,10 +276,16 @@ public:
 
         for (const auto& kitFile : kits)
         {
-            auto* tile = new KitTileComponent(kitFile, [this](juce::File selectedFile) {
-                owner->loadKitFromPath(selectedFile);
-                owner->kitBrowserWindow.reset();
-            });
+            auto* tile = new KitTileComponent(kitFile,
+                [this](juce::File selectedFile) {
+                    // Select callback
+                    owner->loadKitFromPath(selectedFile);
+                    owner->kitBrowserWindow.reset();
+                },
+                [this](juce::File fileToDelete) {
+                    // Delete callback
+                    removeKit(fileToDelete);
+                });
 
             int x = col * (tileWidth + spacing) + spacing;
             int y = row * (tileHeight + spacing) + spacing;
@@ -171,10 +310,17 @@ public:
 
         viewport->setViewedComponent(content.get(), false);
         viewport->setScrollBarsShown(true, false);
+        mainContent->addAndMakeVisible(viewport.get());
 
-        setContentNonOwned(viewport.get(), true);
+        // Layout: button at top, viewport below
+        int buttonHeight = 40;
+        addKitButton->setBounds(spacing, spacing, contentWidth - spacing * 2, buttonHeight);
+        viewport->setBounds(0, buttonHeight + spacing * 2, contentWidth, 600 - buttonHeight - spacing * 2);
+        mainContent->setSize(contentWidth, 600);
+
+        setContentNonOwned(mainContent.get(), true);
         setResizable(true, true);
-        centreWithSize(cols * (tileWidth + spacing) + spacing + 20, 600);
+        centreWithSize(cols * (tileWidth + spacing) + spacing + 20, 640);
         setVisible(true);
         setAlwaysOnTop(true);
     }
@@ -189,8 +335,33 @@ public:
         owner->kitBrowserWindow.reset();
     }
 
+    void removeKit(const juce::File& kitFile)
+    {
+        // Capture owner pointer safely
+        auto* ownerPtr = owner;
+
+        // Show confirmation dialog
+        auto options = juce::MessageBoxOptions()
+            .withIconType(juce::MessageBoxIconType::WarningIcon)
+            .withTitle("Remove Kit")
+            .withMessage("Are you sure you want to remove this kit from the library?\n\n"
+                        "This will only remove it from the FlamKit library list.\n"
+                        "The kit files will NOT be deleted from your computer.")
+            .withButton("Remove")
+            .withButton("Cancel");
+
+        juce::AlertWindow::showAsync(options, [ownerPtr, kitFile](int result) {
+            if (result == 1) // "Remove" button
+            {
+                ownerPtr->handleKitRemoval(kitFile);
+            }
+        });
+    }
+
 private:
     FlamAudioProcessorEditor* owner;
+    std::unique_ptr<juce::Component> mainContent;
+    std::unique_ptr<juce::TextButton> addKitButton;
     std::unique_ptr<juce::Viewport> viewport;
     std::unique_ptr<juce::Component> content;
     juce::OwnedArray<KitTileComponent> tiles;
@@ -202,31 +373,10 @@ FlamAudioProcessorEditor::FlamAudioProcessorEditor(FlamAudioProcessor& p)
     : AudioProcessorEditor(&p)
     , audioProcessor(p)
 {
-    titleLabel.setText("FLAM - Free Layered Audio Machine", juce::dontSendNotification);
+    titleLabel.setText("FlamKit", juce::dontSendNotification);
     titleLabel.setFont(juce::Font(24.0f, juce::Font::bold));
     titleLabel.setJustificationType(juce::Justification::centredTop);
     addAndMakeVisible(titleLabel);
-    
-    mixerGroup.setText("Mixer");
-    addAndMakeVisible(mixerGroup);
-    
-    setupSlider(masterVolumeSlider, masterVolumeLabel, "Master", " dB");
-    setupSlider(closeVolumeSlider, closeVolumeLabel, "Close", " dB");
-    setupSlider(overheadVolumeSlider, overheadVolumeLabel, "Overhead", " dB");
-    setupSlider(roomVolumeSlider, roomVolumeLabel, "Room", " dB");
-    setupSlider(ambientVolumeSlider, ambientVolumeLabel, "Ambient", " dB");
-    
-    performanceGroup.setText("Performance");
-    addAndMakeVisible(performanceGroup);
-    
-    setupSlider(humanizationSlider, humanizationLabel, "Humanize", "");
-    setupSlider(bleedAmountSlider, bleedAmountLabel, "Mic Bleed", "");
-    setupSlider(polyphonySlider, polyphonyLabel, "Polyphony", "");
-    polyphonySlider.setSliderStyle(juce::Slider::IncDecButtons);
-    polyphonySlider.setTextBoxStyle(juce::Slider::TextBoxLeft, false, 50, 20);
-    
-    roundRobinButton.setButtonText("Round Robin");
-    addAndMakeVisible(roundRobinButton);
 
     kitBrowserLabel.setText("Kit:", juce::dontSendNotification);
     kitBrowserLabel.setJustificationType(juce::Justification::centredRight);
@@ -239,36 +389,15 @@ FlamAudioProcessorEditor::FlamAudioProcessorEditor(FlamAudioProcessor& p)
     kitBrowserButton.setButtonText("Browse...");
     kitBrowserButton.onClick = [this] { openKitBrowser(); };
     addAndMakeVisible(kitBrowserButton);
-    
-    auto& vts = audioProcessor.getValueTreeState();
-    
-    masterVolumeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
-        vts, "master_volume", masterVolumeSlider);
-    closeVolumeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
-        vts, "close_volume", closeVolumeSlider);
-    overheadVolumeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
-        vts, "overhead_volume", overheadVolumeSlider);
-    roomVolumeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
-        vts, "room_volume", roomVolumeSlider);
-    ambientVolumeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
-        vts, "ambient_volume", ambientVolumeSlider);
-    humanizationAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
-        vts, "humanization", humanizationSlider);
-    bleedAmountAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
-        vts, "bleed_amount", bleedAmountSlider);
-    polyphonyAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
-        vts, "polyphony", polyphonySlider);
-    roundRobinAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
-        vts, "round_robin", roundRobinButton);
 
     drumPadsGroup.setText("Drum Pads");
     addAndMakeVisible(drumPadsGroup);
 
     setupDrumPads();
 
-    setSize(1000, 700);
+    setSize(800, 600);
 
-    // Scan for available kits and load the last used one
+    // Scan for available kits and load last one
     scanForKits();
     loadLastLoadedKit();
 }
@@ -301,119 +430,63 @@ void FlamAudioProcessorEditor::resized()
 
     contentArea.removeFromTop(10);
 
-    // Split into left (drum pads) and right (controls)
-    auto drumPadArea = contentArea.removeFromLeft(contentArea.getWidth() * 0.5f);
-    contentArea.removeFromLeft(10);  // spacing
+    // Drum pads fill the remaining space
+    drumPadsGroup.setBounds(contentArea);
+    auto padContent = contentArea.reduced(15, 25);
 
-    // Drum pads on the left
-    drumPadsGroup.setBounds(drumPadArea);
-    auto padContent = drumPadArea.reduced(15, 25);
-
-    // Layout drum pads in a 4x4 grid
-    const int cols = 4;
-    const int rows = 4;
-    const int padSpacing = 8;
-    const int padWidth = (padContent.getWidth() - (cols - 1) * padSpacing) / cols;
-    const int padHeight = (padContent.getHeight() - (rows - 1) * padSpacing) / rows;
-
-    for (int i = 0; i < drumPads.size() && i < 16; ++i)
+    // Calculate grid dimensions based on number of pads
+    const int numPads = drumPads.size();
+    if (numPads > 0)
     {
-        int row = i / cols;
-        int col = i % cols;
-        int x = padContent.getX() + col * (padWidth + padSpacing);
-        int y = padContent.getY() + row * (padHeight + padSpacing);
-        drumPads[i]->setBounds(x, y, padWidth, padHeight);
+        // Calculate optimal grid size (try to keep it roughly square)
+        const int cols = static_cast<int>(std::ceil(std::sqrt(static_cast<float>(numPads))));
+        const int rows = static_cast<int>(std::ceil(static_cast<float>(numPads) / cols));
+
+        const int padSpacing = 8;
+        const int padWidth = (padContent.getWidth() - (cols - 1) * padSpacing) / cols;
+        const int padHeight = (padContent.getHeight() - (rows - 1) * padSpacing) / rows;
+
+        for (int i = 0; i < numPads; ++i)
+        {
+            int row = i / cols;
+            int col = i % cols;
+            int x = padContent.getX() + col * (padWidth + padSpacing);
+            int y = padContent.getY() + row * (padHeight + padSpacing);
+            drumPads[i]->setBounds(x, y, padWidth, padHeight);
+        }
     }
-
-    // Controls on the right
-    auto mixerArea = contentArea.removeFromTop(contentArea.getHeight() / 2 - 5);
-    auto performanceArea = contentArea.removeFromTop(contentArea.getHeight() + 10);
-
-    mixerGroup.setBounds(mixerArea);
-    auto mixerContent = mixerArea.reduced(15, 25);
-
-    auto sliderHeight = 50;
-    masterVolumeLabel.setBounds(mixerContent.removeFromTop(18));
-    masterVolumeSlider.setBounds(mixerContent.removeFromTop(sliderHeight));
-
-    closeVolumeLabel.setBounds(mixerContent.removeFromTop(18));
-    closeVolumeSlider.setBounds(mixerContent.removeFromTop(sliderHeight));
-
-    overheadVolumeLabel.setBounds(mixerContent.removeFromTop(18));
-    overheadVolumeSlider.setBounds(mixerContent.removeFromTop(sliderHeight));
-
-    roomVolumeLabel.setBounds(mixerContent.removeFromTop(18));
-    roomVolumeSlider.setBounds(mixerContent.removeFromTop(sliderHeight));
-
-    ambientVolumeLabel.setBounds(mixerContent.removeFromTop(18));
-    ambientVolumeSlider.setBounds(mixerContent.removeFromTop(sliderHeight));
-
-    performanceGroup.setBounds(performanceArea);
-    auto performanceContent = performanceArea.reduced(15, 25);
-
-    humanizationLabel.setBounds(performanceContent.removeFromTop(18));
-    humanizationSlider.setBounds(performanceContent.removeFromTop(sliderHeight));
-
-    bleedAmountLabel.setBounds(performanceContent.removeFromTop(18));
-    bleedAmountSlider.setBounds(performanceContent.removeFromTop(sliderHeight));
-
-    polyphonyLabel.setBounds(performanceContent.removeFromTop(18));
-    polyphonySlider.setBounds(performanceContent.removeFromTop(35));
-
-    performanceContent.removeFromTop(15);
-    roundRobinButton.setBounds(performanceContent.removeFromTop(25));
-}
-
-void FlamAudioProcessorEditor::setupSlider(juce::Slider& slider, juce::Label& label,
-                                           const juce::String& labelText, const juce::String& suffix)
-{
-    slider.setSliderStyle(juce::Slider::LinearHorizontal);
-    slider.setTextBoxStyle(juce::Slider::TextBoxRight, false, 60, 20);
-    slider.setTextValueSuffix(suffix);
-    addAndMakeVisible(slider);
-    
-    label.setText(labelText, juce::dontSendNotification);
-    label.setJustificationType(juce::Justification::centredLeft);
-    addAndMakeVisible(label);
 }
 
 void FlamAudioProcessorEditor::setupDrumPads()
 {
-    // For now, create pads for the most common General MIDI drum notes
-    // Later this will be dynamic based on loaded kit
-    struct PadInfo {
-        juce::String name;
-        int note;
-    };
+    // Initial setup - will be populated when a kit is loaded
+    updateDrumPadsFromKit();
+}
 
-    std::vector<PadInfo> padDefinitions = {
-        {"Kick", 36},
-        {"Side Stick", 37},
-        {"Snare", 38},
-        {"Clap", 39},
-        {"Snare 2", 40},
-        {"Floor Tom", 41},
-        {"HH Closed", 42},
-        {"Mid Tom", 45},
-        {"HH Open", 46},
-        {"High Tom", 48},
-        {"Crash", 49},
-        {"Ride", 51},
-        {"Splash", 55},
-        {"Cowbell", 56},
-        {"Shaker", 70},
-        {"Block", 76}
-    };
-
+void FlamAudioProcessorEditor::updateDrumPadsFromKit()
+{
+    // Clear existing pads
     drumPads.clear();
 
-    for (const auto& padDef : padDefinitions)
+    // If we have a loaded kit, create pads from its drum pieces
+    if (currentKit && !currentKit->pieces.empty())
     {
-        auto* pad = new DrumPad(padDef.name, padDef.note,
-            [this](int note, float velocity) { triggerDrumPad(note, velocity); });
-        drumPads.add(pad);
-        addAndMakeVisible(pad);
+        for (const auto& piece : currentKit->pieces)
+        {
+            auto* pad = new DrumPad(piece.name, piece.midiNote,
+                [this](int note, float velocity) { triggerDrumPad(note, velocity); });
+            drumPads.add(pad);
+            addAndMakeVisible(pad);
+        }
     }
+    else
+    {
+        // No kit loaded - show placeholder message or empty grid
+        // For now, we'll just leave it empty
+    }
+
+    // Trigger a relayout
+    resized();
 }
 
 void FlamAudioProcessorEditor::triggerDrumPad(int midiNote, float velocity)
@@ -425,25 +498,29 @@ void FlamAudioProcessorEditor::scanForKits()
 {
     availableKits.clear();
 
-    // Scan Resources/Kits directory for kits
-    auto kitsDir = juce::File::getCurrentWorkingDirectory().getChildFile("Resources/Kits");
+    // Load kit list from settings file (no directory scanning)
+    auto options = juce::PropertiesFile::Options();
+    options.applicationName = "FLAM";
+    options.filenameSuffix = ".settings";
+    options.osxLibrarySubFolder = "Application Support";
 
-    if (!kitsDir.isDirectory())
-    {
-        // Try relative to executable
-        kitsDir = juce::File::getSpecialLocation(juce::File::currentExecutableFile)
-            .getParentDirectory()
-            .getChildFile("Resources/Kits");
-    }
+    juce::PropertiesFile props(options);
+    auto kitList = props.getValue("kitPaths");
 
-    if (kitsDir.isDirectory())
+    if (kitList.isNotEmpty())
     {
-        for (auto& dir : kitsDir.findChildFiles(juce::File::findDirectories, false))
+        // Parse pipe-separated list of kit paths
+        auto tokens = juce::StringArray::fromTokens(kitList, "|", "");
+        for (const auto& token : tokens)
         {
-            auto flamkitFile = dir.getChildFile("flamkit.yaml");
-            if (flamkitFile.existsAsFile())
+            if (token.isNotEmpty())
             {
-                availableKits.push_back(flamkitFile);
+                juce::File kitFile(token);
+                // Verify the file still exists before adding
+                if (kitFile.existsAsFile())
+                {
+                    availableKits.push_back(kitFile);
+                }
             }
         }
     }
@@ -459,6 +536,97 @@ void FlamAudioProcessorEditor::openKitBrowser()
     kitBrowserWindow = std::make_unique<KitBrowserWindow>(this, availableKits);
 }
 
+void FlamAudioProcessorEditor::openFileBrowser()
+{
+    // Don't open multiple browsers
+    if (fileBrowserWindow != nullptr)
+        return;
+
+    // Create and show file browser window
+    fileBrowserWindow = std::make_unique<FileBrowserWindow>(this);
+}
+
+void FlamAudioProcessorEditor::handleKitRemoval(const juce::File& kitFile)
+{
+    // Use MessageManager to safely defer the window destruction
+    juce::MessageManager::callAsync([this, kitFile]() {
+        // Close the browser window
+        kitBrowserWindow.reset();
+
+        // Remove from library
+        removeKitFromLibrary(kitFile);
+
+        // Rescan and reopen
+        scanForKits();
+        openKitBrowser();
+    });
+}
+
+void FlamAudioProcessorEditor::addKitToLibrary(const juce::File& kitFile)
+{
+    auto kitPath = kitFile.getFullPathName();
+
+    // Check if already in library
+    for (const auto& existingKit : availableKits)
+    {
+        if (existingKit.getFullPathName() == kitPath)
+            return; // Already exists
+    }
+
+    // Add to in-memory list
+    availableKits.push_back(kitFile);
+
+    // Persist to settings
+    saveKitList();
+}
+
+void FlamAudioProcessorEditor::removeKitFromLibrary(const juce::File& kitFile)
+{
+    // Remove from available kits list
+    availableKits.erase(
+        std::remove(availableKits.begin(), availableKits.end(), kitFile),
+        availableKits.end()
+    );
+
+    // Persist to settings
+    saveKitList();
+
+    // If the removed kit was the currently loaded kit, clear it
+    if (currentKitFile == kitFile)
+    {
+        currentKitFile = juce::File();
+        currentKitLabel.setText("No kit loaded", juce::dontSendNotification);
+
+        // Load the first available kit if any exist
+        if (!availableKits.empty())
+        {
+            loadKitFromPath(availableKits[0]);
+        }
+    }
+}
+
+void FlamAudioProcessorEditor::saveKitList()
+{
+    auto options = juce::PropertiesFile::Options();
+    options.applicationName = "FLAM";
+    options.filenameSuffix = ".settings";
+    options.osxLibrarySubFolder = "Application Support";
+
+    juce::PropertiesFile props(options);
+
+    // Join paths with pipe separator
+    juce::String kitList;
+    for (size_t i = 0; i < availableKits.size(); ++i)
+    {
+        if (i > 0)
+            kitList += "|";
+        kitList += availableKits[i].getFullPathName();
+    }
+
+    props.setValue("kitPaths", kitList);
+    props.save();
+}
+
 void FlamAudioProcessorEditor::loadKitFromPath(const juce::File& kitFile)
 {
     if (kitFile.existsAsFile() && kitFile.getFileName() == "flamkit.yaml")
@@ -466,19 +634,27 @@ void FlamAudioProcessorEditor::loadKitFromPath(const juce::File& kitFile)
         // Store current kit file
         currentKitFile = kitFile;
 
-        // Update UI label - load kit metadata to get name
+        // Load kit metadata
         auto loader = std::make_unique<FlamKitLoader>();
         auto kit = loader->loadKit(kitFile);
         if (kit)
         {
-            currentKitLabel.setText(kit->name, juce::dontSendNotification);
+            // Store the loaded kit
+            currentKit = std::move(kit);
+
+            // Update UI label
+            currentKitLabel.setText(currentKit->name, juce::dontSendNotification);
+
+            // Update drum pads to match the kit
+            updateDrumPadsFromKit();
         }
         else
         {
+            currentKit.reset();
             currentKitLabel.setText(kitFile.getParentDirectory().getFileName(), juce::dontSendNotification);
         }
 
-        // Launch kit loading on a background thread
+        // Launch kit loading on a background thread for the audio engine
         juce::Thread::launch([this, kitFile]()
         {
             audioProcessor.getEngine()->loadKit(kitFile);

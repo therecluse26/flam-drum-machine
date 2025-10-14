@@ -1,4 +1,4 @@
-# FLAM - Free Layered Audio Machine
+# FlamKit - Free Layered Audio Machine
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![C++20](https://img.shields.io/badge/C++-20-blue.svg)](https://en.cppreference.com/w/cpp/20)
@@ -6,7 +6,7 @@
 
 > A professional-grade, open-source drum sampler and plugin framework built with C++ and JUCE
 
-FLAM is a cross-platform, low-latency drum engine designed to rival commercial samplers like Superior Drummer and BFD — but with an open, extensible architecture and community-driven kit format.
+FlamKit is a cross-platform, low-latency drum engine designed to rival commercial samplers like Superior Drummer and BFD — but with an open, extensible architecture and community-driven kit format.
 
 ## Features
 
@@ -45,7 +45,7 @@ cmake --build . --config Release
 
 ### Loading a Kit
 
-1. Launch FLAM (standalone or in your DAW)
+1. Launch FlamKit (standalone or in your DAW)
 2. Click "Load Kit" button
 3. Select a `.flamkit` file
 4. Play drums via MIDI controller or sequencer
@@ -194,7 +194,7 @@ Special thanks to the open-source audio development community.
 
 ## Tagline
 
-> *FLAM — Free Layered Audio Machine. The open drum engine built for realism, freedom, and speed.*
+> *FlamKit — Free Layered Audio Machine. The open drum engine built for realism, freedom, and speed.*
 
 ---
 

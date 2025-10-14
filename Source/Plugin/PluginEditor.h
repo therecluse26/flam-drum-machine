@@ -5,6 +5,8 @@
 
 namespace flam {
 
+struct DrumKit;
+
 // Custom drum pad button component
 class DrumPad : public juce::Component
 {
@@ -87,32 +89,13 @@ public:
     void paint(juce::Graphics&) override;
     void resized() override;
 
+    // Forward declaration for friend
+    friend class FileBrowserWindow;
+
 private:
     FlamAudioProcessor& audioProcessor;
-    
+
     juce::Label titleLabel;
-    
-    juce::GroupComponent mixerGroup;
-    juce::Slider masterVolumeSlider;
-    juce::Label masterVolumeLabel;
-    juce::Slider closeVolumeSlider;
-    juce::Label closeVolumeLabel;
-    juce::Slider overheadVolumeSlider;
-    juce::Label overheadVolumeLabel;
-    juce::Slider roomVolumeSlider;
-    juce::Label roomVolumeLabel;
-    juce::Slider ambientVolumeSlider;
-    juce::Label ambientVolumeLabel;
-    
-    juce::GroupComponent performanceGroup;
-    juce::Slider humanizationSlider;
-    juce::Label humanizationLabel;
-    juce::Slider bleedAmountSlider;
-    juce::Label bleedAmountLabel;
-    juce::Slider polyphonySlider;
-    juce::Label polyphonyLabel;
-    juce::ToggleButton roundRobinButton;
-    
     juce::TextButton kitBrowserButton;
     juce::Label kitBrowserLabel;
     juce::Label currentKitLabel;
@@ -120,18 +103,6 @@ private:
     juce::GroupComponent drumPadsGroup;
     juce::OwnedArray<DrumPad> drumPads;
 
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> masterVolumeAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> closeVolumeAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> overheadVolumeAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> roomVolumeAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> ambientVolumeAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> humanizationAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> bleedAmountAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> polyphonyAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> roundRobinAttachment;
-    
-    void setupSlider(juce::Slider& slider, juce::Label& label,
-                     const juce::String& labelText, const juce::String& suffix = "");
     void setupDrumPads();
     void triggerDrumPad(int midiNote, float velocity);
 
@@ -139,6 +110,9 @@ private:
     void scanForKits();
     void loadKitFromPath(const juce::File& kitFile);
     void openKitBrowser();
+    void openFileBrowser();
+    void removeKitFromLibrary(const juce::File& kitFile);
+    void handleKitRemoval(const juce::File& kitFile);
     void saveLastLoadedKit(const juce::File& kitFile);
     void loadLastLoadedKit();
 
@@ -146,9 +120,17 @@ private:
     class KitBrowserWindow;
     std::unique_ptr<KitBrowserWindow> kitBrowserWindow;
 
+    // File browser window (for adding external kits)
+    std::unique_ptr<juce::Component> fileBrowserWindow;
+
     // Kit library
     std::vector<juce::File> availableKits;
     juce::File currentKitFile;
+    std::unique_ptr<DrumKit> currentKit;
+
+    void addKitToLibrary(const juce::File& kitFile);
+    void saveKitList();
+    void updateDrumPadsFromKit();
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(FlamAudioProcessorEditor)
 };

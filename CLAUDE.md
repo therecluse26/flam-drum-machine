@@ -1,12 +1,12 @@
-# FLAM (Free Layered Audio Machine)
+# FlamKit (Free Layered Audio Machine)
 
-You are assisting in developing **FLAM (Free Layered Audio Machine)** — a professional-grade, open-source drum engine and plugin framework built in **C++** with **JUCE**.
+You are assisting in developing **FlamKit (Free Layered Audio Machine)** — a professional-grade, open-source drum engine and plugin framework built in **C++** with **JUCE**.
 
 ---
 
 ## 🎯 Project Overview
 
-**FLAM** is a cross-platform, low-latency drum engine and plugin that aims to rival commercial drum samplers like Superior Drummer or BFD — but with open, extensible architecture and realistic playback.
+**FlamKit** is a cross-platform, low-latency drum engine and plugin that aims to rival commercial drum samplers like Superior Drummer or BFD — but with open, extensible architecture and realistic playback.
 
 It will:
 - Load multi-layered, velocity-sensitive drum samples defined in open `.flamkit` files (YAML/JSON).
@@ -62,7 +62,7 @@ It will:
 
 ## 📦 Output Targets
 
-FLAM must build cleanly and function identically across all major plugin formats and hosts.
+FlamKit must build cleanly and function identically across all major plugin formats and hosts.
 
 | Target | Purpose | Notes |
 |---------|----------|-------|
@@ -96,10 +96,10 @@ When assisting:
 
 ## 🧭 Future Vision
 
-Eventually, FLAM will host a **community kit repository** — open, shareable `.flamkit` packages recorded and contributed by engineers.  
+Eventually, FlamKit will host a **community kit repository** — open, shareable `.flamkit` packages recorded and contributed by engineers.  
 The long-term goal: democratize high-quality drum sampling and provide a transparent, hackable engine for musicians and developers alike.
 
 ---
 
 **Tagline suggestion:**  
-> *FLAM — Free Layered Audio Machine. The open drum engine built for realism, freedom, and speed.*
+> *FlamKit — Free Layered Audio Machine. The open drum engine built for realism, freedom, and speed.*
