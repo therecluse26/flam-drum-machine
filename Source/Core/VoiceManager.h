@@ -10,7 +10,7 @@
 namespace flam {
 
 struct DrumKit;
-struct DrumVoice;
+class SampleVoice;
 
 class VoiceManager
 {
@@ -41,13 +41,10 @@ public:
 private:
     struct Voice
     {
-        std::unique_ptr<DrumVoice> drumVoice;
+        std::unique_ptr<SampleVoice> sampleVoice;
         int midiNote{-1};
         int chokeGroup{-1};
-        int samplePosition{0};
-        float velocity{0.0f};
         bool isActive{false};
-        juce::ADSR envelope;
     };
 
     std::vector<Voice> voices;
@@ -69,6 +66,9 @@ private:
     void stopVoice(int voiceIndex, int sampleOffset);
     void handleChokeGroup(int chokeGroup, int excludeVoice);
     int getNextRoundRobinIndex(int midiNote);
+
+    const struct SampleLayer* findBestLayer(const struct DrumPiece* piece,
+                                           float velocity, int rrIndex) const;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(VoiceManager)
 };

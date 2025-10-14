@@ -7,6 +7,7 @@ FlamAudioProcessorEditor::FlamAudioProcessorEditor(FlamAudioProcessor& p)
     : AudioProcessorEditor(&p)
     , audioProcessor(p)
 {
+    std::cout << "[FLAM] FlamAudioProcessorEditor constructor called" << std::endl;
     titleLabel.setText("FLAM - Free Layered Audio Machine", juce::dontSendNotification);
     titleLabel.setFont(juce::Font(24.0f, juce::Font::bold));
     titleLabel.setJustificationType(juce::Justification::centredTop);
@@ -63,6 +64,7 @@ FlamAudioProcessorEditor::FlamAudioProcessorEditor(FlamAudioProcessor& p)
         vts, "round_robin", roundRobinButton);
     
     setSize(800, 600);
+    std::cout << "[FLAM] FlamAudioProcessorEditor initialized, size set to 800x600" << std::endl;
 }
 
 FlamAudioProcessorEditor::~FlamAudioProcessorEditor() = default;

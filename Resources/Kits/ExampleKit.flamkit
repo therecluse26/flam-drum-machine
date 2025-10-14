@@ -1,0 +1,234 @@
+name: Example Drum Kit
+author: FLAM Project
+version: 1.0.0
+description: A sample drum kit demonstrating the FLAM kit format
+
+settings:
+  masterGain: 1.0
+  maxPolyphony: 64
+  useRoundRobin: true
+  defaultHumanization: 0.0
+
+pieces:
+  - name: Kick
+    midiNote: 36
+    articulations:
+      - name: Hit
+        chokeGroup: -1
+        attackTime: 0.001
+        holdTime: 0.0
+        decayTime: 0.5
+        sustainLevel: 0.0
+        releaseTime: 0.1
+        layers:
+          - sampleFile: Samples/Kick/kick_soft.wav
+            velocityMin: 0.0
+            velocityMax: 0.4
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: Samples/Kick/kick_medium.wav
+            velocityMin: 0.4
+            velocityMax: 0.7
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: Samples/Kick/kick_hard.wav
+            velocityMin: 0.7
+            velocityMax: 1.0
+            gain: 1.0
+            roundRobinGroup: 0
+
+  - name: Snare
+    midiNote: 38
+    articulations:
+      - name: Center
+        chokeGroup: -1
+        attackTime: 0.001
+        holdTime: 0.0
+        decayTime: 0.3
+        sustainLevel: 0.0
+        releaseTime: 0.15
+        layers:
+          - sampleFile: Samples/Snare/snare_soft_1.wav
+            velocityMin: 0.0
+            velocityMax: 0.4
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: Samples/Snare/snare_soft_2.wav
+            velocityMin: 0.0
+            velocityMax: 0.4
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: Samples/Snare/snare_medium_1.wav
+            velocityMin: 0.4
+            velocityMax: 0.7
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: Samples/Snare/snare_medium_2.wav
+            velocityMin: 0.4
+            velocityMax: 0.7
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: Samples/Snare/snare_hard_1.wav
+            velocityMin: 0.7
+            velocityMax: 1.0
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: Samples/Snare/snare_hard_2.wav
+            velocityMin: 0.7
+            velocityMax: 1.0
+            gain: 1.0
+            roundRobinGroup: 1
+
+  - name: Hi-Hat Closed
+    midiNote: 42
+    articulations:
+      - name: Tip
+        chokeGroup: 0
+        attackTime: 0.001
+        holdTime: 0.0
+        decayTime: 0.1
+        sustainLevel: 0.0
+        releaseTime: 0.05
+        layers:
+          - sampleFile: Samples/HiHat/hihat_closed_soft.wav
+            velocityMin: 0.0
+            velocityMax: 0.5
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: Samples/HiHat/hihat_closed_hard.wav
+            velocityMin: 0.5
+            velocityMax: 1.0
+            gain: 1.0
+            roundRobinGroup: 0
+
+  - name: Hi-Hat Open
+    midiNote: 46
+    articulations:
+      - name: Bow
+        chokeGroup: 0
+        attackTime: 0.001
+        holdTime: 0.0
+        decayTime: 1.0
+        sustainLevel: 0.3
+        releaseTime: 0.5
+        layers:
+          - sampleFile: Samples/HiHat/hihat_open_soft.wav
+            velocityMin: 0.0
+            velocityMax: 0.5
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: Samples/HiHat/hihat_open_hard.wav
+            velocityMin: 0.5
+            velocityMax: 1.0
+            gain: 1.0
+            roundRobinGroup: 0
+
+  - name: Tom High
+    midiNote: 48
+    articulations:
+      - name: Center
+        chokeGroup: -1
+        attackTime: 0.001
+        holdTime: 0.0
+        decayTime: 0.4
+        sustainLevel: 0.0
+        releaseTime: 0.2
+        layers:
+          - sampleFile: Samples/Toms/tom_high_soft.wav
+            velocityMin: 0.0
+            velocityMax: 0.5
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: Samples/Toms/tom_high_hard.wav
+            velocityMin: 0.5
+            velocityMax: 1.0
+            gain: 1.0
+            roundRobinGroup: 0
+
+  - name: Tom Mid
+    midiNote: 47
+    articulations:
+      - name: Center
+        chokeGroup: -1
+        attackTime: 0.001
+        holdTime: 0.0
+        decayTime: 0.5
+        sustainLevel: 0.0
+        releaseTime: 0.2
+        layers:
+          - sampleFile: Samples/Toms/tom_mid_soft.wav
+            velocityMin: 0.0
+            velocityMax: 0.5
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: Samples/Toms/tom_mid_hard.wav
+            velocityMin: 0.5
+            velocityMax: 1.0
+            gain: 1.0
+            roundRobinGroup: 0
+
+  - name: Tom Floor
+    midiNote: 41
+    articulations:
+      - name: Center
+        chokeGroup: -1
+        attackTime: 0.001
+        holdTime: 0.0
+        decayTime: 0.6
+        sustainLevel: 0.0
+        releaseTime: 0.3
+        layers:
+          - sampleFile: Samples/Toms/tom_floor_soft.wav
+            velocityMin: 0.0
+            velocityMax: 0.5
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: Samples/Toms/tom_floor_hard.wav
+            velocityMin: 0.5
+            velocityMax: 1.0
+            gain: 1.0
+            roundRobinGroup: 0
+
+  - name: Crash
+    midiNote: 49
+    articulations:
+      - name: Edge
+        chokeGroup: -1
+        attackTime: 0.001
+        holdTime: 0.0
+        decayTime: 2.0
+        sustainLevel: 0.2
+        releaseTime: 1.0
+        layers:
+          - sampleFile: Samples/Cymbals/crash_soft.wav
+            velocityMin: 0.0
+            velocityMax: 0.5
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: Samples/Cymbals/crash_hard.wav
+            velocityMin: 0.5
+            velocityMax: 1.0
+            gain: 1.0
+            roundRobinGroup: 0
+
+  - name: Ride
+    midiNote: 51
+    articulations:
+      - name: Bow
+        chokeGroup: -1
+        attackTime: 0.001
+        holdTime: 0.0
+        decayTime: 1.5
+        sustainLevel: 0.1
+        releaseTime: 0.5
+        layers:
+          - sampleFile: Samples/Cymbals/ride_bow_soft.wav
+            velocityMin: 0.0
+            velocityMax: 0.5
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: Samples/Cymbals/ride_bow_hard.wav
+            velocityMin: 0.5
+            velocityMax: 1.0
+            gain: 1.0
+            roundRobinGroup: 0
