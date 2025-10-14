@@ -1,0 +1,146 @@
+# Build directories
+build/
+Build/
+cmake-build-*/
+out/
+.build/
+
+# IDE specific files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+.vs/
+*.user
+*.suo
+*.sln
+*.vcxproj
+*.vcxproj.filters
+*.xcodeproj/
+*.xcworkspace/
+DerivedData/
+
+# JUCE specific
+Builds/
+JuceLibraryCode/
+*.jucer
+
+# Binary files
+*.exe
+*.dll
+*.so
+*.dylib
+*.a
+*.lib
+*.vst
+*.vst3
+*.component
+*.aaxplugin
+*.app
+*.dmg
+*.pkg
+
+# Audio files (for development/testing)
+*.wav
+*.aiff
+*.flac
+*.mp3
+*.ogg
+!Resources/Kits/*/samples/*.wav  # Allow example kit samples if needed
+
+# OS specific
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+*~
+*.swp
+*.swo
+
+# Debug/Release folders
+Debug/
+Release/
+x64/
+x86/
+
+# CMake
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+compile_commands.json
+CTestTestfile.cmake
+_deps/
+
+# Package manager
+conan/
+.conan/
+conanbuildinfo.*
+conaninfo.txt
+graph_info.json
+
+# Crash logs
+*.stackdump
+*.dmp
+
+# Profiling
+*.prof
+gmon.out
+callgrind.out.*
+
+# Documentation
+docs/html/
+docs/latex/
+*.doxygen
+
+# Testing
+Testing/
+test_results/
+*.gcov
+*.gcda
+*.gcno
+coverage.info
+coverage/
+
+# Python (for any build scripts)
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.Python
+venv/
+env/
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.backup
+*.old
+tmp/
+temp/
+
+# JUCE downloaded dependencies (will be fetched by CMake)
+JUCE/
+!JUCE/.gitkeep  # In case you want to track an empty JUCE folder
+
+# Plugin validation
+pluginval_*
+
+# Audio plugin caches
+~/Library/Caches/AudioUnitCache/
+~/Library/Audio/Plug-Ins/Components/
+~/Library/Audio/Plug-Ins/VST/
+~/Library/Audio/Plug-Ins/VST3/
+
+# Windows audio plugin paths
+/Program Files/Common Files/VST3/
+/Program Files/VstPlugins/
+/Program Files/Steinberg/VST3/

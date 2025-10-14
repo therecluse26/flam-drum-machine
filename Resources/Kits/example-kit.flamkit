@@ -1,0 +1,223 @@
+# FLAM Kit Format Example
+# This is a YAML-formatted drum kit definition file
+
+name: "Example Rock Kit"
+author: "FLAM Project"
+version: "1.0.0"
+description: "A basic rock drum kit example demonstrating the FLAM kit format"
+
+# Global kit settings
+settings:
+  masterGain: 1.0
+  maxPolyphony: 64
+  useRoundRobin: true
+  defaultHumanization: 0.1
+
+# Drum pieces definition
+pieces:
+  - name: "Kick"
+    midiNote: 36  # C1
+    articulations:
+      - name: "Hit"
+        chokeGroup: -1  # No choke group
+        envelope:
+          attack: 0.001
+          hold: 0.0
+          decay: 0.5
+          sustain: 0.0
+          release: 0.1
+        layers:
+          - velocityMin: 0.0
+            velocityMax: 0.33
+            gain: 0.8
+            roundRobinGroup: 0
+            samples:
+              close: "samples/kick/kick_soft_close.wav"
+              overhead: "samples/kick/kick_soft_oh.wav"
+              room: "samples/kick/kick_soft_room.wav"
+          - velocityMin: 0.33
+            velocityMax: 0.66
+            gain: 0.9
+            roundRobinGroup: 0
+            samples:
+              close: "samples/kick/kick_med_close.wav"
+              overhead: "samples/kick/kick_med_oh.wav"
+              room: "samples/kick/kick_med_room.wav"
+          - velocityMin: 0.66
+            velocityMax: 1.0
+            gain: 1.0
+            roundRobinGroup: 0
+            samples:
+              close: "samples/kick/kick_hard_close.wav"
+              overhead: "samples/kick/kick_hard_oh.wav"
+              room: "samples/kick/kick_hard_room.wav"
+
+  - name: "Snare"
+    midiNote: 38  # D1
+    articulations:
+      - name: "Center Hit"
+        chokeGroup: 1  # Snare choke group
+        envelope:
+          attack: 0.001
+          hold: 0.0
+          decay: 0.3
+          sustain: 0.0
+          release: 0.2
+        layers:
+          - velocityMin: 0.0
+            velocityMax: 0.5
+            gain: 0.85
+            roundRobinGroup: 1
+            samples:
+              close: "samples/snare/snare_center_soft_close_rr1.wav"
+              overhead: "samples/snare/snare_center_soft_oh_rr1.wav"
+              room: "samples/snare/snare_center_soft_room_rr1.wav"
+          - velocityMin: 0.0
+            velocityMax: 0.5
+            gain: 0.85
+            roundRobinGroup: 1
+            samples:
+              close: "samples/snare/snare_center_soft_close_rr2.wav"
+              overhead: "samples/snare/snare_center_soft_oh_rr2.wav"
+              room: "samples/snare/snare_center_soft_room_rr2.wav"
+          - velocityMin: 0.5
+            velocityMax: 1.0
+            gain: 1.0
+            roundRobinGroup: 1
+            samples:
+              close: "samples/snare/snare_center_hard_close_rr1.wav"
+              overhead: "samples/snare/snare_center_hard_oh_rr1.wav"
+              room: "samples/snare/snare_center_hard_room_rr1.wav"
+          - velocityMin: 0.5
+            velocityMax: 1.0
+            gain: 1.0
+            roundRobinGroup: 1
+            samples:
+              close: "samples/snare/snare_center_hard_close_rr2.wav"
+              overhead: "samples/snare/snare_center_hard_oh_rr2.wav"
+              room: "samples/snare/snare_center_hard_room_rr2.wav"
+      
+      - name: "Rimshot"
+        chokeGroup: 1  # Same choke group as center hit
+        envelope:
+          attack: 0.001
+          hold: 0.0
+          decay: 0.2
+          sustain: 0.0
+          release: 0.1
+        layers:
+          - velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 0.95
+            roundRobinGroup: 0
+            samples:
+              close: "samples/snare/snare_rimshot_close.wav"
+              overhead: "samples/snare/snare_rimshot_oh.wav"
+              room: "samples/snare/snare_rimshot_room.wav"
+
+  - name: "Hi-Hat"
+    midiNote: 42  # F#1 (Closed)
+    articulations:
+      - name: "Closed"
+        chokeGroup: 2  # Hi-hat choke group
+        envelope:
+          attack: 0.001
+          hold: 0.0
+          decay: 0.1
+          sustain: 0.0
+          release: 0.05
+        layers:
+          - velocityMin: 0.0
+            velocityMax: 0.5
+            gain: 0.7
+            roundRobinGroup: 0
+            samples:
+              close: "samples/hihat/hihat_closed_soft_close.wav"
+              overhead: "samples/hihat/hihat_closed_soft_oh.wav"
+          - velocityMin: 0.5
+            velocityMax: 1.0
+            gain: 0.85
+            roundRobinGroup: 0
+            samples:
+              close: "samples/hihat/hihat_closed_hard_close.wav"
+              overhead: "samples/hihat/hihat_closed_hard_oh.wav"
+  
+  - name: "Hi-Hat Open"
+    midiNote: 46  # A#1 (Open)
+    articulations:
+      - name: "Open"
+        chokeGroup: 2  # Same choke group - closed hat will stop open
+        envelope:
+          attack: 0.001
+          hold: 0.0
+          decay: 1.0
+          sustain: 0.3
+          release: 0.5
+        layers:
+          - velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 0.9
+            roundRobinGroup: 0
+            samples:
+              close: "samples/hihat/hihat_open_close.wav"
+              overhead: "samples/hihat/hihat_open_oh.wav"
+              room: "samples/hihat/hihat_open_room.wav"
+
+  - name: "Crash"
+    midiNote: 49  # C#2
+    articulations:
+      - name: "Hit"
+        chokeGroup: -1  # No choke
+        envelope:
+          attack: 0.001
+          hold: 0.0
+          decay: 3.0
+          sustain: 0.2
+          release: 2.0
+        layers:
+          - velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 0.95
+            roundRobinGroup: 0
+            samples:
+              close: "samples/crash/crash_close.wav"
+              overhead: "samples/crash/crash_oh.wav"
+              room: "samples/crash/crash_room.wav"
+              ambient: "samples/crash/crash_ambient.wav"
+
+# Mic routing configuration
+micRouting:
+  close:
+    enabled: true
+    defaultGain: 0.0  # dB
+    defaultPan: 0.0
+  overhead:
+    enabled: true
+    defaultGain: -6.0  # dB
+    defaultPan: 0.0
+  room:
+    enabled: true
+    defaultGain: -12.0  # dB
+    defaultPan: 0.0
+  ambient:
+    enabled: true
+    defaultGain: -18.0  # dB
+    defaultPan: 0.0
+
+# Optional effects chain
+effects:
+  - type: "compressor"
+    enabled: false
+    parameters:
+      threshold: -12.0
+      ratio: 4.0
+      attack: 10.0
+      release: 100.0
+      
+  - type: "reverb"
+    enabled: false
+    parameters:
+      roomSize: 0.5
+      damping: 0.3
+      wetLevel: 0.2
+      dryLevel: 0.8
