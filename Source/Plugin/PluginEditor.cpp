@@ -236,9 +236,14 @@ void FlamAudioProcessorEditor::loadKitButtonClicked()
             auto file = fc.getResult();
             if (file.existsAsFile())
             {
-                audioProcessor.getEngine()->loadKit(file);
+                std::cout << "[FLAM] Kit file selected: " << file.getFullPathName() << std::endl;
+
+                // Update UI immediately (we're already on message thread here)
                 kitNameLabel.setText(file.getFileNameWithoutExtension(),
                                    juce::dontSendNotification);
+
+                // Load kit (this will spawn its own background thread)
+                audioProcessor.getEngine()->loadKit(file);
 
                 // TODO: Rebuild drum pads based on loaded kit
                 // setupDrumPads();

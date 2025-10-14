@@ -7,12 +7,7 @@ namespace flam {
 
 FlamAudioProcessor::FlamAudioProcessor()
     : AudioProcessor(BusesProperties()
-#if !JucePlugin_IsMidiEffect
-#if !JucePlugin_IsSynth
-                         .withInput("Input", juce::AudioChannelSet::stereo(), true)
-#endif
                          .withOutput("Output", juce::AudioChannelSet::stereo(), true)
-#endif
                          )
     , parameters(*this, nullptr, juce::Identifier("FLAM"), createParameterLayout())
 {
@@ -117,21 +112,12 @@ void FlamAudioProcessor::releaseResources()
 #ifndef JucePlugin_PreferredChannelConfigurations
 bool FlamAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const
 {
-#if JucePlugin_IsMidiEffect
-    juce::ignoreUnused(layouts);
-    return true;
-#else
+    // We only support mono or stereo output, no input needed
     if (layouts.getMainOutputChannelSet() != juce::AudioChannelSet::mono()
         && layouts.getMainOutputChannelSet() != juce::AudioChannelSet::stereo())
         return false;
 
-#if !JucePlugin_IsSynth
-    if (layouts.getMainOutputChannelSet() != layouts.getMainInputChannelSet())
-        return false;
-#endif
-
     return true;
-#endif
 }
 #endif
 

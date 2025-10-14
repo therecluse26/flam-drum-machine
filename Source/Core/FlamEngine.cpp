@@ -54,11 +54,20 @@ void FlamEngine::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer
 
 void FlamEngine::loadKit(const juce::File& kitFile)
 {
-    auto kit = kitLoader->loadKit(kitFile);
-    if (kit)
+    // Launch the entire kit loading process on a background thread to prevent UI freeze
+    juce::Thread::launch([this, kitFile]()
     {
-        voiceManager->loadKit(std::move(kit));
-    }
+        std::cout << "[FlamEngine] Loading kit on background thread..." << std::endl;
+        auto kit = kitLoader->loadKit(kitFile);
+        if (kit)
+        {
+            voiceManager->loadKit(std::move(kit));
+        }
+        else
+        {
+            std::cout << "[FlamEngine] Failed to load kit: " << kitLoader->getLastError() << std::endl;
+        }
+    });
 }
 
 void FlamEngine::clearKit()
