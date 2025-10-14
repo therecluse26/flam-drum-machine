@@ -1,76 +1,201 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+#include "../Formats/FlamKitLoader.h"
 #include <thread>
 
 namespace flam {
 
-// Custom file browser window that shows a proper dialog
-class FlamAudioProcessorEditor::FileBrowserWindow : public juce::DocumentWindow,
-                                                      public juce::FileBrowserListener
+// Kit tile component that displays kit information
+class KitTileComponent : public juce::Component
 {
 public:
-    FileBrowserWindow(FlamAudioProcessorEditor* editor)
-        : DocumentWindow("Select Kit File",
+    KitTileComponent(const juce::File& kitFile, std::function<void(juce::File)> onSelect)
+        : file(kitFile), selectCallback(onSelect)
+    {
+        // Load kit metadata
+        auto loader = std::make_unique<FlamKitLoader>();
+        kit = loader->loadKit(kitFile);
+
+        // Load cover image if available
+        if (kit && kit->coverImageFile.existsAsFile())
+        {
+            coverImage = juce::ImageFileFormat::loadFrom(kit->coverImageFile);
+        }
+    }
+
+    void paint(juce::Graphics& g) override
+    {
+        auto bounds = getLocalBounds().toFloat().reduced(8.0f);
+
+        // Draw background
+        if (isMouseOver)
+            g.setColour(juce::Colour(0xff3a3a3a));
+        else
+            g.setColour(juce::Colour(0xff2a2a2a));
+        g.fillRoundedRectangle(bounds, 6.0f);
+
+        // Draw border
+        g.setColour(isMouseOver ? juce::Colours::lightblue : juce::Colours::grey);
+        g.drawRoundedRectangle(bounds, 6.0f, 2.0f);
+
+        auto contentBounds = bounds.reduced(8.0f);
+
+        // Draw cover image
+        auto imageBounds = contentBounds.removeFromTop(contentBounds.getHeight() * 0.5f);
+        if (coverImage.isValid())
+        {
+            g.drawImage(coverImage, imageBounds, juce::RectanglePlacement::centred);
+        }
+        else
+        {
+            // Placeholder if no image
+            g.setColour(juce::Colour(0xff1a1a1a));
+            g.fillRect(imageBounds);
+            g.setColour(juce::Colours::grey);
+            g.setFont(24.0f);
+            g.drawText("?", imageBounds, juce::Justification::centred);
+        }
+
+        contentBounds.removeFromTop(8.0f);
+
+        // Draw kit name
+        g.setColour(juce::Colours::white);
+        g.setFont(juce::Font(14.0f, juce::Font::bold));
+        auto nameArea = contentBounds.removeFromTop(18.0f);
+        g.drawText(kit ? kit->name : "Unknown Kit", nameArea, juce::Justification::centredLeft);
+
+        // Draw author
+        g.setColour(juce::Colours::lightgrey);
+        g.setFont(11.0f);
+        auto authorArea = contentBounds.removeFromTop(14.0f);
+        g.drawText(kit && kit->author.isNotEmpty() ? kit->author : "",
+                   authorArea, juce::Justification::centredLeft);
+
+        // Draw version
+        auto versionArea = contentBounds.removeFromTop(14.0f);
+        g.drawText(kit && kit->version.isNotEmpty() ? ("v" + kit->version) : "",
+                   versionArea, juce::Justification::centredLeft);
+
+        contentBounds.removeFromTop(4.0f);
+
+        // Draw metadata (drums and samples count)
+        g.setColour(juce::Colours::grey);
+        g.setFont(10.0f);
+        if (kit)
+        {
+            auto statsArea = contentBounds.removeFromTop(12.0f);
+            juce::String stats = juce::String(kit->getDrumPieceCount()) + " drums, " +
+                                juce::String(kit->getTotalSampleCount()) + " samples";
+            g.drawText(stats, statsArea, juce::Justification::centredLeft);
+        }
+    }
+
+    void mouseEnter(const juce::MouseEvent&) override
+    {
+        isMouseOver = true;
+        repaint();
+    }
+
+    void mouseExit(const juce::MouseEvent&) override
+    {
+        isMouseOver = false;
+        repaint();
+    }
+
+    void mouseUp(const juce::MouseEvent&) override
+    {
+        if (selectCallback)
+            selectCallback(file);
+    }
+
+private:
+    juce::File file;
+    std::function<void(juce::File)> selectCallback;
+    std::unique_ptr<DrumKit> kit;
+    juce::Image coverImage;
+    bool isMouseOver = false;
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(KitTileComponent)
+};
+
+// Kit browser window showing grid of kits
+class FlamAudioProcessorEditor::KitBrowserWindow : public juce::DocumentWindow
+{
+public:
+    KitBrowserWindow(FlamAudioProcessorEditor* editor, const std::vector<juce::File>& kits)
+        : DocumentWindow("Select Drum Kit",
                         juce::Desktop::getInstance().getDefaultLookAndFeel()
                             .findColour(juce::ResizableWindow::backgroundColourId),
                         DocumentWindow::closeButton)
         , owner(editor)
-        , wildcard("flamkit.yaml", "*", "FLAM Kit Files")
-        , browser(juce::FileBrowserComponent::openMode |
-                  juce::FileBrowserComponent::canSelectFiles |
-                  juce::FileBrowserComponent::canSelectDirectories,
-                  juce::File::getSpecialLocation(juce::File::userHomeDirectory),
-                  &wildcard,
-                  nullptr)
     {
-        browser.addListener(this);
-        setContentOwned(&browser, true);
+        viewport = std::make_unique<juce::Viewport>();
+        content = std::make_unique<juce::Component>();
+
+        // Create kit tiles
+        const int tileWidth = 200;
+        const int tileHeight = 280;
+        const int spacing = 16;
+        const int cols = 3;
+
+        int row = 0;
+        int col = 0;
+
+        for (const auto& kitFile : kits)
+        {
+            auto* tile = new KitTileComponent(kitFile, [this](juce::File selectedFile) {
+                owner->loadKitFromPath(selectedFile);
+                owner->kitBrowserWindow.reset();
+            });
+
+            int x = col * (tileWidth + spacing) + spacing;
+            int y = row * (tileHeight + spacing) + spacing;
+            tile->setBounds(x, y, tileWidth, tileHeight);
+
+            content->addAndMakeVisible(tile);
+            tiles.add(tile);
+
+            col++;
+            if (col >= cols)
+            {
+                col = 0;
+                row++;
+            }
+        }
+
+        // Set content size
+        int rows = (int)std::ceil((float)kits.size() / cols);
+        int contentHeight = rows * (tileHeight + spacing) + spacing;
+        int contentWidth = cols * (tileWidth + spacing) + spacing;
+        content->setSize(contentWidth, contentHeight);
+
+        viewport->setViewedComponent(content.get(), false);
+        viewport->setScrollBarsShown(true, false);
+
+        setContentNonOwned(viewport.get(), true);
         setResizable(true, true);
-        centreWithSize(600, 400);
+        centreWithSize(cols * (tileWidth + spacing) + spacing + 20, 600);
         setVisible(true);
         setAlwaysOnTop(true);
     }
 
-    ~FileBrowserWindow() override
+    ~KitBrowserWindow() override
     {
-        browser.removeListener(this);
+        clearContentComponent();
     }
 
     void closeButtonPressed() override
     {
-        owner->fileBrowserWindow.reset();
+        owner->kitBrowserWindow.reset();
     }
-
-    void selectionChanged() override {}
-
-    void fileClicked(const juce::File&, const juce::MouseEvent&) override {}
-
-    void fileDoubleClicked(const juce::File& file) override
-    {
-        juce::File kitFile = file;
-
-        // If it's a directory, look for flamkit.yaml inside it
-        if (file.isDirectory())
-        {
-            kitFile = file.getChildFile("flamkit.yaml");
-        }
-
-        // If the selected file is named flamkit.yaml, use it
-        if (kitFile.existsAsFile() && kitFile.getFileName() == "flamkit.yaml")
-        {
-            owner->loadKitFromPath(kitFile);
-            owner->fileBrowserWindow.reset();
-        }
-    }
-
-    void browserRootChanged(const juce::File&) override {}
 
 private:
     FlamAudioProcessorEditor* owner;
-    juce::WildcardFileFilter wildcard;
-    juce::FileBrowserComponent browser;
+    std::unique_ptr<juce::Viewport> viewport;
+    std::unique_ptr<juce::Component> content;
+    juce::OwnedArray<KitTileComponent> tiles;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(FileBrowserWindow)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(KitBrowserWindow)
 };
 
 FlamAudioProcessorEditor::FlamAudioProcessorEditor(FlamAudioProcessor& p)
@@ -102,14 +227,18 @@ FlamAudioProcessorEditor::FlamAudioProcessorEditor(FlamAudioProcessor& p)
     
     roundRobinButton.setButtonText("Round Robin");
     addAndMakeVisible(roundRobinButton);
-    
-    loadKitButton.setButtonText("Load Kit");
-    loadKitButton.onClick = [this] { loadKitButtonClicked(); };
-    addAndMakeVisible(loadKitButton);
 
-    kitNameLabel.setText("No kit loaded", juce::dontSendNotification);
-    kitNameLabel.setJustificationType(juce::Justification::centred);
-    addAndMakeVisible(kitNameLabel);
+    kitBrowserLabel.setText("Kit:", juce::dontSendNotification);
+    kitBrowserLabel.setJustificationType(juce::Justification::centredRight);
+    addAndMakeVisible(kitBrowserLabel);
+
+    currentKitLabel.setText("No kit loaded", juce::dontSendNotification);
+    currentKitLabel.setJustificationType(juce::Justification::centredLeft);
+    addAndMakeVisible(currentKitLabel);
+
+    kitBrowserButton.setButtonText("Browse...");
+    kitBrowserButton.onClick = [this] { openKitBrowser(); };
+    addAndMakeVisible(kitBrowserButton);
     
     auto& vts = audioProcessor.getValueTreeState();
     
@@ -138,6 +267,10 @@ FlamAudioProcessorEditor::FlamAudioProcessorEditor(FlamAudioProcessor& p)
     setupDrumPads();
 
     setSize(1000, 700);
+
+    // Scan for available kits and load the last used one
+    scanForKits();
+    loadLastLoadedKit();
 }
 
 FlamAudioProcessorEditor::~FlamAudioProcessorEditor() = default;
@@ -160,9 +293,11 @@ void FlamAudioProcessorEditor::resized()
     auto contentArea = bounds.reduced(10);
     auto kitArea = contentArea.removeFromTop(40);
 
-    loadKitButton.setBounds(kitArea.removeFromLeft(100));
-    kitArea.removeFromLeft(10);
-    kitNameLabel.setBounds(kitArea);
+    kitBrowserLabel.setBounds(kitArea.removeFromLeft(40));
+    kitArea.removeFromLeft(5);
+    kitBrowserButton.setBounds(kitArea.removeFromRight(100));
+    kitArea.removeFromRight(5);
+    currentKitLabel.setBounds(kitArea);
 
     contentArea.removeFromTop(10);
 
@@ -286,33 +421,115 @@ void FlamAudioProcessorEditor::triggerDrumPad(int midiNote, float velocity)
     audioProcessor.getEngine()->triggerNote(midiNote, velocity, 0);
 }
 
-void FlamAudioProcessorEditor::loadKitButtonClicked()
+void FlamAudioProcessorEditor::scanForKits()
+{
+    availableKits.clear();
+
+    // Scan Resources/Kits directory for kits
+    auto kitsDir = juce::File::getCurrentWorkingDirectory().getChildFile("Resources/Kits");
+
+    if (!kitsDir.isDirectory())
+    {
+        // Try relative to executable
+        kitsDir = juce::File::getSpecialLocation(juce::File::currentExecutableFile)
+            .getParentDirectory()
+            .getChildFile("Resources/Kits");
+    }
+
+    if (kitsDir.isDirectory())
+    {
+        for (auto& dir : kitsDir.findChildFiles(juce::File::findDirectories, false))
+        {
+            auto flamkitFile = dir.getChildFile("flamkit.yaml");
+            if (flamkitFile.existsAsFile())
+            {
+                availableKits.push_back(flamkitFile);
+            }
+        }
+    }
+}
+
+void FlamAudioProcessorEditor::openKitBrowser()
 {
     // Don't open multiple browsers
-    if (fileBrowserWindow != nullptr)
+    if (kitBrowserWindow != nullptr)
         return;
 
-    // Create and show custom file browser window
-    fileBrowserWindow = std::make_unique<FileBrowserWindow>(this);
+    // Create and show kit browser window
+    kitBrowserWindow = std::make_unique<KitBrowserWindow>(this, availableKits);
 }
 
 void FlamAudioProcessorEditor::loadKitFromPath(const juce::File& kitFile)
 {
     if (kitFile.existsAsFile() && kitFile.getFileName() == "flamkit.yaml")
     {
-        // Use parent directory name as kit name
-        auto kitName = kitFile.getParentDirectory().getFileName();
-        kitNameLabel.setText(kitName, juce::dontSendNotification);
+        // Store current kit file
+        currentKitFile = kitFile;
+
+        // Update UI label - load kit metadata to get name
+        auto loader = std::make_unique<FlamKitLoader>();
+        auto kit = loader->loadKit(kitFile);
+        if (kit)
+        {
+            currentKitLabel.setText(kit->name, juce::dontSendNotification);
+        }
+        else
+        {
+            currentKitLabel.setText(kitFile.getParentDirectory().getFileName(), juce::dontSendNotification);
+        }
 
         // Launch kit loading on a background thread
         juce::Thread::launch([this, kitFile]()
         {
             audioProcessor.getEngine()->loadKit(kitFile);
         });
+
+        // Save as last loaded kit
+        saveLastLoadedKit(kitFile);
     }
-    else
+}
+
+void FlamAudioProcessorEditor::saveLastLoadedKit(const juce::File& kitFile)
+{
+    auto options = juce::PropertiesFile::Options();
+    options.applicationName = "FLAM";
+    options.filenameSuffix = ".settings";
+    options.osxLibrarySubFolder = "Application Support";
+
+    juce::PropertiesFile props(options);
+    props.setValue("lastLoadedKit", kitFile.getFullPathName());
+    props.save();
+}
+
+void FlamAudioProcessorEditor::loadLastLoadedKit()
+{
+    auto options = juce::PropertiesFile::Options();
+    options.applicationName = "FLAM";
+    options.filenameSuffix = ".settings";
+    options.osxLibrarySubFolder = "Application Support";
+
+    juce::PropertiesFile props(options);
+    auto lastKitPath = props.getValue("lastLoadedKit");
+
+    if (lastKitPath.isNotEmpty())
     {
-        kitNameLabel.setText("ERROR: Invalid kit file", juce::dontSendNotification);
+        juce::File lastKit(lastKitPath);
+
+        // Find this kit in the available kits list
+        for (const auto& kitFile : availableKits)
+        {
+            if (kitFile == lastKit)
+            {
+                loadKitFromPath(lastKit);
+                return;
+            }
+        }
+    }
+
+    // If no last kit or not found, load the first available kit
+    if (!availableKits.empty())
+    {
+        loadKitFromPath(availableKits[0]);
     }
 }
 

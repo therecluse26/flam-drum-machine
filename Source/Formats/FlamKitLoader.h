@@ -55,9 +55,11 @@ struct DrumKit
     juce::String author;
     juce::String version;
     juce::String description;
-    
+    juce::File coverImageFile;
+    std::vector<juce::String> tags;
+
     std::vector<DrumPiece> pieces;
-    
+
     struct GlobalSettings
     {
         float masterGain{1.0f};
@@ -65,6 +67,21 @@ struct DrumKit
         bool useRoundRobin{true};
         float defaultHumanization{0.0f};
     } settings;
+
+    // Computed metadata
+    int getTotalSampleCount() const
+    {
+        int count = 0;
+        for (const auto& piece : pieces)
+            for (const auto& articulation : piece.articulations)
+                count += static_cast<int>(articulation.layers.size());
+        return count;
+    }
+
+    int getDrumPieceCount() const
+    {
+        return static_cast<int>(pieces.size());
+    }
 };
 
 class FlamKitLoader

@@ -113,8 +113,9 @@ private:
     juce::Label polyphonyLabel;
     juce::ToggleButton roundRobinButton;
     
-    juce::TextButton loadKitButton;
-    juce::Label kitNameLabel;
+    juce::TextButton kitBrowserButton;
+    juce::Label kitBrowserLabel;
+    juce::Label currentKitLabel;
 
     juce::GroupComponent drumPadsGroup;
     juce::OwnedArray<DrumPad> drumPads;
@@ -129,16 +130,25 @@ private:
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> polyphonyAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> roundRobinAttachment;
     
-    void loadKitButtonClicked();
-    void loadKitFromPath(const juce::File& kitFile);
     void setupSlider(juce::Slider& slider, juce::Label& label,
                      const juce::String& labelText, const juce::String& suffix = "");
     void setupDrumPads();
     void triggerDrumPad(int midiNote, float velocity);
 
-    // File browser dialog window
-    class FileBrowserWindow;
-    std::unique_ptr<FileBrowserWindow> fileBrowserWindow;
+    // Kit management
+    void scanForKits();
+    void loadKitFromPath(const juce::File& kitFile);
+    void openKitBrowser();
+    void saveLastLoadedKit(const juce::File& kitFile);
+    void loadLastLoadedKit();
+
+    // Kit browser window
+    class KitBrowserWindow;
+    std::unique_ptr<KitBrowserWindow> kitBrowserWindow;
+
+    // Kit library
+    std::vector<juce::File> availableKits;
+    juce::File currentKitFile;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(FlamAudioProcessorEditor)
 };

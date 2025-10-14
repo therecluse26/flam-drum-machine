@@ -41,9 +41,29 @@ std::unique_ptr<DrumKit> FlamKitLoader::loadKit(const juce::File& kitFile)
         return nullptr;
     }
 
-    // Resolve relative sample file paths
+    // Resolve relative file paths (samples and cover image)
     const auto kitDirectory = kitFile.getParentDirectory();
 
+    // Resolve cover image path
+    if (kit->coverImageFile != juce::File())
+    {
+        auto pathString = kit->coverImageFile.getFullPathName();
+        if (!juce::File::isAbsolutePath(pathString))
+        {
+            kit->coverImageFile = kitDirectory.getChildFile(pathString);
+        }
+        else
+        {
+            auto cwdPrefix = juce::File::getCurrentWorkingDirectory().getFullPathName() + "/";
+            if (pathString.startsWith(cwdPrefix))
+            {
+                auto relativePart = pathString.substring(cwdPrefix.length());
+                kit->coverImageFile = kitDirectory.getChildFile(relativePart);
+            }
+        }
+    }
+
+    // Resolve sample file paths
     for (auto& piece : kit->pieces)
     {
         for (auto& articulation : piece.articulations)
@@ -131,6 +151,13 @@ std::unique_ptr<DrumKit> FlamKitLoader::parseYamlKit(const juce::String& content
             kit->version = root["version"].as<std::string>();
         if (root["description"])
             kit->description = root["description"].as<std::string>();
+        if (root["coverImage"])
+            kit->coverImageFile = juce::File(root["coverImage"].as<std::string>());
+        if (root["tags"] && root["tags"].IsSequence())
+        {
+            for (const auto& tagNode : root["tags"])
+                kit->tags.push_back(tagNode.as<std::string>());
+        }
 
         // Parse settings
         if (root["settings"])
