@@ -1,4 +1,5 @@
 #include "FlamKitLoader.h"
+#include <yaml-cpp/yaml.h>
 
 namespace flam {
 
@@ -8,41 +9,102 @@ FlamKitLoader::~FlamKitLoader() = default;
 
 std::unique_ptr<DrumKit> FlamKitLoader::loadKit(const juce::File& kitFile)
 {
+    std::cout << "[FlamKitLoader] Loading kit from: " << kitFile.getFullPathName() << std::endl;
+
     if (!kitFile.existsAsFile())
     {
         lastError = "Kit file does not exist: " + kitFile.getFullPathName();
+        std::cout << "[FlamKitLoader] ERROR: " << lastError << std::endl;
         return nullptr;
     }
-    
+
     auto content = kitFile.loadFileAsString();
     if (content.isEmpty())
     {
         lastError = "Could not read kit file: " + kitFile.getFullPathName();
+        std::cout << "[FlamKitLoader] ERROR: " << lastError << std::endl;
         return nullptr;
     }
-    
+
     std::unique_ptr<DrumKit> kit;
-    
+
     auto extension = kitFile.getFileExtension().toLowerCase();
-    if (extension == ".yaml" || extension == ".yml" || extension == ".flamkit")
+    if (extension == ".yaml" || extension == ".yml")
     {
         kit = parseYamlKit(content);
     }
-    else if (extension == ".json")
-    {
-        kit = parseJsonKit(content);
-    }
     else
     {
-        lastError = "Unsupported file format: " + extension;
+        lastError = "Unsupported file format (expected .yaml or .yml): " + extension;
+        std::cout << "[FlamKitLoader] ERROR: " << lastError << std::endl;
         return nullptr;
     }
-    
+
+    if (!kit)
+    {
+        lastError = "Failed to parse kit file";
+        std::cout << "[FlamKitLoader] ERROR: " << lastError << std::endl;
+        return nullptr;
+    }
+
+    std::cout << "[FlamKitLoader] Parsed kit: " << kit->name
+              << " with " << kit->pieces.size() << " pieces" << std::endl;
+
+    // Resolve relative sample file paths
+    const auto kitDirectory = kitFile.getParentDirectory();
+    std::cout << "[FlamKitLoader] Kit directory: " << kitDirectory.getFullPathName() << std::endl;
+
+    for (auto& piece : kit->pieces)
+    {
+        for (auto& articulation : piece.articulations)
+        {
+            for (auto& layer : articulation.layers)
+            {
+                // Get the path string
+                auto pathString = layer.sampleFile.getFullPathName();
+
+                // Only resolve if it's not already an absolute path
+                if (!juce::File::isAbsolutePath(pathString))
+                {
+                    // It's relative - resolve relative to kit directory
+                    layer.sampleFile = kitDirectory.getChildFile(pathString);
+                    std::cout << "[FlamKitLoader] Resolved relative: " << pathString
+                              << " -> " << layer.sampleFile.getFullPathName() << std::endl;
+                }
+                else
+                {
+                    // It's already absolute (shouldn't happen, but handle it)
+                    std::cout << "[FlamKitLoader] Path is already absolute: " << pathString << std::endl;
+
+                    // Check if it looks like it was incorrectly resolved from CWD
+                    // If so, try to extract just the relative part
+                    auto cwdPrefix = juce::File::getCurrentWorkingDirectory().getFullPathName() + "/";
+                    if (pathString.startsWith(cwdPrefix))
+                    {
+                        // Strip the CWD prefix to get the relative part
+                        auto relativePart = pathString.substring(cwdPrefix.length());
+                        layer.sampleFile = kitDirectory.getChildFile(relativePart);
+                        std::cout << "[FlamKitLoader] Fixed CWD-relative path: " << relativePart
+                                  << " -> " << layer.sampleFile.getFullPathName() << std::endl;
+                    }
+                }
+
+                if (!layer.sampleFile.existsAsFile())
+                {
+                    std::cout << "[FlamKitLoader] WARNING: Sample file not found: "
+                              << layer.sampleFile.getFullPathName() << std::endl;
+                }
+            }
+        }
+    }
+
     if (kit && validateKit(*kit))
     {
+        std::cout << "[FlamKitLoader] Kit loaded and validated successfully" << std::endl;
         return kit;
     }
-    
+
+    std::cout << "[FlamKitLoader] ERROR: Kit validation failed" << std::endl;
     return nullptr;
 }
 
@@ -55,19 +117,15 @@ bool FlamKitLoader::saveKit(const DrumKit& kit, const juce::File& kitFile)
     }
     
     juce::String content;
-    
+
     auto extension = kitFile.getFileExtension().toLowerCase();
-    if (extension == ".yaml" || extension == ".yml" || extension == ".flamkit")
+    if (extension == ".yaml" || extension == ".yml")
     {
         content = serializeKitToYaml(kit);
     }
-    else if (extension == ".json")
-    {
-        content = serializeKitToJson(kit);
-    }
     else
     {
-        lastError = "Unsupported file format: " + extension;
+        lastError = "Unsupported file format (expected .yaml or .yml): " + extension;
         return false;
     }
     
@@ -88,16 +146,118 @@ bool FlamKitLoader::saveKit(const DrumKit& kit, const juce::File& kitFile)
 
 std::unique_ptr<DrumKit> FlamKitLoader::parseYamlKit(const juce::String& content)
 {
-    // Placeholder YAML parsing implementation
-    // Would use a YAML library like yaml-cpp
     auto kit = std::make_unique<DrumKit>();
-    
-    // Basic stub implementation
-    kit->name = "Example Kit";
-    kit->author = "FLAM";
-    kit->version = "1.0";
-    kit->description = "Example drum kit";
-    
+
+    try
+    {
+        YAML::Node root = YAML::Load(content.toStdString());
+
+        // Parse root level fields
+        if (root["name"])
+            kit->name = root["name"].as<std::string>();
+        if (root["author"])
+            kit->author = root["author"].as<std::string>();
+        if (root["version"])
+            kit->version = root["version"].as<std::string>();
+        if (root["description"])
+            kit->description = root["description"].as<std::string>();
+
+        // Parse settings
+        if (root["settings"])
+        {
+            auto settings = root["settings"];
+            if (settings["masterGain"])
+                kit->settings.masterGain = settings["masterGain"].as<float>();
+            if (settings["maxPolyphony"])
+                kit->settings.maxPolyphony = settings["maxPolyphony"].as<int>();
+            if (settings["useRoundRobin"])
+                kit->settings.useRoundRobin = settings["useRoundRobin"].as<bool>();
+            if (settings["defaultHumanization"])
+                kit->settings.defaultHumanization = settings["defaultHumanization"].as<float>();
+        }
+
+        // Parse pieces
+        if (root["pieces"] && root["pieces"].IsSequence())
+        {
+            for (const auto& pieceNode : root["pieces"])
+            {
+                DrumPiece piece;
+
+                if (pieceNode["name"])
+                    piece.name = pieceNode["name"].as<std::string>();
+                if (pieceNode["midiNote"])
+                    piece.midiNote = pieceNode["midiNote"].as<int>();
+
+                // Parse articulations
+                if (pieceNode["articulations"] && pieceNode["articulations"].IsSequence())
+                {
+                    for (const auto& artNode : pieceNode["articulations"])
+                    {
+                        Articulation art;
+
+                        if (artNode["name"])
+                            art.name = artNode["name"].as<std::string>();
+                        if (artNode["chokeGroup"])
+                            art.chokeGroup = artNode["chokeGroup"].as<int>();
+                        if (artNode["attackTime"])
+                            art.attackTime = artNode["attackTime"].as<float>();
+                        if (artNode["holdTime"])
+                            art.holdTime = artNode["holdTime"].as<float>();
+                        if (artNode["decayTime"])
+                            art.decayTime = artNode["decayTime"].as<float>();
+                        if (artNode["sustainLevel"])
+                            art.sustainLevel = artNode["sustainLevel"].as<float>();
+                        if (artNode["releaseTime"])
+                            art.releaseTime = artNode["releaseTime"].as<float>();
+
+                        // Parse layers
+                        if (artNode["layers"] && artNode["layers"].IsSequence())
+                        {
+                            for (const auto& layerNode : artNode["layers"])
+                            {
+                                SampleLayer layer;
+
+                                // DON'T create juce::File yet - store as empty and resolve later
+                                // We'll store the path string temporarily elsewhere
+                                std::string sampleFilePath;
+                                if (layerNode["sampleFile"])
+                                    sampleFilePath = layerNode["sampleFile"].as<std::string>();
+
+                                if (layerNode["velocityMin"])
+                                    layer.velocityMin = layerNode["velocityMin"].as<float>();
+                                if (layerNode["velocityMax"])
+                                    layer.velocityMax = layerNode["velocityMax"].as<float>();
+                                if (layerNode["gain"])
+                                    layer.gain = layerNode["gain"].as<float>();
+                                if (layerNode["roundRobinGroup"])
+                                    layer.roundRobinGroup = layerNode["roundRobinGroup"].as<int>();
+
+                                art.layers.push_back(layer);
+
+                                // Store the path string in the layer we just added
+                                if (!sampleFilePath.empty())
+                                    art.layers.back().sampleFile = juce::File(sampleFilePath);
+                            }
+                        }
+
+                        piece.articulations.push_back(art);
+                    }
+                }
+
+                kit->pieces.push_back(piece);
+            }
+        }
+
+        std::cout << "[YAMLParser] Successfully parsed kit with " << kit->pieces.size()
+                  << " pieces using yaml-cpp" << std::endl;
+    }
+    catch (const YAML::Exception& e)
+    {
+        lastError = "YAML parsing error: " + juce::String(e.what());
+        std::cout << "[YAMLParser] ERROR: " << lastError << std::endl;
+        return nullptr;
+    }
+
     return kit;
 }
 

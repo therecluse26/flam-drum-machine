@@ -8,6 +8,9 @@ pkgs.mkShell {
     gnumake
     gcc
 
+    # YAML parsing
+    yaml-cpp
+
     # JUCE dependencies
     alsa-lib
     alsa-lib.dev

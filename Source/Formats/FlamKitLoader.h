@@ -1,6 +1,7 @@
 #pragma once
 
 #include <juce_core/juce_core.h>
+#include <juce_audio_basics/juce_audio_basics.h>
 #include <memory>
 #include <vector>
 
@@ -13,6 +14,10 @@ struct SampleLayer
     float velocityMax{1.0f};
     float gain{1.0f};
     int roundRobinGroup{0};
+
+    // Loaded sample data (populated when kit is loaded)
+    std::shared_ptr<juce::AudioBuffer<float>> loadedSampleBuffer;
+    double sourceSampleRate{44100.0};
 };
 
 struct Articulation

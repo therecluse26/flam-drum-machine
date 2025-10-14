@@ -105,4 +105,15 @@ float FlamEngine::applyHumanization(float velocity)
     return velocity;
 }
 
+void FlamEngine::triggerNote(int midiNote, float velocity, int sampleOffset)
+{
+    velocity = applyHumanization(velocity);
+    voiceManager->triggerNote(midiNote, velocity, sampleOffset);
+}
+
+void FlamEngine::releaseNote(int midiNote, int sampleOffset)
+{
+    voiceManager->releaseNote(midiNote, sampleOffset);
+}
+
 } // namespace flam

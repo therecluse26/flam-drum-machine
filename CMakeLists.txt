@@ -5,6 +5,10 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+# Find yaml-cpp
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(YAML_CPP REQUIRED yaml-cpp)
+
 # Download JUCE if not present
 include(FetchContent)
 FetchContent_Declare(
@@ -45,7 +49,8 @@ target_sources(FLAM
 # Add include directories
 target_include_directories(FLAM
     PUBLIC
-        Source)
+        Source
+        ${YAML_CPP_INCLUDE_DIRS})
 
 # Compile definitions
 target_compile_definitions(FLAM
@@ -72,6 +77,7 @@ target_link_libraries(FLAM
         juce::juce_graphics
         juce::juce_gui_basics
         juce::juce_gui_extra
+        ${YAML_CPP_LIBRARIES}
     PUBLIC
         juce::juce_recommended_config_flags
         juce::juce_recommended_lto_flags

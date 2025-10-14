@@ -144,3 +144,5 @@ pluginval_*
 /Program Files/Common Files/VST3/
 /Program Files/VstPlugins/
 /Program Files/Steinberg/VST3/
+
+Resources/Kits/**/*

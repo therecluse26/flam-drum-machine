@@ -62,9 +62,14 @@ FlamAudioProcessorEditor::FlamAudioProcessorEditor(FlamAudioProcessor& p)
         vts, "polyphony", polyphonySlider);
     roundRobinAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
         vts, "round_robin", roundRobinButton);
-    
-    setSize(800, 600);
-    std::cout << "[FLAM] FlamAudioProcessorEditor initialized, size set to 800x600" << std::endl;
+
+    drumPadsGroup.setText("Drum Pads");
+    addAndMakeVisible(drumPadsGroup);
+
+    setupDrumPads();
+
+    setSize(1000, 700);
+    std::cout << "[FLAM] FlamAudioProcessorEditor initialized, size set to 1000x700" << std::endl;
 }
 
 FlamAudioProcessorEditor::~FlamAudioProcessorEditor() = default;
@@ -81,54 +86,79 @@ void FlamAudioProcessorEditor::resized()
 {
     auto bounds = getLocalBounds();
     auto topArea = bounds.removeFromTop(50);
-    
+
     titleLabel.setBounds(topArea);
-    
+
     auto contentArea = bounds.reduced(10);
     auto kitArea = contentArea.removeFromTop(40);
-    
+
     loadKitButton.setBounds(kitArea.removeFromLeft(100));
     kitArea.removeFromLeft(10);
     kitNameLabel.setBounds(kitArea);
-    
+
     contentArea.removeFromTop(10);
-    
-    auto mixerArea = contentArea.removeFromLeft(contentArea.getWidth() / 2 - 5);
-    auto performanceArea = contentArea.removeFromRight(contentArea.getWidth() - 5);
-    
+
+    // Split into left (drum pads) and right (controls)
+    auto drumPadArea = contentArea.removeFromLeft(contentArea.getWidth() * 0.5f);
+    contentArea.removeFromLeft(10);  // spacing
+
+    // Drum pads on the left
+    drumPadsGroup.setBounds(drumPadArea);
+    auto padContent = drumPadArea.reduced(15, 25);
+
+    // Layout drum pads in a 4x4 grid
+    const int cols = 4;
+    const int rows = 4;
+    const int padSpacing = 8;
+    const int padWidth = (padContent.getWidth() - (cols - 1) * padSpacing) / cols;
+    const int padHeight = (padContent.getHeight() - (rows - 1) * padSpacing) / rows;
+
+    for (int i = 0; i < drumPads.size() && i < 16; ++i)
+    {
+        int row = i / cols;
+        int col = i % cols;
+        int x = padContent.getX() + col * (padWidth + padSpacing);
+        int y = padContent.getY() + row * (padHeight + padSpacing);
+        drumPads[i]->setBounds(x, y, padWidth, padHeight);
+    }
+
+    // Controls on the right
+    auto mixerArea = contentArea.removeFromTop(contentArea.getHeight() / 2 - 5);
+    auto performanceArea = contentArea.removeFromTop(contentArea.getHeight() + 10);
+
     mixerGroup.setBounds(mixerArea);
     auto mixerContent = mixerArea.reduced(15, 25);
-    
-    auto sliderHeight = 60;
-    masterVolumeLabel.setBounds(mixerContent.removeFromTop(20));
+
+    auto sliderHeight = 50;
+    masterVolumeLabel.setBounds(mixerContent.removeFromTop(18));
     masterVolumeSlider.setBounds(mixerContent.removeFromTop(sliderHeight));
-    
-    closeVolumeLabel.setBounds(mixerContent.removeFromTop(20));
+
+    closeVolumeLabel.setBounds(mixerContent.removeFromTop(18));
     closeVolumeSlider.setBounds(mixerContent.removeFromTop(sliderHeight));
-    
-    overheadVolumeLabel.setBounds(mixerContent.removeFromTop(20));
+
+    overheadVolumeLabel.setBounds(mixerContent.removeFromTop(18));
     overheadVolumeSlider.setBounds(mixerContent.removeFromTop(sliderHeight));
-    
-    roomVolumeLabel.setBounds(mixerContent.removeFromTop(20));
+
+    roomVolumeLabel.setBounds(mixerContent.removeFromTop(18));
     roomVolumeSlider.setBounds(mixerContent.removeFromTop(sliderHeight));
-    
-    ambientVolumeLabel.setBounds(mixerContent.removeFromTop(20));
+
+    ambientVolumeLabel.setBounds(mixerContent.removeFromTop(18));
     ambientVolumeSlider.setBounds(mixerContent.removeFromTop(sliderHeight));
-    
+
     performanceGroup.setBounds(performanceArea);
     auto performanceContent = performanceArea.reduced(15, 25);
-    
-    humanizationLabel.setBounds(performanceContent.removeFromTop(20));
+
+    humanizationLabel.setBounds(performanceContent.removeFromTop(18));
     humanizationSlider.setBounds(performanceContent.removeFromTop(sliderHeight));
-    
-    bleedAmountLabel.setBounds(performanceContent.removeFromTop(20));
+
+    bleedAmountLabel.setBounds(performanceContent.removeFromTop(18));
     bleedAmountSlider.setBounds(performanceContent.removeFromTop(sliderHeight));
-    
-    polyphonyLabel.setBounds(performanceContent.removeFromTop(20));
-    polyphonySlider.setBounds(performanceContent.removeFromTop(40));
-    
-    performanceContent.removeFromTop(20);
-    roundRobinButton.setBounds(performanceContent.removeFromTop(30));
+
+    polyphonyLabel.setBounds(performanceContent.removeFromTop(18));
+    polyphonySlider.setBounds(performanceContent.removeFromTop(35));
+
+    performanceContent.removeFromTop(15);
+    roundRobinButton.setBounds(performanceContent.removeFromTop(25));
 }
 
 void FlamAudioProcessorEditor::setupSlider(juce::Slider& slider, juce::Label& label,
@@ -144,14 +174,62 @@ void FlamAudioProcessorEditor::setupSlider(juce::Slider& slider, juce::Label& la
     addAndMakeVisible(label);
 }
 
+void FlamAudioProcessorEditor::setupDrumPads()
+{
+    // For now, create pads for the most common General MIDI drum notes
+    // Later this will be dynamic based on loaded kit
+    struct PadInfo {
+        juce::String name;
+        int note;
+    };
+
+    std::vector<PadInfo> padDefinitions = {
+        {"Kick", 36},
+        {"Side Stick", 37},
+        {"Snare", 38},
+        {"Clap", 39},
+        {"Snare 2", 40},
+        {"Floor Tom", 41},
+        {"HH Closed", 42},
+        {"Mid Tom", 45},
+        {"HH Open", 46},
+        {"High Tom", 48},
+        {"Crash", 49},
+        {"Ride", 51},
+        {"Splash", 55},
+        {"Cowbell", 56},
+        {"Shaker", 70},
+        {"Block", 76}
+    };
+
+    drumPads.clear();
+
+    for (const auto& padDef : padDefinitions)
+    {
+        auto* pad = new DrumPad(padDef.name, padDef.note,
+            [this](int note, float velocity) { triggerDrumPad(note, velocity); });
+        drumPads.add(pad);
+        addAndMakeVisible(pad);
+    }
+}
+
+void FlamAudioProcessorEditor::triggerDrumPad(int midiNote, float velocity)
+{
+    std::cout << "[FLAM] Pad triggered: Note " << midiNote
+              << ", Velocity " << velocity << std::endl;
+
+    // Trigger the note directly in the engine
+    audioProcessor.getEngine()->triggerNote(midiNote, velocity, 0);
+}
+
 void FlamAudioProcessorEditor::loadKitButtonClicked()
 {
     auto chooser = std::make_shared<juce::FileChooser>(
-        "Select a FlamKit file...",
+        "Select a YAML kit file...",
         juce::File{},
-        "*.flamkit;*.yaml;*.yml;*.json");
-    
-    chooser->launchAsync(juce::FileBrowserComponent::openMode | 
+        "*.yaml;*.yml");
+
+    chooser->launchAsync(juce::FileBrowserComponent::openMode |
                         juce::FileBrowserComponent::canSelectFiles,
         [this, chooser](const juce::FileChooser& fc)
         {
@@ -159,8 +237,12 @@ void FlamAudioProcessorEditor::loadKitButtonClicked()
             if (file.existsAsFile())
             {
                 audioProcessor.getEngine()->loadKit(file);
-                kitNameLabel.setText(file.getFileNameWithoutExtension(), 
+                kitNameLabel.setText(file.getFileNameWithoutExtension(),
                                    juce::dontSendNotification);
+
+                // TODO: Rebuild drum pads based on loaded kit
+                // setupDrumPads();
+                // resized();
             }
         });
 }

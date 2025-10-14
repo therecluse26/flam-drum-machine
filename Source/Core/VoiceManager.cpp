@@ -1,6 +1,7 @@
 #include "VoiceManager.h"
 #include "SampleVoice.h"
 #include "../Formats/FlamKitLoader.h"
+#include <juce_audio_formats/juce_audio_formats.h>
 
 namespace flam {
 
@@ -65,10 +66,19 @@ void VoiceManager::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
 
 void VoiceManager::triggerNote(int midiNote, float velocity, int sampleOffset)
 {
+    std::cout << "[VoiceManager] triggerNote called: Note " << midiNote
+              << ", Velocity " << velocity << std::endl;
+
     const juce::SpinLock::ScopedLockType lock(voiceLock);
 
     if (!currentKit)
+    {
+        std::cout << "[VoiceManager] ERROR: No kit loaded!" << std::endl;
         return;
+    }
+
+    std::cout << "[VoiceManager] Kit loaded with " << currentKit->pieces.size()
+              << " pieces" << std::endl;
 
     // Find the drum piece for this MIDI note
     const DrumPiece* targetPiece = nullptr;
@@ -81,14 +91,32 @@ void VoiceManager::triggerNote(int midiNote, float velocity, int sampleOffset)
         }
     }
 
-    if (!targetPiece || targetPiece->articulations.empty())
+    if (!targetPiece)
+    {
+        std::cout << "[VoiceManager] No drum piece found for MIDI note " << midiNote << std::endl;
         return;
+    }
+
+    if (targetPiece->articulations.empty())
+    {
+        std::cout << "[VoiceManager] Drum piece has no articulations" << std::endl;
+        return;
+    }
+
+    std::cout << "[VoiceManager] Found drum piece: " << targetPiece->name
+              << " with " << targetPiece->articulations.size() << " articulations" << std::endl;
 
     // For now, use the first articulation (later could support articulation switching)
     const auto& articulation = targetPiece->articulations[0];
 
     if (articulation.layers.empty())
+    {
+        std::cout << "[VoiceManager] Articulation has no layers" << std::endl;
         return;
+    }
+
+    std::cout << "[VoiceManager] Articulation has " << articulation.layers.size()
+              << " layers" << std::endl;
 
     // Get round-robin index
     const int rrIndex = getNextRoundRobinIndex(midiNote);
@@ -97,36 +125,60 @@ void VoiceManager::triggerNote(int midiNote, float velocity, int sampleOffset)
     const SampleLayer* bestLayer = findBestLayer(targetPiece, velocity, rrIndex);
 
     if (!bestLayer)
+    {
+        std::cout << "[VoiceManager] No suitable layer found" << std::endl;
         return;
+    }
+
+    std::cout << "[VoiceManager] Selected layer: " << bestLayer->sampleFile.getFullPathName() << std::endl;
 
     // Find free voice
     const int voiceIndex = findFreeVoice();
-    if (voiceIndex >= 0)
+    if (voiceIndex < 0)
     {
-        auto& voice = voices[voiceIndex];
-
-        // Handle choke groups (e.g., hi-hat open/closed)
-        if (articulation.chokeGroup >= 0)
-        {
-            handleChokeGroup(articulation.chokeGroup, voiceIndex);
-            voice.chokeGroup = articulation.chokeGroup;
-        }
-
-        // Set envelope parameters from articulation
-        voice.sampleVoice->setEnvelopeParameters(
-            articulation.attackTime,
-            articulation.holdTime,
-            articulation.decayTime,
-            articulation.sustainLevel,
-            articulation.releaseTime
-        );
-
-        // Start the voice
-        startVoice(voiceIndex, midiNote, velocity, sampleOffset);
-
-        // Trigger the sample voice with the selected layer
-        voice.sampleVoice->startNote(bestLayer, velocity, sampleOffset);
+        std::cout << "[VoiceManager] No free voice available" << std::endl;
+        return;
     }
+
+    std::cout << "[VoiceManager] Using voice index " << voiceIndex << std::endl;
+
+    auto& voice = voices[voiceIndex];
+
+    // Handle choke groups (e.g., hi-hat open/closed)
+    if (articulation.chokeGroup >= 0)
+    {
+        handleChokeGroup(articulation.chokeGroup, voiceIndex);
+        voice.chokeGroup = articulation.chokeGroup;
+    }
+
+    // Set envelope parameters from articulation
+    voice.sampleVoice->setEnvelopeParameters(
+        articulation.attackTime,
+        articulation.holdTime,
+        articulation.decayTime,
+        articulation.sustainLevel,
+        articulation.releaseTime
+    );
+
+    // Load sample data into voice if not already loaded
+    if (bestLayer->loadedSampleBuffer)
+    {
+        voice.sampleVoice->loadSampleData(bestLayer->loadedSampleBuffer, bestLayer->sourceSampleRate);
+        std::cout << "[VoiceManager] Sample data loaded into voice" << std::endl;
+    }
+    else
+    {
+        std::cout << "[VoiceManager] ERROR: No sample buffer available for layer" << std::endl;
+        return;
+    }
+
+    // Start the voice
+    startVoice(voiceIndex, midiNote, velocity, sampleOffset);
+
+    // Trigger the sample voice with the selected layer
+    voice.sampleVoice->startNote(bestLayer, velocity, sampleOffset);
+
+    std::cout << "[VoiceManager] Voice triggered successfully" << std::endl;
 }
 
 void VoiceManager::releaseNote(int midiNote, int sampleOffset)
@@ -144,15 +196,104 @@ void VoiceManager::releaseNote(int midiNote, int sampleOffset)
 
 void VoiceManager::loadKit(std::unique_ptr<DrumKit> kit)
 {
-    const juce::SpinLock::ScopedLockType lock(voiceLock);
-    currentKit = std::move(kit);
+    std::cout << "[VoiceManager] loadKit called" << std::endl;
 
-    // Apply kit settings
-    if (currentKit)
+    if (!kit)
     {
+        std::cout << "[VoiceManager] ERROR: Received null kit" << std::endl;
+        return;
+    }
+
+    std::cout << "[VoiceManager] Loading kit: " << kit->name
+              << " with " << kit->pieces.size() << " pieces" << std::endl;
+
+    // Store kit immediately so it can be used (samples will load in background)
+    {
+        const juce::SpinLock::ScopedLockType lock(voiceLock);
+        currentKit = std::move(kit);
+
+        // Apply kit settings
         setPolyphony(currentKit->settings.maxPolyphony);
         setRoundRobinEnabled(currentKit->settings.useRoundRobin);
     }
+
+    // Load samples in background thread to avoid UI freeze
+    juce::Thread::launch([this]() {
+        std::cout << "[VoiceManager] Starting background sample loading..." << std::endl;
+
+        juce::AudioFormatManager formatManager;
+        formatManager.registerBasicFormats();
+
+        int totalSamples = 0;
+        int loadedSamples = 0;
+
+        // Access kit data safely
+        const juce::SpinLock::ScopedLockType lock(voiceLock);
+        if (!currentKit)
+        {
+            std::cout << "[VoiceManager] ERROR: Kit was cleared during background load" << std::endl;
+            return;
+        }
+
+        for (auto& piece : currentKit->pieces)
+        {
+            std::cout << "[VoiceManager] Processing piece: " << piece.name
+                      << " (MIDI " << piece.midiNote << ")" << std::endl;
+
+            for (auto& articulation : piece.articulations)
+            {
+                for (auto& layer : articulation.layers)
+                {
+                    totalSamples++;
+
+                    if (!layer.sampleFile.existsAsFile())
+                    {
+                        std::cout << "[VoiceManager] WARNING: Sample file not found: "
+                                  << layer.sampleFile.getFullPathName() << std::endl;
+                        continue;
+                    }
+
+                    std::unique_ptr<juce::AudioFormatReader> reader(
+                        formatManager.createReaderFor(layer.sampleFile));
+
+                    if (!reader)
+                    {
+                        std::cout << "[VoiceManager] ERROR: Could not create reader for: "
+                                  << layer.sampleFile.getFullPathName() << std::endl;
+                        continue;
+                    }
+
+                    const int numSamples = static_cast<int>(reader->lengthInSamples);
+                    const int numChannels = static_cast<int>(reader->numChannels);
+                    const double srcSampleRate = reader->sampleRate;
+
+                    // Allocate and read sample data
+                    auto buffer = std::make_shared<juce::AudioBuffer<float>>(numChannels, numSamples);
+
+                    if (!reader->read(buffer.get(), 0, numSamples, 0, true, true))
+                    {
+                        std::cout << "[VoiceManager] ERROR: Failed to read samples from: "
+                                  << layer.sampleFile.getFullPathName() << std::endl;
+                        continue;
+                    }
+
+                    // Store the loaded sample data in the layer (atomic operation)
+                    layer.loadedSampleBuffer = buffer;
+                    layer.sourceSampleRate = srcSampleRate;
+
+                    loadedSamples++;
+
+                    if (loadedSamples % 10 == 0)
+                        std::cout << "[VoiceManager] Loaded " << loadedSamples << "/" << totalSamples << " samples..." << std::endl;
+                }
+            }
+        }
+
+        std::cout << "[VoiceManager] Background loading complete: " << loadedSamples
+                  << " of " << totalSamples << " samples loaded successfully" << std::endl;
+    });
+
+    std::cout << "[VoiceManager] Kit structure loaded, samples loading in background..." << std::endl;
 }
 
 void VoiceManager::clearKit()

@@ -31,6 +31,10 @@ public:
     void setLatencyCompensation(int samples);
     int getLatencyCompensation() const { return latencyCompensation.load(); }
 
+    // Direct note triggering (for UI pads, etc.)
+    void triggerNote(int midiNote, float velocity, int sampleOffset = 0);
+    void releaseNote(int midiNote, int sampleOffset = 0);
+
     VoiceManager* getVoiceManager() const { return voiceManager.get(); }
     MixerBus* getMixerBus() const { return mixerBus.get(); }
 
