@@ -1,7 +1,77 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+#include <thread>
 
 namespace flam {
+
+// Custom file browser window that shows a proper dialog
+class FlamAudioProcessorEditor::FileBrowserWindow : public juce::DocumentWindow,
+                                                      public juce::FileBrowserListener
+{
+public:
+    FileBrowserWindow(FlamAudioProcessorEditor* editor)
+        : DocumentWindow("Select Kit File",
+                        juce::Desktop::getInstance().getDefaultLookAndFeel()
+                            .findColour(juce::ResizableWindow::backgroundColourId),
+                        DocumentWindow::closeButton)
+        , owner(editor)
+        , wildcard("flamkit.yaml", "*", "FLAM Kit Files")
+        , browser(juce::FileBrowserComponent::openMode |
+                  juce::FileBrowserComponent::canSelectFiles |
+                  juce::FileBrowserComponent::canSelectDirectories,
+                  juce::File::getSpecialLocation(juce::File::userHomeDirectory),
+                  &wildcard,
+                  nullptr)
+    {
+        browser.addListener(this);
+        setContentOwned(&browser, true);
+        setResizable(true, true);
+        centreWithSize(600, 400);
+        setVisible(true);
+        setAlwaysOnTop(true);
+    }
+
+    ~FileBrowserWindow() override
+    {
+        browser.removeListener(this);
+    }
+
+    void closeButtonPressed() override
+    {
+        owner->fileBrowserWindow.reset();
+    }
+
+    void selectionChanged() override {}
+
+    void fileClicked(const juce::File&, const juce::MouseEvent&) override {}
+
+    void fileDoubleClicked(const juce::File& file) override
+    {
+        juce::File kitFile = file;
+
+        // If it's a directory, look for flamkit.yaml inside it
+        if (file.isDirectory())
+        {
+            kitFile = file.getChildFile("flamkit.yaml");
+        }
+
+        // If the selected file is named flamkit.yaml, use it
+        if (kitFile.existsAsFile() && kitFile.getFileName() == "flamkit.yaml")
+        {
+            owner->loadKitFromPath(kitFile);
+            owner->fileBrowserWindow.reset();
+        }
+    }
+
+    void browserRootChanged(const juce::File&) override {}
+
+private:
+    FlamAudioProcessorEditor* owner;
+    juce::WildcardFileFilter wildcard;
+    juce::FileBrowserComponent browser;
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(FileBrowserWindow)
+};
 
 FlamAudioProcessorEditor::FlamAudioProcessorEditor(FlamAudioProcessor& p)
     : AudioProcessorEditor(&p)
@@ -36,7 +106,7 @@ FlamAudioProcessorEditor::FlamAudioProcessorEditor(FlamAudioProcessor& p)
     loadKitButton.setButtonText("Load Kit");
     loadKitButton.onClick = [this] { loadKitButtonClicked(); };
     addAndMakeVisible(loadKitButton);
-    
+
     kitNameLabel.setText("No kit loaded", juce::dontSendNotification);
     kitNameLabel.setJustificationType(juce::Justification::centred);
     addAndMakeVisible(kitNameLabel);
@@ -218,28 +288,32 @@ void FlamAudioProcessorEditor::triggerDrumPad(int midiNote, float velocity)
 
 void FlamAudioProcessorEditor::loadKitButtonClicked()
 {
-    auto chooser = std::make_shared<juce::FileChooser>(
-        "Select a YAML kit file...",
-        juce::File{},
-        "*.yaml;*.yml");
+    // Don't open multiple browsers
+    if (fileBrowserWindow != nullptr)
+        return;
 
-    chooser->launchAsync(juce::FileBrowserComponent::openMode |
-                        juce::FileBrowserComponent::canSelectFiles,
-        [this, chooser](const juce::FileChooser& fc)
+    // Create and show custom file browser window
+    fileBrowserWindow = std::make_unique<FileBrowserWindow>(this);
+}
+
+void FlamAudioProcessorEditor::loadKitFromPath(const juce::File& kitFile)
+{
+    if (kitFile.existsAsFile() && kitFile.getFileName() == "flamkit.yaml")
+    {
+        // Use parent directory name as kit name
+        auto kitName = kitFile.getParentDirectory().getFileName();
+        kitNameLabel.setText(kitName, juce::dontSendNotification);
+
+        // Launch kit loading on a background thread
+        juce::Thread::launch([this, kitFile]()
         {
-            auto file = fc.getResult();
-            if (file.existsAsFile())
-            {
-                kitNameLabel.setText(file.getFileNameWithoutExtension(),
-                                   juce::dontSendNotification);
-
-                audioProcessor.getEngine()->loadKit(file);
-
-                // TODO: Rebuild drum pads based on loaded kit
-                // setupDrumPads();
-                // resized();
-            }
+            audioProcessor.getEngine()->loadKit(kitFile);
         });
+    }
+    else
+    {
+        kitNameLabel.setText("ERROR: Invalid kit file", juce::dontSendNotification);
+    }
 }
 
 } // namespace flam

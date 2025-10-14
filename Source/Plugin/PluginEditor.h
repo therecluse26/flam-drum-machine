@@ -130,10 +130,15 @@ private:
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> roundRobinAttachment;
     
     void loadKitButtonClicked();
+    void loadKitFromPath(const juce::File& kitFile);
     void setupSlider(juce::Slider& slider, juce::Label& label,
                      const juce::String& labelText, const juce::String& suffix = "");
     void setupDrumPads();
     void triggerDrumPad(int midiNote, float velocity);
+
+    // File browser dialog window
+    class FileBrowserWindow;
+    std::unique_ptr<FileBrowserWindow> fileBrowserWindow;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(FlamAudioProcessorEditor)
 };

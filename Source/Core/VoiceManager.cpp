@@ -173,41 +173,55 @@ void VoiceManager::loadKit(std::unique_ptr<DrumKit> kit)
         juce::AudioFormatManager formatManager;
         formatManager.registerBasicFormats();
 
-        // Access kit data safely
-        const juce::SpinLock::ScopedLockType lock(voiceLock);
-        if (!currentKit)
-            return;
+        // Build a list of all sample layers that need loading WITHOUT holding the lock
+        // We create a separate list of pointers to avoid holding the lock during I/O
+        std::vector<SampleLayer*> layersToLoad;
 
-        for (auto& piece : currentKit->pieces)
         {
-            for (auto& articulation : piece.articulations)
+            const juce::SpinLock::ScopedLockType lock(voiceLock);
+            if (!currentKit)
+                return;
+
+            // Collect all layer pointers
+            for (auto& piece : currentKit->pieces)
             {
-                for (auto& layer : articulation.layers)
+                for (auto& articulation : piece.articulations)
                 {
-                    if (!layer.sampleFile.existsAsFile())
-                        continue;
-
-                    std::unique_ptr<juce::AudioFormatReader> reader(
-                        formatManager.createReaderFor(layer.sampleFile));
-
-                    if (!reader)
-                        continue;
-
-                    const int numSamples = static_cast<int>(reader->lengthInSamples);
-                    const int numChannels = static_cast<int>(reader->numChannels);
-                    const double srcSampleRate = reader->sampleRate;
-
-                    // Allocate and read sample data
-                    auto buffer = std::make_shared<juce::AudioBuffer<float>>(numChannels, numSamples);
-
-                    if (!reader->read(buffer.get(), 0, numSamples, 0, true, true))
-                        continue;
-
-                    // Store the loaded sample data in the layer (atomic operation)
-                    layer.loadedSampleBuffer = buffer;
-                    layer.sourceSampleRate = srcSampleRate;
+                    for (auto& layer : articulation.layers)
+                    {
+                        layersToLoad.push_back(&layer);
+                    }
                 }
             }
+        }
+        // Lock is now released - we can do slow I/O operations
+
+        // Load each sample WITHOUT holding the lock
+        for (auto* layer : layersToLoad)
+        {
+            if (!layer->sampleFile.existsAsFile())
+                continue;
+
+            std::unique_ptr<juce::AudioFormatReader> reader(
+                formatManager.createReaderFor(layer->sampleFile));
+
+            if (!reader)
+                continue;
+
+            const int numSamples = static_cast<int>(reader->lengthInSamples);
+            const int numChannels = static_cast<int>(reader->numChannels);
+            const double srcSampleRate = reader->sampleRate;
+
+            // Allocate and read sample data
+            auto buffer = std::make_shared<juce::AudioBuffer<float>>(numChannels, numSamples);
+
+            if (!reader->read(buffer.get(), 0, numSamples, 0, true, true))
+                continue;
+
+            // Store the loaded sample data in the layer
+            // This is a pointer assignment, which is atomic on most platforms
+            layer->loadedSampleBuffer = buffer;
+            layer->sourceSampleRate = srcSampleRate;
         }
     });
 }
