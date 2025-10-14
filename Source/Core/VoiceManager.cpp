@@ -15,7 +15,6 @@ VoiceManager::VoiceManager()
     }
 
     std::fill(chokeGroupLastVoice.begin(), chokeGroupLastVoice.end(), -1);
-    std::fill(roundRobinCounters.begin(), roundRobinCounters.end(), 0);
 }
 
 VoiceManager::~VoiceManager() = default;
@@ -40,6 +39,7 @@ void VoiceManager::releaseResources()
         voice.sampleVoice->reset();
         voice.isActive = false;
         voice.midiNote = -1;
+        voice.chokeGroup = -1;
     }
 }
 
@@ -59,6 +59,7 @@ void VoiceManager::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
             {
                 voice.isActive = false;
                 voice.midiNote = -1;
+                voice.chokeGroup = -1;  // Reset choke group
             }
         }
     }
@@ -91,14 +92,15 @@ void VoiceManager::triggerNote(int midiNote, float velocity, int sampleOffset)
     if (articulation.layers.empty())
         return;
 
-    // Get round-robin index
-    const int rrIndex = getNextRoundRobinIndex(midiNote);
-
-    // Find best velocity layer
-    const SampleLayer* bestLayer = findBestLayer(targetPiece, velocity, rrIndex);
+    // Find best velocity layer (uses smart round-robin internally)
+    const SampleLayer* bestLayer = findBestLayer(targetPiece, velocity, midiNote);
 
     if (!bestLayer)
         return;
+
+    // Track this sample to avoid immediate repetition in future round-robin selections
+    if (midiNote >= 0 && midiNote < 128)
+        recentSamples[midiNote].addSample(bestLayer);
 
     // Find free voice
     const int voiceIndex = findFreeVoice();
@@ -106,6 +108,16 @@ void VoiceManager::triggerNote(int midiNote, float velocity, int sampleOffset)
         return;
 
     auto& voice = voices[voiceIndex];
+
+    // First, stop any currently playing instances of the same MIDI note
+    // This prevents "machine gun" buildup when retriggering the same drum
+    for (int i = 0; i < static_cast<int>(voices.size()); ++i)
+    {
+        if (i != voiceIndex && voices[i].isActive && voices[i].midiNote == midiNote)
+        {
+            stopVoice(i, sampleOffset);
+        }
+    }
 
     // Handle choke groups (e.g., hi-hat open/closed)
     if (articulation.chokeGroup >= 0)
@@ -313,21 +325,9 @@ void VoiceManager::handleChokeGroup(int chokeGroup, int excludeVoice)
     chokeGroupLastVoice[chokeGroup] = excludeVoice;
 }
 
-int VoiceManager::getNextRoundRobinIndex(int midiNote)
-{
-    if (!useRoundRobin.load())
-        return 0;
-
-    if (midiNote < 0 || midiNote >= 128)
-        return 0;
-
-    const int index = roundRobinCounters[midiNote];
-    roundRobinCounters[midiNote] = (index + 1) % 256; // Wrap at 256
-    return index;
-}
 
 const SampleLayer* VoiceManager::findBestLayer(const DrumPiece* piece,
-                                               float velocity, int rrIndex) const
+                                               float velocity, int midiNote)
 {
     if (!piece || piece->articulations.empty())
         return nullptr;
@@ -355,24 +355,42 @@ const SampleLayer* VoiceManager::findBestLayer(const DrumPiece* piece,
         return &articulation.layers[0];
     }
 
-    // If round-robin is enabled and we have multiple matching layers,
-    // select based on round-robin group
-    if (matchingLayers.size() > 1 && useRoundRobin.load())
-    {
-        // Group by round-robin group
-        std::vector<const SampleLayer*> rrGroup;
+    // If only one matching layer, use it directly (no round-robin needed)
+    if (matchingLayers.size() == 1)
+        return matchingLayers[0];
 
+    // Multiple matching layers - use smart round-robin to avoid repetition
+    if (useRoundRobin.load() && midiNote >= 0 && midiNote < 128)
+    {
+        const int totalSamples = static_cast<int>(matchingLayers.size());
+
+        // Calculate history size: min(3, samples - 1)
+        // This ensures we exclude last 3 samples, or (samples-1) if fewer samples exist
+        // Examples: 2 samples -> history 1, 5 samples -> history 3, 10 samples -> history 3
+        const int historySize = juce::jmin(3, totalSamples - 1);
+
+        // Filter out recently played samples
+        std::vector<const SampleLayer*> availableLayers;
         for (const auto* layer : matchingLayers)
         {
-            if (layer->roundRobinGroup == (rrIndex % 16))
-                rrGroup.push_back(layer);
+            if (!recentSamples[midiNote].wasRecentlyPlayed(layer, historySize))
+                availableLayers.push_back(layer);
         }
 
-        if (!rrGroup.empty())
-            return rrGroup[0];
+        // If all samples were recently played (shouldn't happen with proper history size),
+        // fall back to all matching layers
+        if (availableLayers.empty())
+            availableLayers = matchingLayers;
+
+        // Pick randomly from available layers
+        const int randomIndex = static_cast<int>(
+            juce::Random::getSystemRandom().nextInt(static_cast<int>(availableLayers.size()))
+        );
+
+        return availableLayers[randomIndex];
     }
 
-    // Return first matching layer
+    // Round-robin disabled - return first matching layer
     return matchingLayers[0];
 }
 
