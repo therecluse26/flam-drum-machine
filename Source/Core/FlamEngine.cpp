@@ -37,18 +37,20 @@ void FlamEngine::releaseResources()
 void FlamEngine::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
     juce::ScopedNoDenormals noDenormals;
-    
+
     for (const auto metadata : midiMessages)
     {
         const auto message = metadata.getMessage();
         const auto samplePosition = metadata.samplePosition;
         handleMidiEvent(message, samplePosition);
     }
-    
+
     voiceManager->renderNextBlock(buffer, 0, buffer.getNumSamples());
-    
-    mixerBus->processBlock(buffer);
-    
+
+    // Apply master level only (bypass multi-bus processing for now)
+    const float masterGain = juce::Decibels::decibelsToGain(mixerBus->getMasterLevel());
+    buffer.applyGain(masterGain);
+
     midiMessages.clear();
 }
 
