@@ -65,16 +65,50 @@ public:
                                float sustain, float release);
 
     /**
-     * Load sample data into this voice (called from background thread)
-     * @param buffer Shared pointer to sample data (thread-safe)
-     * @param sampleRate Sample rate of the loaded sample
+     * Load sample data for streaming playback
+     * @param layer Pointer to sample layer with preload buffer
+     * @param voiceId Voice ID for stream tracking
      */
-    void loadSampleData(std::shared_ptr<juce::AudioBuffer<float>> buffer,
-                       double sourceSampleRate);
+    void loadSampleData(const SampleLayer* layer, int voiceId);
+
+    /**
+     * Append streamed data from disk (called from audio thread when available)
+     */
+    void appendStreamedChunk(std::shared_ptr<juce::AudioBuffer<float>> chunk, bool isLastChunk);
+
+    /**
+     * Check if this voice needs streaming (preload consumed)
+     */
+    bool needsStreaming() const;
+
+    /**
+     * Mark that streaming has been requested for this voice
+     */
+    void markStreamingRequested() { streamingRequested = true; }
+
+    /**
+     * Get the voice ID for stream management
+     */
+    int getVoiceId() const { return voiceId; }
+
+    /**
+     * Get pointer to the sample layer being played
+     */
+    const SampleLayer* getCurrentLayer() const { return currentLayer; }
 
 private:
     std::atomic<bool> active{false};
-    std::shared_ptr<juce::AudioBuffer<float>> sampleBuffer;
+
+    // Streaming buffers
+    std::shared_ptr<juce::AudioBuffer<float>> preloadBuffer;  // Initial cached portion
+    std::vector<std::shared_ptr<juce::AudioBuffer<float>>> streamedChunks;  // Chunks from disk
+
+    const SampleLayer* currentLayer{nullptr};
+    int voiceId{-1};
+    juce::int64 totalSampleLength{0};
+    int preloadSampleCount{0};
+    bool streamingComplete{false};
+    bool streamingRequested{false};
 
     double playbackPosition{0.0};
     double playbackRate{1.0};

@@ -1,5 +1,6 @@
 #include "VoiceManager.h"
 #include "SampleVoice.h"
+#include "SampleStreamingManager.h"
 #include "../Formats/FlamKitLoader.h"
 #include <juce_audio_formats/juce_audio_formats.h>
 
@@ -13,6 +14,8 @@ VoiceManager::VoiceManager()
     {
         voice.sampleVoice = std::make_unique<SampleVoice>();
     }
+
+    streamingManager = std::make_unique<SampleStreamingManager>();
 
     std::fill(chokeGroupLastVoice.begin(), chokeGroupLastVoice.end(), -1);
 }
@@ -28,6 +31,9 @@ void VoiceManager::prepareToPlay(double sampleRate, int samplesPerBlock)
     {
         voice.sampleVoice->prepareToPlay(sampleRate, samplesPerBlock);
     }
+
+    if (streamingManager)
+        streamingManager->prepareToPlay(sampleRate, samplesPerBlock);
 }
 
 void VoiceManager::releaseResources()
@@ -41,12 +47,50 @@ void VoiceManager::releaseResources()
         voice.midiNote = -1;
         voice.chokeGroup = -1;
     }
+
+    if (streamingManager)
+        streamingManager->releaseResources();
 }
 
 void VoiceManager::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
                                    int startSample, int numSamples)
 {
     const juce::SpinLock::ScopedLockType lock(voiceLock);
+
+    // Poll for streamed data and distribute to voices
+    if (streamingManager)
+    {
+        while (auto streamedData = streamingManager->getNextStreamedData())
+        {
+            // Find the voice with this ID
+            for (auto& voice : voices)
+            {
+                if (voice.sampleVoice && voice.sampleVoice->getVoiceId() == streamedData->voiceId)
+                {
+                    voice.sampleVoice->appendStreamedChunk(
+                        streamedData->buffer, streamedData->isComplete);
+                    break;
+                }
+            }
+        }
+
+        // Check if any voices need streaming
+        for (auto& voice : voices)
+        {
+            if (voice.isActive && voice.sampleVoice && voice.sampleVoice->needsStreaming())
+            {
+                const auto* layer = voice.sampleVoice->getCurrentLayer();
+                const int voiceId = voice.sampleVoice->getVoiceId();
+
+                if (layer && layer->preloadBuffer)
+                {
+                    const int preloadSamples = layer->preloadBuffer->getNumSamples();
+                    streamingManager->requestStream(layer, voiceId, preloadSamples);
+                    voice.sampleVoice->markStreamingRequested();
+                }
+            }
+        }
+    }
 
     for (auto& voice : voices)
     {
@@ -135,14 +179,14 @@ void VoiceManager::triggerNote(int midiNote, float velocity, int sampleOffset)
         articulation.releaseTime
     );
 
-    // Load sample data into voice if not already loaded
-    if (bestLayer->loadedSampleBuffer)
+    // Load preload buffer into voice (streamed remainder will be handled by SampleVoice)
+    if (bestLayer->preloadBuffer)
     {
-        voice.sampleVoice->loadSampleData(bestLayer->loadedSampleBuffer, bestLayer->sourceSampleRate);
+        voice.sampleVoice->loadSampleData(bestLayer, voiceIndex);
     }
     else
     {
-        return;
+        return;  // Preload not ready yet
     }
 
     // Start the voice
@@ -180,13 +224,12 @@ void VoiceManager::loadKit(std::unique_ptr<DrumKit> kit)
         setRoundRobinEnabled(currentKit->settings.useRoundRobin);
     }
 
-    // Load samples in background thread to avoid UI freeze
+    // Load preload buffers in background thread (first 5ms of each sample)
     juce::Thread::launch([this]() {
         juce::AudioFormatManager formatManager;
         formatManager.registerBasicFormats();
 
         // Build a list of all sample layers that need loading WITHOUT holding the lock
-        // We create a separate list of pointers to avoid holding the lock during I/O
         std::vector<SampleLayer*> layersToLoad;
 
         {
@@ -208,7 +251,7 @@ void VoiceManager::loadKit(std::unique_ptr<DrumKit> kit)
         }
         // Lock is now released - we can do slow I/O operations
 
-        // Load each sample WITHOUT holding the lock
+        // Load preload buffer for each sample WITHOUT holding the lock
         for (auto* layer : layersToLoad)
         {
             if (!layer->sampleFile.existsAsFile())
@@ -220,20 +263,24 @@ void VoiceManager::loadKit(std::unique_ptr<DrumKit> kit)
             if (!reader)
                 continue;
 
-            const int numSamples = static_cast<int>(reader->lengthInSamples);
+            const auto totalLength = reader->lengthInSamples;
             const int numChannels = static_cast<int>(reader->numChannels);
             const double srcSampleRate = reader->sampleRate;
 
-            // Allocate and read sample data
-            auto buffer = std::make_shared<juce::AudioBuffer<float>>(numChannels, numSamples);
+            // Calculate preload size (5ms worth of samples)
+            const int preloadSamples = static_cast<int>((srcSampleRate * 5.0) / 1000.0);
+            const int actualPreloadSize = juce::jmin(preloadSamples, static_cast<int>(totalLength));
 
-            if (!reader->read(buffer.get(), 0, numSamples, 0, true, true))
+            // Allocate and read only the preload portion
+            auto preloadBuffer = std::make_shared<juce::AudioBuffer<float>>(numChannels, actualPreloadSize);
+
+            if (!reader->read(preloadBuffer.get(), 0, actualPreloadSize, 0, true, true))
                 continue;
 
-            // Store the loaded sample data in the layer
-            // This is a pointer assignment, which is atomic on most platforms
-            layer->loadedSampleBuffer = buffer;
+            // Store the preload buffer and metadata
+            layer->preloadBuffer = preloadBuffer;
             layer->sourceSampleRate = srcSampleRate;
+            layer->totalSampleLength = totalLength;
         }
     });
 }

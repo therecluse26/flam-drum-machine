@@ -15,9 +15,13 @@ struct SampleLayer
     float gain{1.0f};
     int roundRobinGroup{0};
 
-    // Loaded sample data (populated when kit is loaded)
-    std::shared_ptr<juce::AudioBuffer<float>> loadedSampleBuffer;
+    // Hybrid streaming: preload buffer + metadata
+    std::shared_ptr<juce::AudioBuffer<float>> preloadBuffer;  // First ~5ms cached in RAM
     double sourceSampleRate{44100.0};
+    juce::int64 totalSampleLength{0};  // Total length of full sample file
+
+    // Legacy full-buffer loading (will be removed after migration)
+    std::shared_ptr<juce::AudioBuffer<float>> loadedSampleBuffer;
 };
 
 struct Articulation

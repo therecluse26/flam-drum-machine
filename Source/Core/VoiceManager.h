@@ -12,6 +12,7 @@ namespace flam {
 struct DrumKit;
 struct SampleLayer;
 class SampleVoice;
+class SampleStreamingManager;
 
 class VoiceManager
 {
@@ -50,6 +51,7 @@ private:
 
     std::vector<Voice> voices;
     std::unique_ptr<DrumKit> currentKit;
+    std::unique_ptr<SampleStreamingManager> streamingManager;
 
     std::atomic<int> maxActiveVoices{64};
     std::atomic<bool> useRoundRobin{true};

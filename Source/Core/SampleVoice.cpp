@@ -16,6 +16,7 @@ SampleVoice::~SampleVoice() = default;
 
 void SampleVoice::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
+    juce::ignoreUnused(samplesPerBlock);
     targetSampleRate = sampleRate;
     envelope.setSampleRate(sampleRate);
     envelope.setParameters(envParams);
@@ -30,6 +31,14 @@ void SampleVoice::reset()
     velocity = 0.0f;
     envelope.reset();
     lastSample[0] = lastSample[1] = 0.0f;
+
+    // Clear streaming state
+    preloadBuffer.reset();
+    streamedChunks.clear();
+    currentLayer = nullptr;
+    voiceId = -1;
+    streamingComplete = false;
+    streamingRequested = false;
 }
 
 void SampleVoice::startNote(const SampleLayer* layer, float noteVelocity, int sampleOffset)
@@ -64,28 +73,79 @@ void SampleVoice::stopNote(int sampleOffset)
     envelope.noteOff();
 }
 
+void SampleVoice::loadSampleData(const SampleLayer* layer, int newVoiceId)
+{
+    if (!layer || !layer->preloadBuffer)
+        return;
+
+    // Store layer and voice ID
+    currentLayer = layer;
+    voiceId = newVoiceId;
+
+    // Load preload buffer
+    preloadBuffer = layer->preloadBuffer;
+    preloadSampleCount = preloadBuffer->getNumSamples();
+    sourceSampleRate = layer->sourceSampleRate;
+    totalSampleLength = layer->totalSampleLength;
+
+    // Calculate playback rate for sample rate conversion
+    if (sourceSampleRate > 0.0 && targetSampleRate > 0.0)
+        playbackRate = sourceSampleRate / targetSampleRate;
+    else
+        playbackRate = 1.0;
+
+    // Reset streaming state
+    streamedChunks.clear();
+    streamingComplete = false;
+    streamingRequested = false;
+}
+
+void SampleVoice::appendStreamedChunk(std::shared_ptr<juce::AudioBuffer<float>> chunk, bool isLastChunk)
+{
+    if (!chunk)
+        return;
+
+    streamedChunks.push_back(chunk);
+
+    if (isLastChunk)
+        streamingComplete = true;
+}
+
+bool SampleVoice::needsStreaming() const
+{
+    // Need streaming if:
+    // 1. We're active
+    // 2. There's more data to stream (not complete)
+    // 3. We haven't already requested streaming
+    // 4. We're getting close to end of preload buffer
+    if (!active.load(std::memory_order_acquire) || streamingComplete || streamingRequested)
+        return false;
+
+    const int currentPos = static_cast<int>(playbackPosition);
+    const int preloadThreshold = preloadSampleCount / 2;  // Start streaming at 50% through preload
+
+    return currentPos >= preloadThreshold;
+}
+
 void SampleVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
                                    int startSample, int numSamples)
 {
     if (!active.load(std::memory_order_acquire))
         return;
 
-    // Get shared pointer to sample buffer (thread-safe atomic load)
-    auto buffer = sampleBuffer;
-    if (!buffer || buffer->getNumSamples() == 0)
+    if (!preloadBuffer || preloadBuffer->getNumSamples() == 0)
     {
         active.store(false, std::memory_order_release);
         return;
     }
 
     const int numChannels = juce::jmin(outputBuffer.getNumChannels(),
-                                       buffer->getNumChannels());
-    const int sampleLength = buffer->getNumSamples();
+                                       preloadBuffer->getNumChannels());
 
     for (int sample = 0; sample < numSamples; ++sample)
     {
-        // Check if we've reached the end of the sample
-        if (playbackPosition >= sampleLength)
+        // Check if we've reached the end of the entire sample
+        if (playbackPosition >= totalSampleLength)
         {
             active.store(false, std::memory_order_release);
             break;
@@ -131,49 +191,65 @@ void SampleVoice::setEnvelopeParameters(float attack, float hold, float decay,
     envelope.setParameters(envParams);
 }
 
-void SampleVoice::loadSampleData(std::shared_ptr<juce::AudioBuffer<float>> buffer,
-                                 double srcSampleRate)
-{
-    // Atomic update of sample buffer (thread-safe)
-    sampleBuffer = buffer;
-    sourceSampleRate = srcSampleRate;
-
-    // Recalculate playback rate
-    if (sourceSampleRate > 0.0 && targetSampleRate > 0.0)
-        playbackRate = sourceSampleRate / targetSampleRate;
-    else
-        playbackRate = 1.0;
-}
-
 float SampleVoice::readSample(int channel, double position) const
 {
-    auto buffer = sampleBuffer;
-    if (!buffer || channel >= buffer->getNumChannels())
-        return 0.0f;
+    const int posInt = static_cast<int>(position);
 
-    const int sampleLength = buffer->getNumSamples();
-    if (sampleLength == 0)
-        return 0.0f;
+    // Check if we're still in the preload buffer
+    if (posInt < preloadSampleCount)
+    {
+        if (!preloadBuffer || channel >= preloadBuffer->getNumChannels())
+            return 0.0f;
 
-    // Get integer and fractional parts of position
-    const int index0 = static_cast<int>(position);
-    const int index1 = index0 + 1;
-    const float fraction = static_cast<float>(position - index0);
+        const float* channelData = preloadBuffer->getReadPointer(channel);
+        const float sample0 = channelData[posInt];
 
-    // Boundary checks
-    if (index0 < 0 || index0 >= sampleLength)
-        return 0.0f;
+        // Linear interpolation
+        if (posInt + 1 < preloadSampleCount)
+        {
+            const float sample1 = channelData[posInt + 1];
+            const float fraction = static_cast<float>(position - posInt);
+            return sample0 + fraction * (sample1 - sample0);
+        }
 
-    const float* channelData = buffer->getReadPointer(channel);
-    const float sample0 = channelData[index0];
-
-    // If at the end, don't interpolate
-    if (index1 >= sampleLength)
         return sample0;
+    }
 
-    // Linear interpolation
-    const float sample1 = channelData[index1];
-    return sample0 + fraction * (sample1 - sample0);
+    // We're beyond preload - read from streamed chunks
+    int chunkOffset = posInt - preloadSampleCount;
+    int chunkSamplesPassed = 0;
+
+    for (const auto& chunk : streamedChunks)
+    {
+        const int chunkSize = chunk->getNumSamples();
+
+        if (chunkOffset < chunkSamplesPassed + chunkSize)
+        {
+            // This chunk contains our sample
+            const int indexInChunk = chunkOffset - chunkSamplesPassed;
+
+            if (channel >= chunk->getNumChannels())
+                return 0.0f;
+
+            const float* channelData = chunk->getReadPointer(channel);
+            const float sample0 = channelData[indexInChunk];
+
+            // Linear interpolation
+            if (indexInChunk + 1 < chunkSize)
+            {
+                const float sample1 = channelData[indexInChunk + 1];
+                const float fraction = static_cast<float>(position - posInt);
+                return sample0 + fraction * (sample1 - sample0);
+            }
+
+            return sample0;
+        }
+
+        chunkSamplesPassed += chunkSize;
+    }
+
+    // Sample not available yet (still streaming) - return silence
+    return 0.0f;
 }
 
 } // namespace flam

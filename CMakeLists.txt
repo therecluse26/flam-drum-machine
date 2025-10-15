@@ -44,7 +44,7 @@ target_sources(FLAM
         Source/Core/VoiceManager.cpp
         Source/Core/MixerBus.cpp
         Source/Core/SampleVoice.cpp
-        Source/Core/SampleLoader.cpp
+        Source/Core/SampleStreamingManager.cpp
         Source/Formats/FlamKitLoader.cpp
         Source/DSP/IRConvolver.cpp)
 
