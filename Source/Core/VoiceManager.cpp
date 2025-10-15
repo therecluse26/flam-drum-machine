@@ -101,9 +101,10 @@ void VoiceManager::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
             // Check if voice has finished playing
             if (!voice.sampleVoice->isActive())
             {
+                voice.sampleVoice->reset();  // Clear streamed chunks to free memory
                 voice.isActive = false;
                 voice.midiNote = -1;
-                voice.chokeGroup = -1;  // Reset choke group
+                voice.chokeGroup = -1;
             }
         }
     }
@@ -152,6 +153,15 @@ void VoiceManager::triggerNote(int midiNote, float velocity, int sampleOffset)
         return;
 
     auto& voice = voices[voiceIndex];
+
+    // If we're reusing an active voice (voice stealing), reset it first to free memory
+    if (voice.isActive && voice.sampleVoice)
+    {
+        voice.sampleVoice->reset();
+        voice.isActive = false;
+        voice.midiNote = -1;
+        voice.chokeGroup = -1;
+    }
 
     // First, stop any currently playing instances of the same MIDI note
     // This prevents "machine gun" buildup when retriggering the same drum
