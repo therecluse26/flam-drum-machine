@@ -37,6 +37,7 @@ void SampleVoice::reset()
     streamedChunks.clear();
     currentLayer = nullptr;
     voiceId = -1;
+    currentStreamId = -1;
     streamingComplete = false;
     streamingRequested = false;
 }
@@ -73,14 +74,15 @@ void SampleVoice::stopNote(int sampleOffset)
     envelope.noteOff();
 }
 
-void SampleVoice::loadSampleData(const SampleLayer* layer, int newVoiceId)
+void SampleVoice::loadSampleData(const SampleLayer* layer, int newVoiceId, int newStreamId)
 {
     if (!layer || !layer->preloadBuffer)
         return;
 
-    // Store layer and voice ID
+    // Store layer, voice ID, and stream ID
     currentLayer = layer;
     voiceId = newVoiceId;
+    currentStreamId = newStreamId;
 
     // Load preload buffer
     preloadBuffer = layer->preloadBuffer;

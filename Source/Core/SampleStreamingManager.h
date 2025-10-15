@@ -30,6 +30,7 @@ public:
     {
         const SampleLayer* layer{nullptr};
         int voiceId{-1};
+        int streamId{0};  // Unique ID for this stream instance
         double startPosition{0.0};  // Where to start streaming (in samples)
         std::atomic<bool> cancelled{false};
     };
@@ -37,6 +38,8 @@ public:
     struct StreamedData
     {
         int voiceId{-1};
+        int streamId{0};  // Matches the stream request
+        const SampleLayer* layer{nullptr};  // Which layer this data belongs to
         std::shared_ptr<juce::AudioBuffer<float>> buffer;
         double startPosition{0.0};  // Position in original file where this buffer starts
         bool isComplete{false};  // True if this is the final chunk
@@ -50,9 +53,10 @@ public:
 
     /**
      * Request streaming for a sample (called from audio thread).
-     * Returns immediately - data arrives asynchronously via getNextStreamedData().
+     * Returns the stream ID for this request.
+     * Data arrives asynchronously via getNextStreamedData().
      */
-    void requestStream(const SampleLayer* layer, int voiceId, double startPosition);
+    int requestStream(const SampleLayer* layer, int voiceId, double startPosition);
 
     /**
      * Cancel streaming for a voice (e.g., when voice is stolen or stopped).
@@ -88,6 +92,9 @@ private:
     // Lock-free queue for streamed data (streaming thread -> audio thread)
     juce::AbstractFifo dataFifo{64};
     std::array<std::unique_ptr<StreamedData>, 64> dataQueue;
+
+    // Stream ID counter for unique stream identification
+    std::atomic<int> nextStreamId{0};
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SampleStreamingManager)
 };

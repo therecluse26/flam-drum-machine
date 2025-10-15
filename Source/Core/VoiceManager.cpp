@@ -62,33 +62,20 @@ void VoiceManager::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
     {
         while (auto streamedData = streamingManager->getNextStreamedData())
         {
-            // Find the voice with this ID
+            // Find the voice with matching voiceId AND streamId
             for (auto& voice : voices)
             {
-                if (voice.sampleVoice && voice.sampleVoice->getVoiceId() == streamedData->voiceId)
+                if (voice.sampleVoice &&
+                    voice.sampleVoice->getVoiceId() == streamedData->voiceId &&
+                    voice.sampleVoice->getCurrentStreamId() == streamedData->streamId)
                 {
+                    // Only append if voice is still playing the same stream instance
                     voice.sampleVoice->appendStreamedChunk(
                         streamedData->buffer, streamedData->isComplete);
                     break;
                 }
             }
-        }
-
-        // Check if any voices need streaming
-        for (auto& voice : voices)
-        {
-            if (voice.isActive && voice.sampleVoice && voice.sampleVoice->needsStreaming())
-            {
-                const auto* layer = voice.sampleVoice->getCurrentLayer();
-                const int voiceId = voice.sampleVoice->getVoiceId();
-
-                if (layer && layer->preloadBuffer)
-                {
-                    const int preloadSamples = layer->preloadBuffer->getNumSamples();
-                    streamingManager->requestStream(layer, voiceId, preloadSamples);
-                    voice.sampleVoice->markStreamingRequested();
-                }
-            }
+            // If no matching voice found, chunk is dropped (voice was stolen/reset)
         }
     }
 
@@ -101,6 +88,10 @@ void VoiceManager::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
             // Check if voice has finished playing
             if (!voice.sampleVoice->isActive())
             {
+                // Cancel any pending streaming for this voice
+                if (streamingManager)
+                    streamingManager->cancelStream(voice.sampleVoice->getVoiceId());
+
                 voice.sampleVoice->reset();  // Clear streamed chunks to free memory
                 voice.isActive = false;
                 voice.midiNote = -1;
@@ -157,6 +148,10 @@ void VoiceManager::triggerNote(int midiNote, float velocity, int sampleOffset)
     // If we're reusing an active voice (voice stealing), reset it first to free memory
     if (voice.isActive && voice.sampleVoice)
     {
+        // Cancel any pending streaming for this voice before resetting
+        if (streamingManager)
+            streamingManager->cancelStream(voice.sampleVoice->getVoiceId());
+
         voice.sampleVoice->reset();
         voice.isActive = false;
         voice.midiNote = -1;
@@ -169,7 +164,16 @@ void VoiceManager::triggerNote(int midiNote, float velocity, int sampleOffset)
     {
         if (i != voiceIndex && voices[i].isActive && voices[i].midiNote == midiNote)
         {
-            stopVoice(i, sampleOffset);
+            // Cancel streaming and reset the voice to free memory
+            if (streamingManager && voices[i].sampleVoice)
+                streamingManager->cancelStream(voices[i].sampleVoice->getVoiceId());
+
+            if (voices[i].sampleVoice)
+                voices[i].sampleVoice->reset();
+
+            voices[i].isActive = false;
+            voices[i].midiNote = -1;
+            voices[i].chokeGroup = -1;
         }
     }
 
@@ -192,7 +196,17 @@ void VoiceManager::triggerNote(int midiNote, float velocity, int sampleOffset)
     // Load preload buffer into voice (streamed remainder will be handled by SampleVoice)
     if (bestLayer->preloadBuffer)
     {
-        voice.sampleVoice->loadSampleData(bestLayer, voiceIndex);
+        // Get a stream ID for this voice instance
+        // We'll pass it now even though streaming happens later
+        const int preloadSamples = bestLayer->preloadBuffer->getNumSamples();
+        const int streamId = streamingManager ?
+            streamingManager->requestStream(bestLayer, voiceIndex, preloadSamples) : -1;
+
+        voice.sampleVoice->loadSampleData(bestLayer, voiceIndex, streamId);
+
+        // Mark as requested since we already called requestStream
+        if (streamingManager && streamId >= 0)
+            voice.sampleVoice->markStreamingRequested();
     }
     else
     {
@@ -375,7 +389,16 @@ void VoiceManager::handleChokeGroup(int chokeGroup, int excludeVoice)
         if (i != excludeVoice && voices[i].isActive &&
             voices[i].chokeGroup == chokeGroup)
         {
-            stopVoice(i, 0);
+            // Cancel streaming and reset the voice to free memory
+            if (streamingManager && voices[i].sampleVoice)
+                streamingManager->cancelStream(voices[i].sampleVoice->getVoiceId());
+
+            if (voices[i].sampleVoice)
+                voices[i].sampleVoice->reset();
+
+            voices[i].isActive = false;
+            voices[i].midiNote = -1;
+            voices[i].chokeGroup = -1;
         }
     }
 

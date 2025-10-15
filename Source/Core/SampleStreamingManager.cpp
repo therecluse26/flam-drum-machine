@@ -37,10 +37,13 @@ int SampleStreamingManager::getPreloadSamples(double sr)
     return static_cast<int>((sr * PRELOAD_MS) / 1000.0);
 }
 
-void SampleStreamingManager::requestStream(const SampleLayer* layer, int voiceId, double startPosition)
+int SampleStreamingManager::requestStream(const SampleLayer* layer, int voiceId, double startPosition)
 {
     if (!layer || voiceId < 0)
-        return;
+        return -1;
+
+    // Assign unique stream ID
+    const int streamId = nextStreamId.fetch_add(1);
 
     // Try to add to request queue
     int start1, size1, start2, size2;
@@ -51,12 +54,15 @@ void SampleStreamingManager::requestStream(const SampleLayer* layer, int voiceId
         auto& request = requestQueue[start1];
         request.layer = layer;
         request.voiceId = voiceId;
+        request.streamId = streamId;
         request.startPosition = startPosition;
         request.cancelled.store(false);
 
         requestFifo.finishedWrite(1);
     }
     // If queue is full, drop request (voice will play only preload portion)
+
+    return streamId;
 }
 
 void SampleStreamingManager::cancelStream(int voiceId)
@@ -104,13 +110,15 @@ void SampleStreamingManager::run()
 
         if (size1 > 0)
         {
+            // Don't finish the read yet - we need to check cancellation during processing
             const auto& request = requestQueue[start1];
-            requestFifo.finishedRead(1);
 
             if (!request.cancelled.load())
             {
                 processStreamRequest(request);
             }
+
+            requestFifo.finishedRead(1);
         }
         else
         {
@@ -164,6 +172,8 @@ void SampleStreamingManager::processStreamRequest(const StreamRequest& request)
         // Package the data
         auto data = std::make_unique<StreamedData>();
         data->voiceId = request.voiceId;
+        data->streamId = request.streamId;  // Copy stream ID for verification
+        data->layer = request.layer;  // Include layer so voice can verify it matches
         data->buffer = buffer;
         data->startPosition = static_cast<double>(currentPosition);
         data->isComplete = (currentPosition + chunkSize >= totalSamples);

@@ -68,8 +68,9 @@ public:
      * Load sample data for streaming playback
      * @param layer Pointer to sample layer with preload buffer
      * @param voiceId Voice ID for stream tracking
+     * @param streamId Unique stream ID for this playback instance
      */
-    void loadSampleData(const SampleLayer* layer, int voiceId);
+    void loadSampleData(const SampleLayer* layer, int voiceId, int streamId);
 
     /**
      * Append streamed data from disk (called from audio thread when available)
@@ -92,6 +93,11 @@ public:
     int getVoiceId() const { return voiceId; }
 
     /**
+     * Get the current stream ID for verification
+     */
+    int getCurrentStreamId() const { return currentStreamId; }
+
+    /**
      * Get pointer to the sample layer being played
      */
     const SampleLayer* getCurrentLayer() const { return currentLayer; }
@@ -105,6 +111,7 @@ private:
 
     const SampleLayer* currentLayer{nullptr};
     int voiceId{-1};
+    int currentStreamId{-1};  // Unique ID for current stream instance
     juce::int64 totalSampleLength{0};
     int preloadSampleCount{0};
     bool streamingComplete{false};
