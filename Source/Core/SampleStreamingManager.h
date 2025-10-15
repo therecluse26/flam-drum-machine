@@ -23,7 +23,7 @@ struct SampleLayer;
 class SampleStreamingManager : public juce::Thread
 {
 public:
-    static constexpr int PRELOAD_MS = 5;  // Pre-cache first 5ms of each sample
+    static constexpr int PRELOAD_MS = 100;  // Pre-cache first 100ms of each sample
     static constexpr int STREAM_BUFFER_SIZE = 8192;  // Samples per streaming chunk
 
     struct StreamRequest
