@@ -390,6 +390,20 @@ FlamAudioProcessorEditor::FlamAudioProcessorEditor(FlamAudioProcessor& p)
     kitBrowserButton.onClick = [this] { openKitBrowser(); };
     addAndMakeVisible(kitBrowserButton);
 
+    // Master volume slider setup
+    masterVolumeLabel.setText("Master Volume:", juce::dontSendNotification);
+    masterVolumeLabel.setJustificationType(juce::Justification::centredRight);
+    addAndMakeVisible(masterVolumeLabel);
+
+    masterVolumeSlider.setSliderStyle(juce::Slider::LinearHorizontal);
+    masterVolumeSlider.setTextBoxStyle(juce::Slider::TextBoxRight, false, 60, 20);
+    masterVolumeSlider.setTextValueSuffix(" dB");
+    addAndMakeVisible(masterVolumeSlider);
+
+    // Attach slider to parameter
+    masterVolumeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+        audioProcessor.getValueTreeState(), "master_volume", masterVolumeSlider);
+
     drumPadsGroup.setText("Drum Pads");
     addAndMakeVisible(drumPadsGroup);
 
@@ -427,6 +441,14 @@ void FlamAudioProcessorEditor::resized()
     kitBrowserButton.setBounds(kitArea.removeFromRight(100));
     kitArea.removeFromRight(5);
     currentKitLabel.setBounds(kitArea);
+
+    contentArea.removeFromTop(10);
+
+    // Master volume area
+    auto volumeArea = contentArea.removeFromTop(30);
+    masterVolumeLabel.setBounds(volumeArea.removeFromLeft(120));
+    volumeArea.removeFromLeft(5);
+    masterVolumeSlider.setBounds(volumeArea);
 
     contentArea.removeFromTop(10);
 

@@ -100,6 +100,11 @@ private:
     juce::Label kitBrowserLabel;
     juce::Label currentKitLabel;
 
+    // Master volume control
+    juce::Label masterVolumeLabel;
+    juce::Slider masterVolumeSlider;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> masterVolumeAttachment;
+
     juce::GroupComponent drumPadsGroup;
     juce::OwnedArray<DrumPad> drumPads;
 
