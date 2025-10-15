@@ -74,6 +74,17 @@ void SampleVoice::stopNote(int sampleOffset)
     envelope.noteOff();
 }
 
+void SampleVoice::forceQuickRelease()
+{
+    // Override envelope parameters to force a 20ms release
+    // This creates a smooth crossfade when retriggering without pops
+    // 20ms gives natural overlap while still cleaning up quickly
+    juce::ADSR::Parameters fastParams = envParams;
+    fastParams.release = 0.040f;  // 40ms quick release
+    envelope.setParameters(fastParams);
+    envelope.noteOff();
+}
+
 void SampleVoice::loadSampleData(const SampleLayer* layer, int newVoiceId, int newStreamId)
 {
     if (!layer || !layer->preloadBuffer)

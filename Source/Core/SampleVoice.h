@@ -35,6 +35,12 @@ public:
     void stopNote(int sampleOffset);
 
     /**
+     * Force a fast release for retriggering (prevents pops but cleans up quickly)
+     * This temporarily overrides the envelope release time to create a smooth crossfade
+     */
+    void forceQuickRelease();
+
+    /**
      * Render the next block of samples
      * @param outputBuffer Buffer to write samples to (will be added, not replaced)
      * @param startSample Starting sample index in the buffer

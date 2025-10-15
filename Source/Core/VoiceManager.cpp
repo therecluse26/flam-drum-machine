@@ -164,16 +164,14 @@ void VoiceManager::triggerNote(int midiNote, float velocity, int sampleOffset)
     {
         if (i != voiceIndex && voices[i].isActive && voices[i].midiNote == midiNote)
         {
-            // Cancel streaming and reset the voice to free memory
+            // Cancel streaming to prevent more data from loading
             if (streamingManager && voices[i].sampleVoice)
                 streamingManager->cancelStream(voices[i].sampleVoice->getVoiceId());
 
+            // Force quick 5ms release - creates smooth crossfade without pops,
+            // but cleans up fast enough to prevent memory leak
             if (voices[i].sampleVoice)
-                voices[i].sampleVoice->reset();
-
-            voices[i].isActive = false;
-            voices[i].midiNote = -1;
-            voices[i].chokeGroup = -1;
+                voices[i].sampleVoice->forceQuickRelease();
         }
     }
 
@@ -389,16 +387,13 @@ void VoiceManager::handleChokeGroup(int chokeGroup, int excludeVoice)
         if (i != excludeVoice && voices[i].isActive &&
             voices[i].chokeGroup == chokeGroup)
         {
-            // Cancel streaming and reset the voice to free memory
+            // Cancel streaming to prevent more data from loading
             if (streamingManager && voices[i].sampleVoice)
                 streamingManager->cancelStream(voices[i].sampleVoice->getVoiceId());
 
+            // Force quick release for choke groups (hi-hat open/closed, etc)
             if (voices[i].sampleVoice)
-                voices[i].sampleVoice->reset();
-
-            voices[i].isActive = false;
-            voices[i].midiNote = -1;
-            voices[i].chokeGroup = -1;
+                voices[i].sampleVoice->forceQuickRelease();
         }
     }
 
