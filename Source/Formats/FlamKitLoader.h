@@ -62,6 +62,9 @@ struct DrumKit
     juce::File coverImageFile;
     std::vector<juce::String> tags;
 
+    // Channel definitions from YAML
+    std::vector<juce::String> channelNames;
+
     std::vector<DrumPiece> pieces;
 
     struct GlobalSettings

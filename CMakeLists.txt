@@ -5,9 +5,15 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-# Find yaml-cpp
+# Find yaml-cpp (optional - will use JUCE JSON parser as fallback if not found)
 find_package(PkgConfig REQUIRED)
-pkg_check_modules(YAML_CPP REQUIRED yaml-cpp)
+pkg_check_modules(YAML_CPP yaml-cpp)
+
+if(NOT YAML_CPP_FOUND)
+    message(WARNING "yaml-cpp not found via pkg-config. FlamKitLoader will only support JSON format.")
+    message(WARNING "To enable YAML support on NixOS: run 'nix-shell' from the project root before building.")
+    message(WARNING "The shell.nix file already includes yaml-cpp as a dependency.")
+endif()
 
 # Download JUCE if not present
 include(FetchContent)
@@ -45,14 +51,24 @@ target_sources(FLAM
         Source/Core/MixerBus.cpp
         Source/Core/SampleVoice.cpp
         Source/Core/SampleStreamingManager.cpp
+        Source/Core/PerChannelMixer.cpp
         Source/Formats/FlamKitLoader.cpp
-        Source/DSP/IRConvolver.cpp)
+        Source/DSP/IRConvolver.cpp
+        Source/DSP/TenBandGraphicEQ.cpp
+        Source/DSP/SaturationProcessor.cpp
+        Source/DSP/CompressorProcessor.cpp
+        Source/DSP/LimiterProcessor.cpp)
 
 # Add include directories
 target_include_directories(FLAM
     PUBLIC
-        Source
-        ${YAML_CPP_INCLUDE_DIRS})
+        Source)
+
+# Add yaml-cpp include directories if found
+if(YAML_CPP_FOUND)
+    target_include_directories(FLAM PUBLIC ${YAML_CPP_INCLUDE_DIRS})
+    target_compile_definitions(FLAM PRIVATE FLAM_YAML_SUPPORT=1)
+endif()
 
 # Compile definitions
 target_compile_definitions(FLAM
@@ -79,11 +95,15 @@ target_link_libraries(FLAM
         juce::juce_graphics
         juce::juce_gui_basics
         juce::juce_gui_extra
-        ${YAML_CPP_LIBRARIES}
     PUBLIC
         juce::juce_recommended_config_flags
         juce::juce_recommended_lto_flags
         juce::juce_recommended_warning_flags)
+
+# Link yaml-cpp if found
+if(YAML_CPP_FOUND)
+    target_link_libraries(FLAM PRIVATE ${YAML_CPP_LIBRARIES})
+endif()
 
 # Platform-specific settings
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")

@@ -29,6 +29,11 @@ void FlamEngine::prepareToPlay(double sampleRate, int samplesPerBlock)
     eq->prepareToPlay(sampleRate, samplesPerBlock);
     compressor->prepareToPlay(sampleRate, samplesPerBlock);
 
+    // Allocate internal buffer for multi-channel rendering
+    // Get required channel count from loaded kit (defaults to 2 if no kit loaded)
+    const int requiredChannels = voiceManager->getRequiredChannelCount();
+    internalBuffer.setSize(requiredChannels, samplesPerBlock, false, false, true);
+
     AudioProcessorGraph::prepareToPlay(sampleRate, samplesPerBlock);
 }
 
@@ -46,6 +51,8 @@ void FlamEngine::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer
 {
     juce::ScopedNoDenormals noDenormals;
 
+    const int numSamples = buffer.getNumSamples();
+
     for (const auto metadata : midiMessages)
     {
         const auto message = metadata.getMessage();
@@ -53,14 +60,28 @@ void FlamEngine::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer
         handleMidiEvent(message, samplePosition);
     }
 
-    // Render drum voices
-    voiceManager->renderNextBlock(buffer, 0, buffer.getNumSamples());
+    // Ensure internal buffer is correct size (may need resize if block size changed)
+    if (internalBuffer.getNumSamples() < numSamples)
+        internalBuffer.setSize(internalBuffer.getNumChannels(), numSamples, false, false, true);
+
+    // Clear internal buffer and render drum voices to full multi-channel output
+    internalBuffer.clear();
+    voiceManager->renderNextBlock(internalBuffer, 0, numSamples);
+
+    // Copy multi-channel internal buffer to output buffer
+    // This is where the PerChannelMixer will process later - for now just copy what fits
+    buffer.clear();
+    const int channelsToCopy = juce::jmin(buffer.getNumChannels(), internalBuffer.getNumChannels());
+    for (int ch = 0; ch < channelsToCopy; ++ch)
+    {
+        buffer.copyFrom(ch, 0, internalBuffer, ch, 0, numSamples);
+    }
 
     // Measure input level (before input gain)
     float inLevel = 0.0f;
     for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
     {
-        const float channelLevel = buffer.getMagnitude(ch, 0, buffer.getNumSamples());
+        const float channelLevel = buffer.getMagnitude(ch, 0, numSamples);
         inLevel = std::max(inLevel, channelLevel);
     }
     inputLevel.store(inLevel, std::memory_order_relaxed);
@@ -83,7 +104,7 @@ void FlamEngine::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer
     float outLevel = 0.0f;
     for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
     {
-        const float channelLevel = buffer.getMagnitude(ch, 0, buffer.getNumSamples());
+        const float channelLevel = buffer.getMagnitude(ch, 0, numSamples);
         outLevel = std::max(outLevel, channelLevel);
     }
     outputLevel.store(outLevel, std::memory_order_relaxed);
@@ -155,6 +176,11 @@ void FlamEngine::triggerNote(int midiNote, float velocity, int sampleOffset)
 void FlamEngine::releaseNote(int midiNote, int sampleOffset)
 {
     voiceManager->releaseNote(midiNote, sampleOffset);
+}
+
+int FlamEngine::getRequiredChannelCount() const
+{
+    return voiceManager->getRequiredChannelCount();
 }
 
 } // namespace flam

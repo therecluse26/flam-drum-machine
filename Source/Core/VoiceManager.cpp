@@ -469,4 +469,31 @@ const SampleLayer* VoiceManager::findBestLayer(const DrumPiece* piece,
     return matchingLayers[0];
 }
 
+int VoiceManager::getRequiredChannelCount() const
+{
+    const juce::SpinLock::ScopedLockType lock(voiceLock);
+
+    if (!currentKit)
+        return 2;  // Default to stereo
+
+    int maxChannels = 2;  // Minimum stereo
+
+    // Scan all samples in the kit to find the maximum channel count
+    for (const auto& piece : currentKit->pieces)
+    {
+        for (const auto& articulation : piece.articulations)
+        {
+            for (const auto& layer : articulation.layers)
+            {
+                if (layer.preloadBuffer)
+                {
+                    maxChannels = juce::jmax(maxChannels, layer.preloadBuffer->getNumChannels());
+                }
+            }
+        }
+    }
+
+    return maxChannels;
+}
+
 } // namespace flam

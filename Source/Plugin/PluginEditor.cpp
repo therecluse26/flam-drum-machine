@@ -474,6 +474,54 @@ private:
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(KitTileComponent)
 };
 
+// Main tab component containing drum pads only (mixer moved to Per-Channel Mixer tab)
+class FlamAudioProcessorEditor::MainTabComponent : public juce::Component
+{
+public:
+    MainTabComponent(juce::GroupComponent* padsGroup, juce::OwnedArray<DrumPad>* pads)
+        : drumPadsGroup(padsGroup)
+        , drumPads(pads)
+    {
+        addAndMakeVisible(drumPadsGroup);
+    }
+
+    void resized() override
+    {
+        auto bounds = getLocalBounds().reduced(10);
+
+        // Drum pads fill the entire area
+        drumPadsGroup->setBounds(bounds);
+        auto padContent = bounds.reduced(15, 25);
+
+        // Calculate grid dimensions based on number of pads
+        const int numPads = drumPads->size();
+        if (numPads > 0)
+        {
+            const int cols = static_cast<int>(std::ceil(std::sqrt(static_cast<float>(numPads))));
+            const int rows = static_cast<int>(std::ceil(static_cast<float>(numPads) / cols));
+
+            const int padSpacing = 8;
+            const int padWidth = (padContent.getWidth() - (cols - 1) * padSpacing) / cols;
+            const int padHeight = (padContent.getHeight() - (rows - 1) * padSpacing) / rows;
+
+            for (int i = 0; i < numPads; ++i)
+            {
+                int row = i / cols;
+                int col = i % cols;
+                int x = padContent.getX() + col * (padWidth + padSpacing);
+                int y = padContent.getY() + row * (padHeight + padSpacing);
+                (*drumPads)[i]->setBounds(x, y, padWidth, padHeight);
+            }
+        }
+    }
+
+private:
+    juce::GroupComponent* drumPadsGroup;
+    juce::OwnedArray<DrumPad>* drumPads;
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MainTabComponent)
+};
+
 // File browser for adding external kits
 class FileBrowserWindow : public juce::DocumentWindow,
                           public juce::FileBrowserListener
@@ -700,15 +748,28 @@ FlamAudioProcessorEditor::FlamAudioProcessorEditor(FlamAudioProcessor& p)
     addAndMakeVisible(kitBrowserButton);
 
     drumPadsGroup.setText("Drum Pads");
-    addAndMakeVisible(drumPadsGroup);
 
-    // Create mixer panel
-    mixerPanel = std::make_unique<MixerPanel>(audioProcessor.getValueTreeState(), audioProcessor);
-    addAndMakeVisible(mixerPanel.get());
+    // Create full-width tabbed interface
+    mixerTabs = std::make_unique<juce::TabbedComponent>(juce::TabbedButtonBar::TabsAtTop);
+
+    // Tab 1: Drum Pads (full width)
+    mainTab = std::make_unique<MainTabComponent>(&drumPadsGroup, &drumPads);
+    mixerTabs->addTab("Main", juce::Colours::darkgrey, mainTab.get(), false);
+
+    // Tab 2: Per-Channel Mixer (full width)
+    if (auto* mixer = audioProcessor.getPerChannelMixer())
+    {
+        perChannelMixerPanel = std::make_unique<PerChannelMixerPanel>(*mixer);
+        mixerTabs->addTab("Per-Channel Mixer", juce::Colours::darkgrey, perChannelMixerPanel.get(), false);
+    }
+
+    addAndMakeVisible(mixerTabs.get());
 
     setupDrumPads();
 
-    setSize(1200, 600);
+    setSize(1200, 700);
+    setResizable(true, true);
+    setResizeLimits(800, 500, 2400, 1400);
 
     // Scan for available kits and load last one
     scanForKits();
@@ -734,14 +795,7 @@ void FlamAudioProcessorEditor::resized()
 
     auto contentArea = bounds.reduced(10);
 
-    // Mixer panel on the right side (300px wide)
-    auto mixerArea = contentArea.removeFromRight(300);
-    if (mixerPanel)
-        mixerPanel->setBounds(mixerArea);
-
-    contentArea.removeFromRight(10);  // Spacing
-
-    // Kit browser area
+    // Kit browser area at top
     auto kitArea = contentArea.removeFromTop(40);
     kitBrowserLabel.setBounds(kitArea.removeFromLeft(40));
     kitArea.removeFromLeft(5);
@@ -751,31 +805,9 @@ void FlamAudioProcessorEditor::resized()
 
     contentArea.removeFromTop(10);
 
-    // Drum pads fill the remaining space
-    drumPadsGroup.setBounds(contentArea);
-    auto padContent = contentArea.reduced(15, 25);
-
-    // Calculate grid dimensions based on number of pads
-    const int numPads = drumPads.size();
-    if (numPads > 0)
-    {
-        // Calculate optimal grid size (try to keep it roughly square)
-        const int cols = static_cast<int>(std::ceil(std::sqrt(static_cast<float>(numPads))));
-        const int rows = static_cast<int>(std::ceil(static_cast<float>(numPads) / cols));
-
-        const int padSpacing = 8;
-        const int padWidth = (padContent.getWidth() - (cols - 1) * padSpacing) / cols;
-        const int padHeight = (padContent.getHeight() - (rows - 1) * padSpacing) / rows;
-
-        for (int i = 0; i < numPads; ++i)
-        {
-            int row = i / cols;
-            int col = i % cols;
-            int x = padContent.getX() + col * (padWidth + padSpacing);
-            int y = padContent.getY() + row * (padHeight + padSpacing);
-            drumPads[i]->setBounds(x, y, padWidth, padHeight);
-        }
-    }
+    // Tabs take full width
+    if (mixerTabs)
+        mixerTabs->setBounds(contentArea);
 }
 
 void FlamAudioProcessorEditor::setupDrumPads()
@@ -797,7 +829,8 @@ void FlamAudioProcessorEditor::updateDrumPadsFromKit()
             auto* pad = new DrumPad(piece.name, piece.midiNote,
                 [this](int note, float velocity) { triggerDrumPad(note, velocity); });
             drumPads.add(pad);
-            addAndMakeVisible(pad);
+            if (mainTab)
+                mainTab->addAndMakeVisible(pad);
         }
     }
     else
@@ -807,7 +840,8 @@ void FlamAudioProcessorEditor::updateDrumPadsFromKit()
     }
 
     // Trigger a relayout
-    resized();
+    if (mainTab)
+        mainTab->resized();
 }
 
 void FlamAudioProcessorEditor::triggerDrumPad(int midiNote, float velocity)
@@ -968,6 +1002,20 @@ void FlamAudioProcessorEditor::loadKitFromPath(const juce::File& kitFile)
 
             // Update drum pads to match the kit
             updateDrumPadsFromKit();
+
+            // Configure per-channel mixer with kit's channel count
+            if (auto* mixer = audioProcessor.getPerChannelMixer())
+            {
+                int numChannels = static_cast<int>(currentKit->channelNames.size());
+                if (numChannels > 0)
+                {
+                    mixer->setNumChannels(numChannels, currentKit->channelNames);
+
+                    // Refresh the per-channel mixer UI
+                    if (perChannelMixerPanel)
+                        perChannelMixerPanel->refreshChannels();
+                }
+            }
         }
         else
         {

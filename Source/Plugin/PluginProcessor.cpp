@@ -11,8 +11,12 @@ FlamAudioProcessor::FlamAudioProcessor()
     : AudioProcessor(BusesProperties()
                          .withOutput("Output", juce::AudioChannelSet::stereo(), true)
                          )
+    , perChannelMixer(std::make_unique<PerChannelMixer>())
     , parameters(*this, nullptr, juce::Identifier("FLAM"), createParameterLayout())
 {
+    // Initialize mixer with 2 default channels
+    std::vector<juce::String> defaultChannels = {"Channel 1", "Channel 2"};
+    perChannelMixer->setNumChannels(2, defaultChannels);
     humanizationParam = dynamic_cast<juce::AudioParameterFloat*>(
         parameters.getParameter("humanization"));
     masterVolumeParam = dynamic_cast<juce::AudioParameterFloat*>(
@@ -128,6 +132,24 @@ void FlamAudioProcessor::changeProgramName(int index, const juce::String& newNam
 void FlamAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
     engine.prepareToPlay(sampleRate, samplesPerBlock);
+
+    if (perChannelMixer)
+    {
+        // Get required channel count from engine (based on loaded kit)
+        const int requiredChannels = engine.getRequiredChannelCount();
+
+        // Configure mixer for correct number of channels
+        std::vector<juce::String> channelNames;
+        for (int i = 0; i < requiredChannels; ++i)
+            channelNames.push_back("Channel " + juce::String(i + 1));
+
+        perChannelMixer->setNumChannels(requiredChannels, channelNames);
+        perChannelMixer->prepareToPlay(sampleRate, samplesPerBlock);
+
+        // Pre-allocate output buffer for stereo mix (input buffer not needed - use engine's directly)
+        mixerOutputBuffer.setSize(2, samplesPerBlock, false, false, true);
+    }
+
     updateEngineParameters();
 }
 
@@ -158,8 +180,35 @@ void FlamAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::Mi
         buffer.clear(i, 0, buffer.getNumSamples());
 
     updateEngineParameters();
-    
+
+    // Process audio through the engine (renders voices to multi-channel internal buffer)
     engine.processBlock(buffer, midiMessages);
+
+    // Process multi-channel audio through per-channel mixer
+    if (perChannelMixer)
+    {
+        const int numSamples = buffer.getNumSamples();
+
+        // Ensure output buffer is large enough (may need resize if block size changed)
+        if (mixerOutputBuffer.getNumSamples() < numSamples)
+            mixerOutputBuffer.setSize(2, numSamples, false, false, true);
+
+        // Clear output buffer
+        mixerOutputBuffer.clear();
+
+        // Get multi-channel buffer from engine and process through mixer
+        // This buffer contains the full multi-channel output (e.g., 8 channels for 8-mic kit)
+        const auto& multiChannelBuffer = engine.getMultiChannelBuffer();
+
+        // Process through per-channel mixer (routing, FX, solo/mute, etc.)
+        perChannelMixer->process(multiChannelBuffer, mixerOutputBuffer, numSamples);
+
+        // Copy stereo mixer output back to main buffer
+        buffer.clear();
+        buffer.copyFrom(0, 0, mixerOutputBuffer, 0, 0, numSamples);
+        if (buffer.getNumChannels() >= 2)
+            buffer.copyFrom(1, 0, mixerOutputBuffer, 1, 0, numSamples);
+    }
 }
 
 bool FlamAudioProcessor::hasEditor() const

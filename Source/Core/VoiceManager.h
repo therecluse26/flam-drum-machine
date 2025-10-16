@@ -40,6 +40,13 @@ public:
     void setRoundRobinEnabled(bool enabled) { useRoundRobin.store(enabled); }
     bool isRoundRobinEnabled() const { return useRoundRobin.load(); }
 
+    /**
+     * Get the number of output channels required for the currently loaded kit.
+     * Returns the maximum channel count across all samples in the kit.
+     * Defaults to 2 (stereo) if no kit is loaded.
+     */
+    int getRequiredChannelCount() const;
+
 private:
     struct Voice
     {

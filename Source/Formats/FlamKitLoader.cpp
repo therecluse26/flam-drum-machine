@@ -1,5 +1,8 @@
 #include "FlamKitLoader.h"
+
+#ifdef FLAM_YAML_SUPPORT
 #include <yaml-cpp/yaml.h>
+#endif
 
 namespace flam {
 
@@ -27,7 +30,13 @@ std::unique_ptr<DrumKit> FlamKitLoader::loadKit(const juce::File& kitFile)
     auto extension = kitFile.getFileExtension().toLowerCase();
     if (extension == ".yaml" || extension == ".yml")
     {
+#ifdef FLAM_YAML_SUPPORT
         kit = parseYamlKit(content);
+#else
+        lastError = "YAML support not available. Build with yaml-cpp library to enable YAML parsing.\n"
+                    "On NixOS: run 'nix-shell' before building to include yaml-cpp dependency.";
+        return nullptr;
+#endif
     }
     else
     {
@@ -111,7 +120,13 @@ bool FlamKitLoader::saveKit(const DrumKit& kit, const juce::File& kitFile)
     auto extension = kitFile.getFileExtension().toLowerCase();
     if (extension == ".yaml" || extension == ".yml")
     {
+#ifdef FLAM_YAML_SUPPORT
         content = serializeKitToYaml(kit);
+#else
+        lastError = "YAML support not available. Build with yaml-cpp library to enable YAML serialization.\n"
+                    "On NixOS: run 'nix-shell' before building to include yaml-cpp dependency.";
+        return false;
+#endif
     }
     else
     {
@@ -136,6 +151,7 @@ bool FlamKitLoader::saveKit(const DrumKit& kit, const juce::File& kitFile)
 
 std::unique_ptr<DrumKit> FlamKitLoader::parseYamlKit(const juce::String& content)
 {
+#ifdef FLAM_YAML_SUPPORT
     auto kit = std::make_unique<DrumKit>();
 
     try
@@ -157,6 +173,18 @@ std::unique_ptr<DrumKit> FlamKitLoader::parseYamlKit(const juce::String& content
         {
             for (const auto& tagNode : root["tags"])
                 kit->tags.push_back(tagNode.as<std::string>());
+        }
+
+        // Parse channels
+        if (root["channels"] && root["channels"].IsSequence())
+        {
+            for (const auto& channelNode : root["channels"])
+            {
+                if (channelNode["name"])
+                {
+                    kit->channelNames.push_back(channelNode["name"].as<std::string>());
+                }
+            }
         }
 
         // Parse settings
@@ -252,6 +280,11 @@ std::unique_ptr<DrumKit> FlamKitLoader::parseYamlKit(const juce::String& content
     }
 
     return kit;
+#else
+    (void)content;  // Suppress unused parameter warning
+    lastError = "YAML support not compiled in";
+    return nullptr;
+#endif
 }
 
 std::unique_ptr<DrumKit> FlamKitLoader::parseJsonKit(const juce::String& content)

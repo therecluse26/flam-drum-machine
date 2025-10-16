@@ -50,6 +50,16 @@ public:
     float getInputLevel() const { return inputLevel.load(std::memory_order_relaxed); }
     float getOutputLevel() const { return outputLevel.load(std::memory_order_relaxed); }
 
+    // Multi-channel support
+    int getRequiredChannelCount() const;
+
+    /**
+     * Get the internal multi-channel rendering buffer.
+     * This contains the full multi-channel output from voice rendering,
+     * before any downmixing or processing. Used by PerChannelMixer.
+     */
+    const juce::AudioBuffer<float>& getMultiChannelBuffer() const { return internalBuffer; }
+
 private:
     std::unique_ptr<VoiceManager> voiceManager;
     std::unique_ptr<MixerBus> mixerBus;
@@ -67,6 +77,9 @@ private:
 
     double currentSampleRate{44100.0};
     int currentBlockSize{512};
+
+    // Multi-channel internal rendering buffer
+    juce::AudioBuffer<float> internalBuffer;
 
     juce::Random randomGenerator;
 

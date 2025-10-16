@@ -3,6 +3,7 @@
 #include <juce_gui_basics/juce_gui_basics.h>
 #include "PluginProcessor.h"
 #include "../UI/LevelMeter.h"
+#include "../UI/PerChannelMixerPanel.h"
 
 namespace flam {
 
@@ -327,8 +328,13 @@ private:
     juce::GroupComponent drumPadsGroup;
     juce::OwnedArray<DrumPad> drumPads;
 
-    // Mixer panel on the right side
-    std::unique_ptr<MixerPanel> mixerPanel;
+    // Main tab component (drum pads + master mixer)
+    class MainTabComponent;
+    std::unique_ptr<MainTabComponent> mainTab;
+
+    // Mixer panels - use tabs to switch between them
+    std::unique_ptr<juce::TabbedComponent> mixerTabs;
+    std::unique_ptr<PerChannelMixerPanel> perChannelMixerPanel;  // Per-channel mixer with master channel
 
     void setupDrumPads();
     void triggerDrumPad(int midiNote, float velocity);

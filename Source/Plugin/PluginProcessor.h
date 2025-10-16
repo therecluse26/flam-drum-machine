@@ -2,6 +2,7 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 #include "../Core/FlamEngine.h"
+#include "../Core/PerChannelMixer.h"
 
 namespace flam {
 
@@ -43,8 +44,11 @@ public:
 
     juce::AudioProcessorValueTreeState& getValueTreeState() { return parameters; }
 
+    PerChannelMixer* getPerChannelMixer() { return perChannelMixer.get(); }
+
 private:
     FlamEngine engine;
+    std::unique_ptr<PerChannelMixer> perChannelMixer;
     juce::AudioProcessorValueTreeState parameters;
     
     juce::AudioParameterFloat* humanizationParam{nullptr};
@@ -85,6 +89,9 @@ private:
 
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
     void updateEngineParameters();
+
+    // Pre-allocated buffer for mixer stereo output (real-time safe)
+    juce::AudioBuffer<float> mixerOutputBuffer;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(FlamAudioProcessor)
 };
