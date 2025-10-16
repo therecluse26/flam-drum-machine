@@ -2,6 +2,8 @@
 #include "PluginEditor.h"
 #include "../Core/VoiceManager.h"
 #include "../Core/MixerBus.h"
+#include "../DSP/SimpleEQ.h"
+#include "../DSP/SimpleCompressor.h"
 
 namespace flam {
 
@@ -29,6 +31,33 @@ FlamAudioProcessor::FlamAudioProcessor()
         parameters.getParameter("polyphony"));
     roundRobinParam = dynamic_cast<juce::AudioParameterBool*>(
         parameters.getParameter("round_robin"));
+
+    // Mixer parameters
+    inputGainParam = dynamic_cast<juce::AudioParameterFloat*>(
+        parameters.getParameter("input_gain"));
+
+    // EQ parameters
+    eqBypassParam = dynamic_cast<juce::AudioParameterBool*>(parameters.getParameter("eq_enabled"));
+    eq31HzParam = dynamic_cast<juce::AudioParameterFloat*>(parameters.getParameter("eq_31hz"));
+    eq62HzParam = dynamic_cast<juce::AudioParameterFloat*>(parameters.getParameter("eq_62hz"));
+    eq125HzParam = dynamic_cast<juce::AudioParameterFloat*>(parameters.getParameter("eq_125hz"));
+    eq250HzParam = dynamic_cast<juce::AudioParameterFloat*>(parameters.getParameter("eq_250hz"));
+    eq500HzParam = dynamic_cast<juce::AudioParameterFloat*>(parameters.getParameter("eq_500hz"));
+    eq1kHzParam = dynamic_cast<juce::AudioParameterFloat*>(parameters.getParameter("eq_1khz"));
+    eq2kHzParam = dynamic_cast<juce::AudioParameterFloat*>(parameters.getParameter("eq_2khz"));
+    eq4kHzParam = dynamic_cast<juce::AudioParameterFloat*>(parameters.getParameter("eq_4khz"));
+    eq8kHzParam = dynamic_cast<juce::AudioParameterFloat*>(parameters.getParameter("eq_8khz"));
+    eq16kHzParam = dynamic_cast<juce::AudioParameterFloat*>(parameters.getParameter("eq_16khz"));
+
+    // Compressor parameters
+    compBypassParam = dynamic_cast<juce::AudioParameterBool*>(parameters.getParameter("comp_enabled"));
+    compAttackParam = dynamic_cast<juce::AudioParameterFloat*>(parameters.getParameter("comp_attack"));
+    compReleaseParam = dynamic_cast<juce::AudioParameterFloat*>(parameters.getParameter("comp_release"));
+    compHoldParam = dynamic_cast<juce::AudioParameterFloat*>(parameters.getParameter("comp_hold"));
+    compThresholdParam = dynamic_cast<juce::AudioParameterFloat*>(parameters.getParameter("comp_threshold"));
+    compRatioParam = dynamic_cast<juce::AudioParameterFloat*>(parameters.getParameter("comp_ratio"));
+    compLookaheadParam = dynamic_cast<juce::AudioParameterFloat*>(parameters.getParameter("comp_lookahead"));
+    compMakeupGainParam = dynamic_cast<juce::AudioParameterFloat*>(parameters.getParameter("comp_makeup_gain"));
 }
 
 FlamAudioProcessor::~FlamAudioProcessor() = default;
@@ -203,8 +232,94 @@ juce::AudioProcessorValueTreeState::ParameterLayout FlamAudioProcessor::createPa
         1, 128, 64));
 
     layout.add(std::make_unique<juce::AudioParameterBool>(
-        "round_robin", "Round Robin", 
+        "round_robin", "Round Robin",
         true));
+
+    // Input gain
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        "input_gain", "Input Gain",
+        juce::NormalisableRange<float>(-24.0f, 24.0f, 0.1f),
+        0.0f, "dB"));
+
+    // 10-band EQ (standard graphic EQ frequencies)
+    layout.add(std::make_unique<juce::AudioParameterBool>(
+        "eq_enabled", "EQ Enabled",
+        false));
+
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        "eq_31hz", "EQ 31 Hz",
+        juce::NormalisableRange<float>(-12.0f, 12.0f, 0.1f),
+        0.0f, "dB"));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        "eq_62hz", "EQ 62 Hz",
+        juce::NormalisableRange<float>(-12.0f, 12.0f, 0.1f),
+        0.0f, "dB"));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        "eq_125hz", "EQ 125 Hz",
+        juce::NormalisableRange<float>(-12.0f, 12.0f, 0.1f),
+        0.0f, "dB"));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        "eq_250hz", "EQ 250 Hz",
+        juce::NormalisableRange<float>(-12.0f, 12.0f, 0.1f),
+        0.0f, "dB"));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        "eq_500hz", "EQ 500 Hz",
+        juce::NormalisableRange<float>(-12.0f, 12.0f, 0.1f),
+        0.0f, "dB"));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        "eq_1khz", "EQ 1 kHz",
+        juce::NormalisableRange<float>(-12.0f, 12.0f, 0.1f),
+        0.0f, "dB"));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        "eq_2khz", "EQ 2 kHz",
+        juce::NormalisableRange<float>(-12.0f, 12.0f, 0.1f),
+        0.0f, "dB"));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        "eq_4khz", "EQ 4 kHz",
+        juce::NormalisableRange<float>(-12.0f, 12.0f, 0.1f),
+        0.0f, "dB"));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        "eq_8khz", "EQ 8 kHz",
+        juce::NormalisableRange<float>(-12.0f, 12.0f, 0.1f),
+        0.0f, "dB"));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        "eq_16khz", "EQ 16 kHz",
+        juce::NormalisableRange<float>(-12.0f, 12.0f, 0.1f),
+        0.0f, "dB"));
+
+    // Compressor parameters
+    layout.add(std::make_unique<juce::AudioParameterBool>(
+        "comp_enabled", "Compressor Enabled",
+        false));
+
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        "comp_attack", "Compressor Attack",
+        juce::NormalisableRange<float>(0.1f, 100.0f, 0.1f, 0.3f),
+        10.0f, "ms"));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        "comp_release", "Compressor Release",
+        juce::NormalisableRange<float>(10.0f, 1000.0f, 1.0f, 0.3f),
+        100.0f, "ms"));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        "comp_hold", "Compressor Hold",
+        juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f),
+        0.0f, "ms"));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        "comp_threshold", "Compressor Threshold",
+        juce::NormalisableRange<float>(-60.0f, 0.0f, 0.1f),
+        -20.0f, "dB"));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        "comp_ratio", "Compressor Ratio",
+        juce::NormalisableRange<float>(1.0f, 20.0f, 0.1f, 0.3f),
+        4.0f, ":1"));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        "comp_lookahead", "Compressor Lookahead",
+        juce::NormalisableRange<float>(0.0f, 10.0f, 0.1f),
+        0.0f, "ms"));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        "comp_makeup_gain", "Compressor Makeup Gain",
+        juce::NormalisableRange<float>(-20.0f, 20.0f, 0.1f),
+        0.0f, "dB"));
 
     return layout;
 }
@@ -214,23 +329,56 @@ void FlamAudioProcessor::updateEngineParameters()
     if (humanizationParam)
         engine.setHumanizationAmount(humanizationParam->get());
 
+    // Input gain
+    if (inputGainParam)
+        engine.setInputGain(inputGainParam->get());
+
+    // EQ parameters
+    if (auto* eq = engine.getEQ())
+    {
+        if (eqBypassParam) eq->setBypassed(!eqBypassParam->get());  // Invert: enabled=true means bypass=false
+        if (eq31HzParam) eq->setBandGain(0, eq31HzParam->get());
+        if (eq62HzParam) eq->setBandGain(1, eq62HzParam->get());
+        if (eq125HzParam) eq->setBandGain(2, eq125HzParam->get());
+        if (eq250HzParam) eq->setBandGain(3, eq250HzParam->get());
+        if (eq500HzParam) eq->setBandGain(4, eq500HzParam->get());
+        if (eq1kHzParam) eq->setBandGain(5, eq1kHzParam->get());
+        if (eq2kHzParam) eq->setBandGain(6, eq2kHzParam->get());
+        if (eq4kHzParam) eq->setBandGain(7, eq4kHzParam->get());
+        if (eq8kHzParam) eq->setBandGain(8, eq8kHzParam->get());
+        if (eq16kHzParam) eq->setBandGain(9, eq16kHzParam->get());
+    }
+
+    // Compressor parameters
+    if (auto* compressor = engine.getCompressor())
+    {
+        if (compBypassParam) compressor->setBypassed(!compBypassParam->get());  // Invert: enabled=true means bypass=false
+        if (compAttackParam) compressor->setAttack(compAttackParam->get());
+        if (compReleaseParam) compressor->setRelease(compReleaseParam->get());
+        if (compHoldParam) compressor->setHold(compHoldParam->get());
+        if (compThresholdParam) compressor->setThreshold(compThresholdParam->get());
+        if (compRatioParam) compressor->setRatio(compRatioParam->get());
+        if (compLookaheadParam) compressor->setLookahead(compLookaheadParam->get());
+        if (compMakeupGainParam) compressor->setMakeupGain(compMakeupGainParam->get());
+    }
+
     if (auto* mixerBus = engine.getMixerBus())
     {
         if (masterVolumeParam)
             mixerBus->setMasterLevel(masterVolumeParam->get());
-        
+
         if (closeVolumeParam)
             mixerBus->setBusLevel(MixerBus::BusType::Close, closeVolumeParam->get());
-        
+
         if (overheadVolumeParam)
             mixerBus->setBusLevel(MixerBus::BusType::Overhead, overheadVolumeParam->get());
-        
+
         if (roomVolumeParam)
             mixerBus->setBusLevel(MixerBus::BusType::Room, roomVolumeParam->get());
-        
+
         if (ambientVolumeParam)
             mixerBus->setBusLevel(MixerBus::BusType::Ambient, ambientVolumeParam->get());
-        
+
         if (bleedAmountParam)
             mixerBus->setBleedAmount(bleedAmountParam->get());
     }
@@ -239,7 +387,7 @@ void FlamAudioProcessor::updateEngineParameters()
     {
         if (polyphonyParam)
             voiceManager->setPolyphony(polyphonyParam->get());
-        
+
         if (roundRobinParam)
             voiceManager->setRoundRobinEnabled(roundRobinParam->get());
     }

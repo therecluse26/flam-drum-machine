@@ -57,6 +57,32 @@ private:
     juce::AudioParameterInt* polyphonyParam{nullptr};
     juce::AudioParameterBool* roundRobinParam{nullptr};
 
+    // Mixer section parameters
+    juce::AudioParameterFloat* inputGainParam{nullptr};
+
+    // 10-band EQ parameters (standard frequencies)
+    juce::AudioParameterBool* eqBypassParam{nullptr};  // Note: named bypass but stores "enabled" state
+    juce::AudioParameterFloat* eq31HzParam{nullptr};
+    juce::AudioParameterFloat* eq62HzParam{nullptr};
+    juce::AudioParameterFloat* eq125HzParam{nullptr};
+    juce::AudioParameterFloat* eq250HzParam{nullptr};
+    juce::AudioParameterFloat* eq500HzParam{nullptr};
+    juce::AudioParameterFloat* eq1kHzParam{nullptr};
+    juce::AudioParameterFloat* eq2kHzParam{nullptr};
+    juce::AudioParameterFloat* eq4kHzParam{nullptr};
+    juce::AudioParameterFloat* eq8kHzParam{nullptr};
+    juce::AudioParameterFloat* eq16kHzParam{nullptr};
+
+    // Compressor parameters
+    juce::AudioParameterBool* compBypassParam{nullptr};  // Note: named bypass but stores "enabled" state
+    juce::AudioParameterFloat* compAttackParam{nullptr};
+    juce::AudioParameterFloat* compReleaseParam{nullptr};
+    juce::AudioParameterFloat* compHoldParam{nullptr};
+    juce::AudioParameterFloat* compThresholdParam{nullptr};
+    juce::AudioParameterFloat* compRatioParam{nullptr};
+    juce::AudioParameterFloat* compLookaheadParam{nullptr};
+    juce::AudioParameterFloat* compMakeupGainParam{nullptr};
+
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
     void updateEngineParameters();
 

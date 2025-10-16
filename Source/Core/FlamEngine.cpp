@@ -2,6 +2,8 @@
 #include "VoiceManager.h"
 #include "MixerBus.h"
 #include "../Formats/FlamKitLoader.h"
+#include "../DSP/SimpleEQ.h"
+#include "../DSP/SimpleCompressor.h"
 
 namespace flam {
 
@@ -9,6 +11,8 @@ FlamEngine::FlamEngine()
     : voiceManager(std::make_unique<VoiceManager>())
     , mixerBus(std::make_unique<MixerBus>())
     , kitLoader(std::make_unique<FlamKitLoader>())
+    , eq(std::make_unique<SimpleEQ>())
+    , compressor(std::make_unique<SimpleCompressor>())
 {
     setPlayConfigDetails(0, 2, 44100.0, 512);
 }
@@ -19,19 +23,23 @@ void FlamEngine::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
     currentSampleRate = sampleRate;
     currentBlockSize = samplesPerBlock;
-    
+
     voiceManager->prepareToPlay(sampleRate, samplesPerBlock);
     mixerBus->prepareToPlay(sampleRate, samplesPerBlock);
-    
+    eq->prepareToPlay(sampleRate, samplesPerBlock);
+    compressor->prepareToPlay(sampleRate, samplesPerBlock);
+
     AudioProcessorGraph::prepareToPlay(sampleRate, samplesPerBlock);
 }
 
 void FlamEngine::releaseResources()
 {
     AudioProcessorGraph::releaseResources();
-    
+
     voiceManager->releaseResources();
     mixerBus->releaseResources();
+    eq->reset();
+    compressor->reset();
 }
 
 void FlamEngine::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
@@ -45,11 +53,40 @@ void FlamEngine::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer
         handleMidiEvent(message, samplePosition);
     }
 
+    // Render drum voices
     voiceManager->renderNextBlock(buffer, 0, buffer.getNumSamples());
 
-    // Apply master level only (bypass multi-bus processing for now)
+    // Measure input level (before input gain)
+    float inLevel = 0.0f;
+    for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
+    {
+        const float channelLevel = buffer.getMagnitude(ch, 0, buffer.getNumSamples());
+        inLevel = std::max(inLevel, channelLevel);
+    }
+    inputLevel.store(inLevel, std::memory_order_relaxed);
+
+    // Apply input gain
+    buffer.applyGain(inputGain);
+
+    // Update and apply EQ
+    eq->updateIfNeeded(currentSampleRate);
+    eq->processBlock(buffer);
+
+    // Apply compressor
+    compressor->processBlock(buffer);
+
+    // Apply master level (bypass multi-bus processing for now)
     const float masterGain = juce::Decibels::decibelsToGain(mixerBus->getMasterLevel());
     buffer.applyGain(masterGain);
+
+    // Measure output level (after all processing)
+    float outLevel = 0.0f;
+    for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
+    {
+        const float channelLevel = buffer.getMagnitude(ch, 0, buffer.getNumSamples());
+        outLevel = std::max(outLevel, channelLevel);
+    }
+    outputLevel.store(outLevel, std::memory_order_relaxed);
 
     midiMessages.clear();
 }
