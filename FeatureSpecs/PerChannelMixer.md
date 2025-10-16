@@ -1226,6 +1226,39 @@ void FlamAudioProcessor::processBlock(AudioBuffer<float>& buffer, MidiBuffer& mi
 
 ## UI Implementation
 
+### Main UI Navigation Tab
+
+The Per-Channel Mixer resides in its own dedicated navigation tab within the FlamKit main UI.
+
+**Tab Structure:**
+```
+┌─────────────────────────────────────────────────────────┐
+│ FlamKit                                                 │
+├─────────────────────────────────────────────────────────┤
+│ [Kit Browser] [Mapping] [MIXER] [Settings]             │ ← Navigation tabs
+├─────────────────────────────────────────────────────────┤
+│                                                         │
+│              Mixer Panel Content                        │
+│  (Channel strips, master section, scrollable layout)   │
+│                                                         │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Tab Behavior:**
+- **Tab Label:** "Mixer" or "Mix"
+- **Visibility:** Tab is always visible (not hidden when kit unloaded)
+- **State When No Kit Loaded:** Shows placeholder message: "Load a kit to access mixer"
+- **State When Kit Loaded:** Displays full mixer interface with N channel strips + master section
+- **Persistence:** Selected tab persists across sessions (restore last active tab on launch)
+
+**Integration with Main UI:**
+- Mixer tab content managed by `MixerPanel` component
+- Tab switching handled by main `FlamEditorComponent` or equivalent top-level UI manager
+- Mixer state (parameters, routing) persists independently of tab visibility
+- Audio processing continues regardless of which tab is visible (mixer runs in background)
+
+---
+
 ### Channel Strip Component with Output Selector
 
 ```cpp
