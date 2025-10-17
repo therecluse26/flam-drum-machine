@@ -3,20 +3,20 @@
 #include <juce_gui_basics/juce_gui_basics.h>
 #include "ChannelStripComponent.h"
 #include "MasterChannelStripComponent.h"
-#include "../Core/PerChannelMixer.h"
+#include "../Core/Mixer.h"
 
 namespace flam {
 
 /**
- * @brief Main per-channel mixer panel with scrollable channel strips
+ * @brief Main mixer panel with scrollable channel strips
  *
  * Container for all channel strips + master section.
  * Dynamically creates channel strips based on mixer configuration.
  */
-class PerChannelMixerPanel : public juce::Component
+class MixerPanel : public juce::Component
 {
 public:
-    PerChannelMixerPanel(PerChannelMixer& mixer)
+    MixerPanel(Mixer& mixer)
         : mixerRef(mixer)
     {
         // Create master channel strip (full featured with all FX)
@@ -27,7 +27,7 @@ public:
         updateChannelStrips();
     }
 
-    ~PerChannelMixerPanel() override = default;
+    ~MixerPanel() override = default;
 
     /**
      * @brief Refresh channel strips to match current mixer configuration
@@ -47,7 +47,7 @@ public:
         // Title at top
         g.setColour(juce::Colours::white);
         g.setFont(juce::Font(18.0f, juce::Font::bold));
-        g.drawText("Per-Channel Mixer", getLocalBounds().removeFromTop(40), juce::Justification::centred);
+        g.drawText("Mixer", getLocalBounds().removeFromTop(40), juce::Justification::centred);
     }
 
     void resized() override
@@ -129,7 +129,7 @@ public:
     }
 
 private:
-    PerChannelMixer& mixerRef;
+    Mixer& mixerRef;
 
     // Channel strips (scrollable)
     std::unique_ptr<juce::Viewport> viewport;
@@ -139,7 +139,7 @@ private:
     // Master channel strip (full featured with all FX)
     std::unique_ptr<MasterChannelStripComponent> masterChannelStrip;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PerChannelMixerPanel)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MixerPanel)
 };
 
 } // namespace flam

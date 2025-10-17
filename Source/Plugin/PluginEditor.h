@@ -3,7 +3,7 @@
 #include <juce_gui_basics/juce_gui_basics.h>
 #include "PluginProcessor.h"
 #include "../UI/LevelMeter.h"
-#include "../UI/PerChannelMixerPanel.h"
+#include "../UI/MixerPanel.h"
 
 namespace flam {
 
@@ -143,95 +143,6 @@ private:
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(CompressorMeter)
 };
 
-// Mixer panel component for the right side of the UI
-class MixerPanel : public juce::Component, private juce::Timer
-{
-public:
-    MixerPanel(juce::AudioProcessorValueTreeState& vts, FlamAudioProcessor& proc);
-    ~MixerPanel() override;
-    void resized() override;
-    void paint(juce::Graphics& g) override;
-
-private:
-    void timerCallback() override;
-
-    juce::AudioProcessorValueTreeState& valueTreeState;
-    FlamAudioProcessor& processor;
-
-    // Level meters
-    LevelMeter inputMeter;
-    LevelMeter outputMeter;
-    juce::Label inputMeterLabel;
-    juce::Label outputMeterLabel;
-
-    // Input gain
-    juce::Label inputGainLabel;
-    juce::Slider inputGainSlider;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> inputGainAttachment;
-
-    // Master volume
-    juce::Label masterVolumeLabel;
-    juce::Slider masterVolumeSlider;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> masterVolumeAttachment;
-
-    // EQ
-    juce::GroupComponent eqGroup;
-    BackgroundPanel eqButtonBackground;  // Background to hide border line behind button
-    juce::ToggleButton eqBypassButton;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> eqBypassAttachment;
-    juce::Slider eq31HzSlider, eq62HzSlider, eq125HzSlider, eq250HzSlider, eq500HzSlider;
-    juce::Slider eq1kHzSlider, eq2kHzSlider, eq4kHzSlider, eq8kHzSlider, eq16kHzSlider;
-    juce::Label eq31HzLabel, eq62HzLabel, eq125HzLabel, eq250HzLabel, eq500HzLabel;
-    juce::Label eq1kHzLabel, eq2kHzLabel, eq4kHzLabel, eq8kHzLabel, eq16kHzLabel;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> eq31HzAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> eq62HzAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> eq125HzAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> eq250HzAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> eq500HzAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> eq1kHzAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> eq2kHzAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> eq4kHzAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> eq8kHzAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> eq16kHzAttachment;
-
-    // Compressor
-    juce::GroupComponent compressorGroup;
-    BackgroundPanel compButtonBackground;  // Background to hide border line behind button
-    juce::ToggleButton compBypassButton;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> compBypassAttachment;
-    juce::Slider compAttackSlider, compReleaseSlider, compHoldSlider;
-    juce::Slider compThresholdSlider, compRatioSlider, compLookaheadSlider;
-    juce::Slider compMakeupGainSlider;
-    juce::Label compAttackLabel, compReleaseLabel, compHoldLabel;
-    juce::Label compThresholdLabel, compRatioLabel, compLookaheadLabel;
-    juce::Label compMakeupGainLabel;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> compAttackAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> compReleaseAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> compHoldAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> compThresholdAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> compRatioAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> compLookaheadAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> compMakeupGainAttachment;
-
-    // Compressor meter with built-in labels
-    CompressorMeter compMeter;
-
-    void setupEQBand(juce::Slider& slider, juce::Label& label,
-                     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>& attachment,
-                     const juce::String& labelText, const juce::String& paramID);
-
-    void setupCompControl(juce::Slider& slider, juce::Label& label,
-                          std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>& attachment,
-                          const juce::String& labelText, const juce::String& paramID,
-                          juce::Slider::SliderStyle style);
-
-    // Scrollable content for FX section
-    std::unique_ptr<juce::Viewport> fxViewport;
-    std::unique_ptr<juce::Component> fxContent;
-
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MixerPanel)
-};
-
 // Custom drum pad button component
 class DrumPad : public juce::Component
 {
@@ -334,7 +245,7 @@ private:
 
     // Mixer panels - use tabs to switch between them
     std::unique_ptr<juce::TabbedComponent> mixerTabs;
-    std::unique_ptr<PerChannelMixerPanel> perChannelMixerPanel;  // Per-channel mixer with master channel
+    std::unique_ptr<MixerPanel> perChannelMixerPanel;  // Mixer with master channel
 
     void setupDrumPads();
     void triggerDrumPad(int midiNote, float velocity);

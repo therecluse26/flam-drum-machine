@@ -1,7 +1,7 @@
 #pragma once
 
 #include <juce_gui_basics/juce_gui_basics.h>
-#include "../Core/PerChannelMixer.h"
+#include "../Core/Mixer.h"
 
 namespace flam {
 
@@ -18,7 +18,7 @@ namespace flam {
 class SaturationEditorComponent : public juce::Component
 {
 public:
-    SaturationEditorComponent(PerChannelMixer& mixer, int channelIdx, bool isMaster = false)
+    SaturationEditorComponent(Mixer& mixer, int channelIdx, bool isMaster = false)
         : mixerRef(mixer)
         , channelIndex(channelIdx)
         , isMasterSaturation(isMaster)
@@ -127,7 +127,7 @@ private:
         amountSlider.setValue(amount, juce::dontSendNotification);
     }
 
-    PerChannelMixer& mixerRef;
+    Mixer& mixerRef;
     int channelIndex;
     bool isMasterSaturation;
 

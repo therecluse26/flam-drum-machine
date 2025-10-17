@@ -8,7 +8,7 @@
 #include "CompressorEditorComponent.h"
 #include "VerticalFader.h"
 #include "RotaryKnob.h"
-#include "../Core/PerChannelMixer.h"
+#include "../Core/Mixer.h"
 
 namespace flam {
 
@@ -28,7 +28,7 @@ namespace flam {
 class ChannelStripComponent : public juce::Component, private juce::Timer
 {
 public:
-    ChannelStripComponent(PerChannelMixer& mixer, int channelIndex)
+    ChannelStripComponent(Mixer& mixer, int channelIndex)
         : mixerRef(mixer)
         , channelIdx(channelIndex)
     {
@@ -187,11 +187,11 @@ private:
     {
         int selectedId = outputSelector.getSelectedId();
 
-        PerChannelMixer::OutputDestination dest;
+        Mixer::OutputDestination dest;
         if (selectedId == 1)
-            dest = PerChannelMixer::OutputDestination::MainMix;
+            dest = Mixer::OutputDestination::MainMix;
         else
-            dest = static_cast<PerChannelMixer::OutputDestination>(selectedId - 1);
+            dest = static_cast<Mixer::OutputDestination>(selectedId - 1);
 
         mixerRef.setChannelOutput(channelIdx, dest);
 
@@ -257,7 +257,7 @@ private:
 
     void updateControlsEnabled()
     {
-        bool isMainMix = (mixerRef.getChannelOutput(channelIdx) == PerChannelMixer::OutputDestination::MainMix);
+        bool isMainMix = (mixerRef.getChannelOutput(channelIdx) == Mixer::OutputDestination::MainMix);
 
         volumeFader.setEnabled(isMainMix);
         panKnob.setEnabled(isMainMix);
@@ -296,7 +296,7 @@ private:
         updateControlsEnabled();
     }
 
-    PerChannelMixer& mixerRef;
+    Mixer& mixerRef;
     int channelIdx;
 
     juce::Label nameLabel;

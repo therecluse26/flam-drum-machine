@@ -69,7 +69,7 @@ void FlamEngine::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer
     voiceManager->renderNextBlock(internalBuffer, 0, numSamples);
 
     // Copy multi-channel internal buffer to output buffer
-    // This is where the PerChannelMixer will process later - for now just copy what fits
+    // This is where the Mixer will process later - for now just copy what fits
     buffer.clear();
     const int channelsToCopy = juce::jmin(buffer.getNumChannels(), internalBuffer.getNumChannels());
     for (int ch = 0; ch < channelsToCopy; ++ch)

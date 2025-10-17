@@ -2,7 +2,7 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 #include "../Core/FlamEngine.h"
-#include "../Core/PerChannelMixer.h"
+#include "../Core/Mixer.h"
 
 namespace flam {
 
@@ -44,11 +44,11 @@ public:
 
     juce::AudioProcessorValueTreeState& getValueTreeState() { return parameters; }
 
-    PerChannelMixer* getPerChannelMixer() { return perChannelMixer.get(); }
+    Mixer* getMixer() { return perChannelMixer.get(); }
 
 private:
     FlamEngine engine;
-    std::unique_ptr<PerChannelMixer> perChannelMixer;
+    std::unique_ptr<Mixer> perChannelMixer;
     juce::AudioProcessorValueTreeState parameters;
     
     juce::AudioParameterFloat* humanizationParam{nullptr};

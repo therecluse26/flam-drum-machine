@@ -13,7 +13,7 @@
 namespace flam {
 
 /**
- * @brief Per-channel mixer with flexible multi-output routing
+ * @brief Multi-channel mixer with flexible multi-output routing
  *
  * Each microphone channel can be routed to:
  * - Main Mix (internal stereo mixer with volume/pan/effects)
@@ -27,7 +27,7 @@ namespace flam {
  * - process() is audio-thread only
  * - setNumChannels() and prepareToPlay() must be called with processing suspended
  */
-class PerChannelMixer
+class Mixer
 {
 public:
     /**
@@ -40,8 +40,8 @@ public:
         Bus9, Bus10, Bus11, Bus12, Bus13, Bus14, Bus15, Bus16
     };
 
-    PerChannelMixer();
-    ~PerChannelMixer() = default;
+    Mixer();
+    ~Mixer() = default;
 
     // ========================================================================
     // Configuration (called when kit loads, processing must be suspended)
@@ -333,7 +333,7 @@ private:
         int numSamples
     );
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PerChannelMixer)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Mixer)
 };
 
 } // namespace flam

@@ -51,7 +51,7 @@ target_sources(FLAM
         Source/Core/MixerBus.cpp
         Source/Core/SampleVoice.cpp
         Source/Core/SampleStreamingManager.cpp
-        Source/Core/PerChannelMixer.cpp
+        Source/Core/Mixer.cpp
         Source/Formats/FlamKitLoader.cpp
         Source/DSP/IRConvolver.cpp
         Source/DSP/TenBandGraphicEQ.cpp

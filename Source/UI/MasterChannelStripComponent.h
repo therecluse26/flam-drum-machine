@@ -7,7 +7,7 @@
 #include "SaturationEditorComponent.h"
 #include "CompressorEditorComponent.h"
 #include "VerticalFader.h"
-#include "../Core/PerChannelMixer.h"
+#include "../Core/Mixer.h"
 
 namespace flam {
 
@@ -24,7 +24,7 @@ namespace flam {
 class MasterChannelStripComponent : public juce::Component, private juce::Timer
 {
 public:
-    MasterChannelStripComponent(PerChannelMixer& mixer)
+    MasterChannelStripComponent(Mixer& mixer)
         : mixerRef(mixer)
     {
         // Master label
@@ -211,7 +211,7 @@ private:
         limiterButton.setEnabled(mixerRef.isMasterLimiterEnabled());
     }
 
-    PerChannelMixer& mixerRef;
+    Mixer& mixerRef;
 
     juce::Label nameLabel;
     VerticalFader volumeFader;

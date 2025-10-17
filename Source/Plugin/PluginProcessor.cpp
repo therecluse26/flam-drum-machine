@@ -11,7 +11,7 @@ FlamAudioProcessor::FlamAudioProcessor()
     : AudioProcessor(BusesProperties()
                          .withOutput("Output", juce::AudioChannelSet::stereo(), true)
                          )
-    , perChannelMixer(std::make_unique<PerChannelMixer>())
+    , perChannelMixer(std::make_unique<Mixer>())
     , parameters(*this, nullptr, juce::Identifier("FLAM"), createParameterLayout())
 {
     // Initialize mixer with 2 default channels
@@ -184,7 +184,7 @@ void FlamAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::Mi
     // Process audio through the engine (renders voices to multi-channel internal buffer)
     engine.processBlock(buffer, midiMessages);
 
-    // Process multi-channel audio through per-channel mixer
+    // Process multi-channel audio through mixer
     if (perChannelMixer)
     {
         const int numSamples = buffer.getNumSamples();
@@ -200,7 +200,7 @@ void FlamAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::Mi
         // This buffer contains the full multi-channel output (e.g., 8 channels for 8-mic kit)
         const auto& multiChannelBuffer = engine.getMultiChannelBuffer();
 
-        // Process through per-channel mixer (routing, FX, solo/mute, etc.)
+        // Process through mixer (routing, FX, solo/mute, etc.)
         perChannelMixer->process(multiChannelBuffer, mixerOutputBuffer, numSamples);
 
         // Copy stereo mixer output back to main buffer

@@ -1,7 +1,7 @@
 #pragma once
 
 #include <juce_gui_basics/juce_gui_basics.h>
-#include "../Core/PerChannelMixer.h"
+#include "../Core/Mixer.h"
 
 namespace flam {
 
@@ -21,7 +21,7 @@ namespace flam {
 class CompressorEditorComponent : public juce::Component
 {
 public:
-    CompressorEditorComponent(PerChannelMixer& mixer, int channelIdx, bool isMaster = false)
+    CompressorEditorComponent(Mixer& mixer, int channelIdx, bool isMaster = false)
         : mixerRef(mixer)
         , channelIndex(channelIdx)
         , isMasterCompressor(isMaster)
@@ -230,7 +230,7 @@ private:
         makeupGainSlider.setValue(makeup, juce::dontSendNotification);
     }
 
-    PerChannelMixer& mixerRef;
+    Mixer& mixerRef;
     int channelIndex;
     bool isMasterCompressor;
 

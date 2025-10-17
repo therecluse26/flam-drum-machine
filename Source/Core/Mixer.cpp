@@ -1,9 +1,9 @@
-#include "PerChannelMixer.h"
+#include "Mixer.h"
 #include <cmath>
 
 namespace flam {
 
-PerChannelMixer::PerChannelMixer()
+Mixer::Mixer()
 {
     // Initialize with sensible defaults
     masterVolumeDb.store(0.0f);
@@ -13,7 +13,7 @@ PerChannelMixer::PerChannelMixer()
 // ============================================================================
 // Configuration
 
-void PerChannelMixer::setNumChannels(int numChannels, const std::vector<juce::String>& channelNames)
+void Mixer::setNumChannels(int numChannels, const std::vector<juce::String>& channelNames)
 {
     channels.clear();
     channels.reserve(static_cast<size_t>(numChannels));
@@ -26,7 +26,7 @@ void PerChannelMixer::setNumChannels(int numChannels, const std::vector<juce::St
     }
 }
 
-void PerChannelMixer::prepareToPlay(double sampleRate, int maximumBlockSize)
+void Mixer::prepareToPlay(double sampleRate, int maximumBlockSize)
 {
     currentSampleRate = sampleRate;
     maxBlockSize = maximumBlockSize;
@@ -59,7 +59,7 @@ void PerChannelMixer::prepareToPlay(double sampleRate, int maximumBlockSize)
 // ============================================================================
 // Output routing
 
-void PerChannelMixer::setChannelOutput(int channelIndex, OutputDestination output)
+void Mixer::setChannelOutput(int channelIndex, OutputDestination output)
 {
     if (channelIndex < 0 || channelIndex >= static_cast<int>(channels.size()))
         return;
@@ -67,7 +67,7 @@ void PerChannelMixer::setChannelOutput(int channelIndex, OutputDestination outpu
     channels[channelIndex]->outputDestination.store(static_cast<int>(output));
 }
 
-PerChannelMixer::OutputDestination PerChannelMixer::getChannelOutput(int channelIndex) const
+Mixer::OutputDestination Mixer::getChannelOutput(int channelIndex) const
 {
     if (channelIndex < 0 || channelIndex >= static_cast<int>(channels.size()))
         return OutputDestination::MainMix;
@@ -78,7 +78,7 @@ PerChannelMixer::OutputDestination PerChannelMixer::getChannelOutput(int channel
 // ============================================================================
 // Per-channel controls
 
-void PerChannelMixer::setChannelVolume(int channelIndex, float volumeDb)
+void Mixer::setChannelVolume(int channelIndex, float volumeDb)
 {
     if (channelIndex < 0 || channelIndex >= static_cast<int>(channels.size()))
         return;
@@ -88,7 +88,7 @@ void PerChannelMixer::setChannelVolume(int channelIndex, float volumeDb)
     channels[channelIndex]->volumeGain.store(dbToGain(volumeDb));
 }
 
-float PerChannelMixer::getChannelVolume(int channelIndex) const
+float Mixer::getChannelVolume(int channelIndex) const
 {
     if (channelIndex < 0 || channelIndex >= static_cast<int>(channels.size()))
         return 0.0f;
@@ -96,7 +96,7 @@ float PerChannelMixer::getChannelVolume(int channelIndex) const
     return channels[channelIndex]->volumeDb.load();
 }
 
-void PerChannelMixer::setChannelPan(int channelIndex, float pan)
+void Mixer::setChannelPan(int channelIndex, float pan)
 {
     if (channelIndex < 0 || channelIndex >= static_cast<int>(channels.size()))
         return;
@@ -105,7 +105,7 @@ void PerChannelMixer::setChannelPan(int channelIndex, float pan)
     channels[channelIndex]->pan.store(pan);
 }
 
-float PerChannelMixer::getChannelPan(int channelIndex) const
+float Mixer::getChannelPan(int channelIndex) const
 {
     if (channelIndex < 0 || channelIndex >= static_cast<int>(channels.size()))
         return 0.0f;
@@ -113,7 +113,7 @@ float PerChannelMixer::getChannelPan(int channelIndex) const
     return channels[channelIndex]->pan.load();
 }
 
-void PerChannelMixer::setChannelSolo(int channelIndex, bool solo)
+void Mixer::setChannelSolo(int channelIndex, bool solo)
 {
     if (channelIndex < 0 || channelIndex >= static_cast<int>(channels.size()))
         return;
@@ -121,7 +121,7 @@ void PerChannelMixer::setChannelSolo(int channelIndex, bool solo)
     channels[channelIndex]->solo.store(solo);
 }
 
-bool PerChannelMixer::isChannelSolo(int channelIndex) const
+bool Mixer::isChannelSolo(int channelIndex) const
 {
     if (channelIndex < 0 || channelIndex >= static_cast<int>(channels.size()))
         return false;
@@ -129,7 +129,7 @@ bool PerChannelMixer::isChannelSolo(int channelIndex) const
     return channels[channelIndex]->solo.load();
 }
 
-void PerChannelMixer::setChannelMute(int channelIndex, bool mute)
+void Mixer::setChannelMute(int channelIndex, bool mute)
 {
     if (channelIndex < 0 || channelIndex >= static_cast<int>(channels.size()))
         return;
@@ -137,7 +137,7 @@ void PerChannelMixer::setChannelMute(int channelIndex, bool mute)
     channels[channelIndex]->mute.store(mute);
 }
 
-bool PerChannelMixer::isChannelMute(int channelIndex) const
+bool Mixer::isChannelMute(int channelIndex) const
 {
     if (channelIndex < 0 || channelIndex >= static_cast<int>(channels.size()))
         return false;
@@ -148,7 +148,7 @@ bool PerChannelMixer::isChannelMute(int channelIndex) const
 // ============================================================================
 // Per-channel EQ controls
 
-void PerChannelMixer::setChannelEQEnabled(int channelIndex, bool enabled)
+void Mixer::setChannelEQEnabled(int channelIndex, bool enabled)
 {
     if (channelIndex < 0 || channelIndex >= static_cast<int>(channels.size()))
         return;
@@ -156,7 +156,7 @@ void PerChannelMixer::setChannelEQEnabled(int channelIndex, bool enabled)
     channels[channelIndex]->eq.setEnabled(enabled);
 }
 
-bool PerChannelMixer::isChannelEQEnabled(int channelIndex) const
+bool Mixer::isChannelEQEnabled(int channelIndex) const
 {
     if (channelIndex < 0 || channelIndex >= static_cast<int>(channels.size()))
         return false;
@@ -164,7 +164,7 @@ bool PerChannelMixer::isChannelEQEnabled(int channelIndex) const
     return channels[channelIndex]->eq.isEnabled();
 }
 
-void PerChannelMixer::setChannelEQBandGain(int channelIndex, int bandIndex, float gainDb)
+void Mixer::setChannelEQBandGain(int channelIndex, int bandIndex, float gainDb)
 {
     if (channelIndex < 0 || channelIndex >= static_cast<int>(channels.size()))
         return;
@@ -172,7 +172,7 @@ void PerChannelMixer::setChannelEQBandGain(int channelIndex, int bandIndex, floa
     channels[channelIndex]->eq.setBandGain(bandIndex, gainDb);
 }
 
-float PerChannelMixer::getChannelEQBandGain(int channelIndex, int bandIndex) const
+float Mixer::getChannelEQBandGain(int channelIndex, int bandIndex) const
 {
     if (channelIndex < 0 || channelIndex >= static_cast<int>(channels.size()))
         return 0.0f;
@@ -183,7 +183,7 @@ float PerChannelMixer::getChannelEQBandGain(int channelIndex, int bandIndex) con
 // ============================================================================
 // Per-channel saturation controls
 
-void PerChannelMixer::setChannelSaturationEnabled(int channelIndex, bool enabled)
+void Mixer::setChannelSaturationEnabled(int channelIndex, bool enabled)
 {
     if (channelIndex < 0 || channelIndex >= static_cast<int>(channels.size()))
         return;
@@ -191,7 +191,7 @@ void PerChannelMixer::setChannelSaturationEnabled(int channelIndex, bool enabled
     channels[channelIndex]->saturation.setEnabled(enabled);
 }
 
-bool PerChannelMixer::isChannelSaturationEnabled(int channelIndex) const
+bool Mixer::isChannelSaturationEnabled(int channelIndex) const
 {
     if (channelIndex < 0 || channelIndex >= static_cast<int>(channels.size()))
         return false;
@@ -199,7 +199,7 @@ bool PerChannelMixer::isChannelSaturationEnabled(int channelIndex) const
     return channels[channelIndex]->saturation.isEnabled();
 }
 
-void PerChannelMixer::setChannelSaturationAmount(int channelIndex, float amount)
+void Mixer::setChannelSaturationAmount(int channelIndex, float amount)
 {
     if (channelIndex < 0 || channelIndex >= static_cast<int>(channels.size()))
         return;
@@ -207,7 +207,7 @@ void PerChannelMixer::setChannelSaturationAmount(int channelIndex, float amount)
     channels[channelIndex]->saturation.setAmount(amount);
 }
 
-float PerChannelMixer::getChannelSaturationAmount(int channelIndex) const
+float Mixer::getChannelSaturationAmount(int channelIndex) const
 {
     if (channelIndex < 0 || channelIndex >= static_cast<int>(channels.size()))
         return 0.0f;
@@ -215,7 +215,7 @@ float PerChannelMixer::getChannelSaturationAmount(int channelIndex) const
     return channels[channelIndex]->saturation.getAmount();
 }
 
-void PerChannelMixer::setChannelSaturationMode(int channelIndex, int mode)
+void Mixer::setChannelSaturationMode(int channelIndex, int mode)
 {
     if (channelIndex < 0 || channelIndex >= static_cast<int>(channels.size()))
         return;
@@ -223,7 +223,7 @@ void PerChannelMixer::setChannelSaturationMode(int channelIndex, int mode)
     channels[channelIndex]->saturation.setMode(static_cast<SaturationProcessor::Mode>(mode));
 }
 
-int PerChannelMixer::getChannelSaturationMode(int channelIndex) const
+int Mixer::getChannelSaturationMode(int channelIndex) const
 {
     if (channelIndex < 0 || channelIndex >= static_cast<int>(channels.size()))
         return 0;
@@ -234,7 +234,7 @@ int PerChannelMixer::getChannelSaturationMode(int channelIndex) const
 // ============================================================================
 // Per-channel compressor controls
 
-void PerChannelMixer::setChannelCompressorEnabled(int channelIndex, bool enabled)
+void Mixer::setChannelCompressorEnabled(int channelIndex, bool enabled)
 {
     if (channelIndex < 0 || channelIndex >= static_cast<int>(channels.size()))
         return;
@@ -242,7 +242,7 @@ void PerChannelMixer::setChannelCompressorEnabled(int channelIndex, bool enabled
     channels[channelIndex]->compressor.setEnabled(enabled);
 }
 
-bool PerChannelMixer::isChannelCompressorEnabled(int channelIndex) const
+bool Mixer::isChannelCompressorEnabled(int channelIndex) const
 {
     if (channelIndex < 0 || channelIndex >= static_cast<int>(channels.size()))
         return false;
@@ -250,7 +250,7 @@ bool PerChannelMixer::isChannelCompressorEnabled(int channelIndex) const
     return channels[channelIndex]->compressor.isEnabled();
 }
 
-void PerChannelMixer::setChannelCompressorThreshold(int channelIndex, float thresholdDb)
+void Mixer::setChannelCompressorThreshold(int channelIndex, float thresholdDb)
 {
     if (channelIndex < 0 || channelIndex >= static_cast<int>(channels.size()))
         return;
@@ -258,7 +258,7 @@ void PerChannelMixer::setChannelCompressorThreshold(int channelIndex, float thre
     channels[channelIndex]->compressor.setThreshold(thresholdDb);
 }
 
-float PerChannelMixer::getChannelCompressorThreshold(int channelIndex) const
+float Mixer::getChannelCompressorThreshold(int channelIndex) const
 {
     if (channelIndex < 0 || channelIndex >= static_cast<int>(channels.size()))
         return -10.0f;
@@ -266,7 +266,7 @@ float PerChannelMixer::getChannelCompressorThreshold(int channelIndex) const
     return channels[channelIndex]->compressor.getThreshold();
 }
 
-void PerChannelMixer::setChannelCompressorRatio(int channelIndex, float ratio)
+void Mixer::setChannelCompressorRatio(int channelIndex, float ratio)
 {
     if (channelIndex < 0 || channelIndex >= static_cast<int>(channels.size()))
         return;
@@ -274,7 +274,7 @@ void PerChannelMixer::setChannelCompressorRatio(int channelIndex, float ratio)
     channels[channelIndex]->compressor.setRatio(ratio);
 }
 
-float PerChannelMixer::getChannelCompressorRatio(int channelIndex) const
+float Mixer::getChannelCompressorRatio(int channelIndex) const
 {
     if (channelIndex < 0 || channelIndex >= static_cast<int>(channels.size()))
         return 4.0f;
@@ -282,7 +282,7 @@ float PerChannelMixer::getChannelCompressorRatio(int channelIndex) const
     return channels[channelIndex]->compressor.getRatio();
 }
 
-void PerChannelMixer::setChannelCompressorAttack(int channelIndex, float attackMs)
+void Mixer::setChannelCompressorAttack(int channelIndex, float attackMs)
 {
     if (channelIndex < 0 || channelIndex >= static_cast<int>(channels.size()))
         return;
@@ -290,7 +290,7 @@ void PerChannelMixer::setChannelCompressorAttack(int channelIndex, float attackM
     channels[channelIndex]->compressor.setAttack(attackMs);
 }
 
-float PerChannelMixer::getChannelCompressorAttack(int channelIndex) const
+float Mixer::getChannelCompressorAttack(int channelIndex) const
 {
     if (channelIndex < 0 || channelIndex >= static_cast<int>(channels.size()))
         return 5.0f;
@@ -298,7 +298,7 @@ float PerChannelMixer::getChannelCompressorAttack(int channelIndex) const
     return channels[channelIndex]->compressor.getAttack();
 }
 
-void PerChannelMixer::setChannelCompressorRelease(int channelIndex, float releaseMs)
+void Mixer::setChannelCompressorRelease(int channelIndex, float releaseMs)
 {
     if (channelIndex < 0 || channelIndex >= static_cast<int>(channels.size()))
         return;
@@ -306,7 +306,7 @@ void PerChannelMixer::setChannelCompressorRelease(int channelIndex, float releas
     channels[channelIndex]->compressor.setRelease(releaseMs);
 }
 
-float PerChannelMixer::getChannelCompressorRelease(int channelIndex) const
+float Mixer::getChannelCompressorRelease(int channelIndex) const
 {
     if (channelIndex < 0 || channelIndex >= static_cast<int>(channels.size()))
         return 100.0f;
@@ -314,7 +314,7 @@ float PerChannelMixer::getChannelCompressorRelease(int channelIndex) const
     return channels[channelIndex]->compressor.getRelease();
 }
 
-void PerChannelMixer::setChannelCompressorMakeupGain(int channelIndex, float gainDb)
+void Mixer::setChannelCompressorMakeupGain(int channelIndex, float gainDb)
 {
     if (channelIndex < 0 || channelIndex >= static_cast<int>(channels.size()))
         return;
@@ -322,7 +322,7 @@ void PerChannelMixer::setChannelCompressorMakeupGain(int channelIndex, float gai
     channels[channelIndex]->compressor.setMakeupGain(gainDb);
 }
 
-float PerChannelMixer::getChannelCompressorMakeupGain(int channelIndex) const
+float Mixer::getChannelCompressorMakeupGain(int channelIndex) const
 {
     if (channelIndex < 0 || channelIndex >= static_cast<int>(channels.size()))
         return 0.0f;
@@ -333,7 +333,7 @@ float PerChannelMixer::getChannelCompressorMakeupGain(int channelIndex) const
 // ============================================================================
 // Master controls
 
-void PerChannelMixer::setMasterVolume(float volumeDb)
+void Mixer::setMasterVolume(float volumeDb)
 {
     volumeDb = juce::jlimit(-96.0f, 6.0f, volumeDb);
     masterVolumeDb.store(volumeDb);
@@ -341,145 +341,145 @@ void PerChannelMixer::setMasterVolume(float volumeDb)
 }
 
 // Master EQ
-void PerChannelMixer::setMasterEQEnabled(bool enabled)
+void Mixer::setMasterEQEnabled(bool enabled)
 {
     masterEQ.setEnabled(enabled);
 }
 
-bool PerChannelMixer::isMasterEQEnabled() const
+bool Mixer::isMasterEQEnabled() const
 {
     return masterEQ.isEnabled();
 }
 
-void PerChannelMixer::setMasterEQBandGain(int bandIndex, float gainDb)
+void Mixer::setMasterEQBandGain(int bandIndex, float gainDb)
 {
     masterEQ.setBandGain(bandIndex, gainDb);
 }
 
-float PerChannelMixer::getMasterEQBandGain(int bandIndex) const
+float Mixer::getMasterEQBandGain(int bandIndex) const
 {
     return masterEQ.getBandGain(bandIndex);
 }
 
 // Master Saturation
-void PerChannelMixer::setMasterSaturationEnabled(bool enabled)
+void Mixer::setMasterSaturationEnabled(bool enabled)
 {
     masterSaturation.setEnabled(enabled);
 }
 
-bool PerChannelMixer::isMasterSaturationEnabled() const
+bool Mixer::isMasterSaturationEnabled() const
 {
     return masterSaturation.isEnabled();
 }
 
-void PerChannelMixer::setMasterSaturationAmount(float amount)
+void Mixer::setMasterSaturationAmount(float amount)
 {
     masterSaturation.setAmount(amount);
 }
 
-float PerChannelMixer::getMasterSaturationAmount() const
+float Mixer::getMasterSaturationAmount() const
 {
     return masterSaturation.getAmount();
 }
 
-void PerChannelMixer::setMasterSaturationMode(int mode)
+void Mixer::setMasterSaturationMode(int mode)
 {
     masterSaturation.setMode(static_cast<SaturationProcessor::Mode>(mode));
 }
 
-int PerChannelMixer::getMasterSaturationMode() const
+int Mixer::getMasterSaturationMode() const
 {
     return static_cast<int>(masterSaturation.getMode());
 }
 
 // Master Compressor
-void PerChannelMixer::setMasterCompressorEnabled(bool enabled)
+void Mixer::setMasterCompressorEnabled(bool enabled)
 {
     masterCompressor.setEnabled(enabled);
 }
 
-bool PerChannelMixer::isMasterCompressorEnabled() const
+bool Mixer::isMasterCompressorEnabled() const
 {
     return masterCompressor.isEnabled();
 }
 
-void PerChannelMixer::setMasterCompressorThreshold(float thresholdDb)
+void Mixer::setMasterCompressorThreshold(float thresholdDb)
 {
     masterCompressor.setThreshold(thresholdDb);
 }
 
-float PerChannelMixer::getMasterCompressorThreshold() const
+float Mixer::getMasterCompressorThreshold() const
 {
     return masterCompressor.getThreshold();
 }
 
-void PerChannelMixer::setMasterCompressorRatio(float ratio)
+void Mixer::setMasterCompressorRatio(float ratio)
 {
     masterCompressor.setRatio(ratio);
 }
 
-float PerChannelMixer::getMasterCompressorRatio() const
+float Mixer::getMasterCompressorRatio() const
 {
     return masterCompressor.getRatio();
 }
 
-void PerChannelMixer::setMasterCompressorAttack(float attackMs)
+void Mixer::setMasterCompressorAttack(float attackMs)
 {
     masterCompressor.setAttack(attackMs);
 }
 
-float PerChannelMixer::getMasterCompressorAttack() const
+float Mixer::getMasterCompressorAttack() const
 {
     return masterCompressor.getAttack();
 }
 
-void PerChannelMixer::setMasterCompressorRelease(float releaseMs)
+void Mixer::setMasterCompressorRelease(float releaseMs)
 {
     masterCompressor.setRelease(releaseMs);
 }
 
-float PerChannelMixer::getMasterCompressorRelease() const
+float Mixer::getMasterCompressorRelease() const
 {
     return masterCompressor.getRelease();
 }
 
-void PerChannelMixer::setMasterCompressorMakeupGain(float gainDb)
+void Mixer::setMasterCompressorMakeupGain(float gainDb)
 {
     masterCompressor.setMakeupGain(gainDb);
 }
 
-float PerChannelMixer::getMasterCompressorMakeupGain() const
+float Mixer::getMasterCompressorMakeupGain() const
 {
     return masterCompressor.getMakeupGain();
 }
 
 // Master Limiter
-void PerChannelMixer::setMasterLimiterEnabled(bool enabled)
+void Mixer::setMasterLimiterEnabled(bool enabled)
 {
     masterLimiter.setEnabled(enabled);
 }
 
-bool PerChannelMixer::isMasterLimiterEnabled() const
+bool Mixer::isMasterLimiterEnabled() const
 {
     return masterLimiter.isEnabled();
 }
 
-void PerChannelMixer::setMasterLimiterThreshold(float thresholdDb)
+void Mixer::setMasterLimiterThreshold(float thresholdDb)
 {
     masterLimiter.setThreshold(thresholdDb);
 }
 
-float PerChannelMixer::getMasterLimiterThreshold() const
+float Mixer::getMasterLimiterThreshold() const
 {
     return masterLimiter.getThreshold();
 }
 
-void PerChannelMixer::setMasterLimiterRelease(float releaseMs)
+void Mixer::setMasterLimiterRelease(float releaseMs)
 {
     masterLimiter.setRelease(releaseMs);
 }
 
-float PerChannelMixer::getMasterLimiterRelease() const
+float Mixer::getMasterLimiterRelease() const
 {
     return masterLimiter.getRelease();
 }
@@ -487,7 +487,7 @@ float PerChannelMixer::getMasterLimiterRelease() const
 // ============================================================================
 // Audio processing
 
-void PerChannelMixer::process(
+void Mixer::process(
     const juce::AudioBuffer<float>& multiChannelInput,
     juce::AudioBuffer<float>& allOutputBuses,
     int numSamples)
@@ -578,7 +578,7 @@ void PerChannelMixer::process(
     }
 }
 
-void PerChannelMixer::processChannelToMainMix(
+void Mixer::processChannelToMainMix(
     size_t chIdx,
     ChannelStrip& channel,
     const juce::AudioBuffer<float>& multiChannelInput,
@@ -653,7 +653,7 @@ void PerChannelMixer::processChannelToMainMix(
     }
 }
 
-void PerChannelMixer::routeChannelToBus(
+void Mixer::routeChannelToBus(
     size_t chIdx,
     int busIndex,
     const juce::AudioBuffer<float>& multiChannelInput,
@@ -696,7 +696,7 @@ void PerChannelMixer::routeChannelToBus(
 // ============================================================================
 // Metering
 
-float PerChannelMixer::getChannelPeakLevel(int channelIndex) const
+float Mixer::getChannelPeakLevel(int channelIndex) const
 {
     if (channelIndex < 0 || channelIndex >= static_cast<int>(channels.size()))
         return 0.0f;
@@ -704,7 +704,7 @@ float PerChannelMixer::getChannelPeakLevel(int channelIndex) const
     return channels[channelIndex]->peakLevel.load();
 }
 
-void PerChannelMixer::resetClipIndicators()
+void Mixer::resetClipIndicators()
 {
     for (auto& channel : channels)
     {
@@ -717,13 +717,13 @@ void PerChannelMixer::resetClipIndicators()
 // ============================================================================
 // Bus info
 
-int PerChannelMixer::getNumRequiredOutputBuses() const
+int Mixer::getNumRequiredOutputBuses() const
 {
     // Main Mix (stereo) + one mono bus per channel
     return 1 + static_cast<int>(channels.size());
 }
 
-juce::String PerChannelMixer::getBusName(int busIndex) const
+juce::String Mixer::getBusName(int busIndex) const
 {
     if (busIndex == 0)
         return "Main Mix";
@@ -738,7 +738,7 @@ juce::String PerChannelMixer::getBusName(int busIndex) const
 // ============================================================================
 // State persistence
 
-juce::ValueTree PerChannelMixer::getState() const
+juce::ValueTree Mixer::getState() const
 {
     juce::ValueTree state("MixerState");
 
@@ -804,7 +804,7 @@ juce::ValueTree PerChannelMixer::getState() const
     return state;
 }
 
-void PerChannelMixer::setState(const juce::ValueTree& state)
+void Mixer::setState(const juce::ValueTree& state)
 {
     if (!state.isValid() || state.getType() != juce::Identifier("MixerState"))
         return;
@@ -875,17 +875,17 @@ void PerChannelMixer::setState(const juce::ValueTree& state)
 // ============================================================================
 // Helper functions
 
-float PerChannelMixer::dbToGain(float db) const
+float Mixer::dbToGain(float db) const
 {
     return std::pow(10.0f, db / 20.0f);
 }
 
-float PerChannelMixer::gainToDb(float gain) const
+float Mixer::gainToDb(float gain) const
 {
     return 20.0f * std::log10(gain);
 }
 
-void PerChannelMixer::updateVolumeGain(int channelIndex)
+void Mixer::updateVolumeGain(int channelIndex)
 {
     if (channelIndex < 0 || channelIndex >= static_cast<int>(channels.size()))
         return;

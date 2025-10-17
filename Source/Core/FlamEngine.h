@@ -56,7 +56,7 @@ public:
     /**
      * Get the internal multi-channel rendering buffer.
      * This contains the full multi-channel output from voice rendering,
-     * before any downmixing or processing. Used by PerChannelMixer.
+     * before any downmixing or processing. Used by Mixer.
      */
     const juce::AudioBuffer<float>& getMultiChannelBuffer() const { return internalBuffer; }
 

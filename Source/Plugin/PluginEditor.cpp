@@ -7,314 +7,6 @@
 
 namespace flam {
 
-// MixerPanel implementation
-MixerPanel::MixerPanel(juce::AudioProcessorValueTreeState& vts, FlamAudioProcessor& proc)
-    : valueTreeState(vts)
-    , processor(proc)
-{
-    // Level meters
-    inputMeterLabel.setText("In", juce::dontSendNotification);
-    inputMeterLabel.setJustificationType(juce::Justification::centred);
-    inputMeterLabel.setFont(juce::Font(juce::FontOptions(10.0f)));
-    addAndMakeVisible(inputMeterLabel);
-    addAndMakeVisible(inputMeter);
-
-    outputMeterLabel.setText("Out", juce::dontSendNotification);
-    outputMeterLabel.setJustificationType(juce::Justification::centred);
-    outputMeterLabel.setFont(juce::Font(juce::FontOptions(10.0f)));
-    addAndMakeVisible(outputMeterLabel);
-    addAndMakeVisible(outputMeter);
-
-    // Start timer to update meters from audio thread
-    startTimerHz(30);
-
-    // Input gain
-    inputGainLabel.setText("Input Gain", juce::dontSendNotification);
-    inputGainLabel.setJustificationType(juce::Justification::centred);
-    addAndMakeVisible(inputGainLabel);
-
-    inputGainSlider.setSliderStyle(juce::Slider::LinearVertical);
-    inputGainSlider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 60, 20);
-    inputGainSlider.setTextValueSuffix(" dB");
-    addAndMakeVisible(inputGainSlider);
-    inputGainAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
-        valueTreeState, "input_gain", inputGainSlider);
-
-    // Master volume
-    masterVolumeLabel.setText("Master", juce::dontSendNotification);
-    masterVolumeLabel.setJustificationType(juce::Justification::centred);
-    addAndMakeVisible(masterVolumeLabel);
-
-    masterVolumeSlider.setSliderStyle(juce::Slider::LinearVertical);
-    masterVolumeSlider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 60, 20);
-    masterVolumeSlider.setTextValueSuffix(" dB");
-    addAndMakeVisible(masterVolumeSlider);
-    masterVolumeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
-        valueTreeState, "master_volume", masterVolumeSlider);
-
-    // Create viewport and content for scrollable FX section
-    fxViewport = std::make_unique<juce::Viewport>();
-    fxContent = std::make_unique<juce::Component>();
-    addAndMakeVisible(fxViewport.get());
-    fxViewport->setViewedComponent(fxContent.get(), false);
-    fxViewport->setScrollBarsShown(true, false);
-
-    // EQ group
-    eqGroup.setText("10-Band Equalizer");
-    fxContent->addAndMakeVisible(eqGroup);
-
-    // EQ enable toggle background and button
-    fxContent->addAndMakeVisible(eqButtonBackground);
-    eqBypassButton.setButtonText("Enable");
-    eqBypassButton.setClickingTogglesState(true);
-    fxContent->addAndMakeVisible(eqBypassButton);
-    eqBypassAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
-        valueTreeState, "eq_enabled", eqBypassButton);
-
-    // Create EQ band sliders
-    setupEQBand(eq31HzSlider, eq31HzLabel, eq31HzAttachment, "31Hz", "eq_31hz");
-    setupEQBand(eq62HzSlider, eq62HzLabel, eq62HzAttachment, "62Hz", "eq_62hz");
-    setupEQBand(eq125HzSlider, eq125HzLabel, eq125HzAttachment, "125Hz", "eq_125hz");
-    setupEQBand(eq250HzSlider, eq250HzLabel, eq250HzAttachment, "250Hz", "eq_250hz");
-    setupEQBand(eq500HzSlider, eq500HzLabel, eq500HzAttachment, "500Hz", "eq_500hz");
-    setupEQBand(eq1kHzSlider, eq1kHzLabel, eq1kHzAttachment, "1kHz", "eq_1khz");
-    setupEQBand(eq2kHzSlider, eq2kHzLabel, eq2kHzAttachment, "2kHz", "eq_2khz");
-    setupEQBand(eq4kHzSlider, eq4kHzLabel, eq4kHzAttachment, "4kHz", "eq_4khz");
-    setupEQBand(eq8kHzSlider, eq8kHzLabel, eq8kHzAttachment, "8kHz", "eq_8khz");
-    setupEQBand(eq16kHzSlider, eq16kHzLabel, eq16kHzAttachment, "16kHz", "eq_16khz");
-
-    // Compressor group
-    compressorGroup.setText("Compressor");
-    fxContent->addAndMakeVisible(compressorGroup);
-
-    // Compressor enable toggle background and button
-    fxContent->addAndMakeVisible(compButtonBackground);
-    compBypassButton.setButtonText("Enable");
-    compBypassButton.setClickingTogglesState(true);
-    fxContent->addAndMakeVisible(compBypassButton);
-    compBypassAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
-        valueTreeState, "comp_enabled", compBypassButton);
-
-    // Compressor controls
-    setupCompControl(compAttackSlider, compAttackLabel, compAttackAttachment,
-                    "Attack", "comp_attack", juce::Slider::Rotary);
-    setupCompControl(compReleaseSlider, compReleaseLabel, compReleaseAttachment,
-                    "Release", "comp_release", juce::Slider::Rotary);
-    setupCompControl(compHoldSlider, compHoldLabel, compHoldAttachment,
-                    "Hold", "comp_hold", juce::Slider::Rotary);
-    setupCompControl(compThresholdSlider, compThresholdLabel, compThresholdAttachment,
-                    "Threshold", "comp_threshold", juce::Slider::Rotary);
-    setupCompControl(compRatioSlider, compRatioLabel, compRatioAttachment,
-                    "Ratio", "comp_ratio", juce::Slider::Rotary);
-    setupCompControl(compLookaheadSlider, compLookaheadLabel, compLookaheadAttachment,
-                    "Lookahead", "comp_lookahead", juce::Slider::Rotary);
-    setupCompControl(compMakeupGainSlider, compMakeupGainLabel, compMakeupGainAttachment,
-                    "Makeup", "comp_makeup_gain", juce::Slider::LinearHorizontal);
-
-    // Compressor meter with built-in labels
-    fxContent->addAndMakeVisible(compMeter);
-}
-
-MixerPanel::~MixerPanel()
-{
-    stopTimer();
-}
-
-void MixerPanel::paint(juce::Graphics& g)
-{
-    // Paint background for button backgrounds to match main background
-    g.setColour(getLookAndFeel().findColour(juce::ResizableWindow::backgroundColourId));
-    g.fillAll();
-}
-
-void MixerPanel::timerCallback()
-{
-    // Update level meters from audio engine
-    if (auto* engine = processor.getEngine())
-    {
-        inputMeter.setLevel(engine->getInputLevel());
-        outputMeter.setLevel(engine->getOutputLevel());
-
-        // Update compressor meter
-        if (auto* compressor = engine->getCompressor())
-        {
-            compMeter.setOutputLevel(compressor->getOutputLevel());
-
-            // Gain reduction is negative (dB), so display absolute value
-            float gr = std::abs(compressor->getGainReduction());
-            compMeter.setGainReduction(gr);
-        }
-    }
-}
-
-void MixerPanel::resized()
-{
-    auto bounds = getLocalBounds().reduced(10);
-    const int panelWidth = bounds.getWidth();
-
-    // Gain controls and meters at top (fixed height)
-    auto gainArea = bounds.removeFromTop(120);
-
-    // Level meters on the left (narrow strip)
-    const int meterWidth = 30;
-    auto meterArea = gainArea.removeFromLeft(meterWidth * 2 + 5);
-
-    auto inputMeterArea = meterArea.removeFromLeft(meterWidth);
-    inputMeterLabel.setBounds(inputMeterArea.removeFromTop(16));
-    inputMeter.setBounds(inputMeterArea);
-
-    meterArea.removeFromLeft(5); // spacing
-
-    auto outputMeterArea = meterArea.removeFromLeft(meterWidth);
-    outputMeterLabel.setBounds(outputMeterArea.removeFromTop(16));
-    outputMeter.setBounds(outputMeterArea);
-
-    gainArea.removeFromLeft(5); // spacing
-
-    // Gain sliders on the right
-    const int gainWidth = gainArea.getWidth() / 2;
-
-    auto inputGainArea = gainArea.removeFromLeft(gainWidth);
-    inputGainLabel.setBounds(inputGainArea.removeFromTop(20));
-    inputGainSlider.setBounds(inputGainArea.reduced(5));
-
-    auto masterGainArea = gainArea;
-    masterVolumeLabel.setBounds(masterGainArea.removeFromTop(20));
-    masterVolumeSlider.setBounds(masterGainArea.reduced(5));
-
-    bounds.removeFromTop(10);
-
-    // FX section with viewport for scrolling
-    fxViewport->setBounds(bounds);
-
-    // Layout FX content with fixed heights
-    const int eqFixedHeight = 200;
-    const int compressorFixedHeight = 320;
-    const int spacing = 10;
-    const int totalContentHeight = eqFixedHeight + spacing + compressorFixedHeight;
-
-    // Set FX content size
-    fxContent->setSize(panelWidth - 20, totalContentHeight);
-
-    auto fxBounds = juce::Rectangle<int>(0, 0, panelWidth - 20, totalContentHeight);
-
-    // EQ section (fixed height)
-    auto eqArea = fxBounds.removeFromTop(eqFixedHeight);
-    eqGroup.setBounds(eqArea);
-
-    // Position background and enable button on the title line
-    auto eqHeader = eqArea.removeFromTop(25);
-    auto eqButtonArea = eqHeader.removeFromRight(70).reduced(5, 3);
-    eqButtonBackground.setBounds(eqButtonArea);
-    eqBypassButton.setBounds(eqButtonArea);
-
-    auto eqContent = eqArea.reduced(8, 2);
-
-    // Single row layout for EQ bands
-    const int numBands = 10;
-    juce::Slider* eqSliders[] = {&eq31HzSlider, &eq62HzSlider, &eq125HzSlider,
-                                  &eq250HzSlider, &eq500HzSlider, &eq1kHzSlider,
-                                  &eq2kHzSlider, &eq4kHzSlider, &eq8kHzSlider, &eq16kHzSlider};
-    juce::Label* eqLabels[] = {&eq31HzLabel, &eq62HzLabel, &eq125HzLabel,
-                                &eq250HzLabel, &eq500HzLabel, &eq1kHzLabel,
-                                &eq2kHzLabel, &eq4kHzLabel, &eq8kHzLabel, &eq16kHzLabel};
-
-    const int bandWidth = eqContent.getWidth() / numBands;
-    for (int i = 0; i < numBands; ++i)
-    {
-        auto bandArea = eqContent.removeFromLeft(bandWidth);
-        eqLabels[i]->setBounds(bandArea.removeFromBottom(18));
-        eqSliders[i]->setBounds(bandArea.reduced(1));
-    }
-
-    fxBounds.removeFromTop(spacing);
-
-    // Compressor section (fixed height)
-    auto compArea = fxBounds.removeFromTop(compressorFixedHeight);
-    compressorGroup.setBounds(compArea);
-
-    // Position background and enable button on the title line
-    auto compHeader = compArea.removeFromTop(25);
-    auto compButtonArea = compHeader.removeFromRight(70).reduced(5, 3);
-    compButtonBackground.setBounds(compButtonArea);
-    compBypassButton.setBounds(compButtonArea);
-
-    auto compContent = compArea.reduced(8, 2);
-
-    // Meter on the left side (with built-in labels)
-    const int compMeterWidth = 40;
-    auto compMeterArea = compContent.removeFromLeft(compMeterWidth);
-    compMeter.setBounds(compMeterArea);
-
-    compContent.removeFromLeft(5); // spacing
-
-    // Reserve space for the makeup gain slider at the bottom (full-width)
-    const int makeupGainHeight = 50;
-    auto makeupArea = compContent.removeFromBottom(makeupGainHeight);
-    compContent.removeFromBottom(5); // spacing between grid and makeup slider
-
-    // Layout compressor controls in 2x3 grid (without makeup gain)
-    juce::Slider* compSliders[] = {&compAttackSlider, &compReleaseSlider, &compHoldSlider,
-                                    &compThresholdSlider, &compRatioSlider, &compLookaheadSlider};
-    juce::Label* compLabels[] = {&compAttackLabel, &compReleaseLabel, &compHoldLabel,
-                                  &compThresholdLabel, &compRatioLabel, &compLookaheadLabel};
-
-    const int compCols = 3;
-    const int compRows = 2;
-    const int compWidth = compContent.getWidth() / compCols;
-    const int compHeight = compContent.getHeight() / compRows;
-
-    for (int i = 0; i < 6; ++i)
-    {
-        int row = i / compCols;
-        int col = i % compCols;
-
-        int x = compContent.getX() + (col * compWidth);
-        int y = compContent.getY() + (row * compHeight);
-        auto controlArea = juce::Rectangle<int>(x, y, compWidth, compHeight).reduced(3);
-
-        compLabels[i]->setBounds(controlArea.removeFromTop(18));
-        compSliders[i]->setBounds(controlArea.reduced(2));
-    }
-
-    // Layout makeup gain slider full-width at the bottom
-    compMakeupGainLabel.setBounds(makeupArea.removeFromTop(18));
-    compMakeupGainSlider.setBounds(makeupArea.reduced(5, 0));
-}
-
-void MixerPanel::setupEQBand(juce::Slider& slider, juce::Label& label,
-                             std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>& attachment,
-                             const juce::String& labelText, const juce::String& paramID)
-{
-    label.setText(labelText, juce::dontSendNotification);
-    label.setJustificationType(juce::Justification::centred);
-    label.setFont(juce::Font(juce::FontOptions(10.0f)));
-    fxContent->addAndMakeVisible(label);
-
-    slider.setSliderStyle(juce::Slider::LinearVertical);
-    slider.setTextBoxStyle(juce::Slider::NoTextBox, false, 0, 0);
-    fxContent->addAndMakeVisible(slider);
-    attachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
-        valueTreeState, paramID, slider);
-}
-
-void MixerPanel::setupCompControl(juce::Slider& slider, juce::Label& label,
-                                  std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>& attachment,
-                                  const juce::String& labelText, const juce::String& paramID,
-                                  juce::Slider::SliderStyle style)
-{
-    label.setText(labelText, juce::dontSendNotification);
-    label.setJustificationType(juce::Justification::centred);
-    label.setFont(juce::Font(juce::FontOptions(11.0f)));
-    fxContent->addAndMakeVisible(label);
-
-    slider.setSliderStyle(style);
-    slider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80, 18);
-    fxContent->addAndMakeVisible(slider);
-    attachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
-        valueTreeState, paramID, slider);
-}
-
 // Kit tile component that displays kit information
 class KitTileComponent : public juce::Component
 {
@@ -474,7 +166,7 @@ private:
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(KitTileComponent)
 };
 
-// Main tab component containing drum pads only (mixer moved to Per-Channel Mixer tab)
+// Main tab component containing drum pads only (mixer moved to Mixer tab)
 class FlamAudioProcessorEditor::MainTabComponent : public juce::Component
 {
 public:
@@ -756,11 +448,11 @@ FlamAudioProcessorEditor::FlamAudioProcessorEditor(FlamAudioProcessor& p)
     mainTab = std::make_unique<MainTabComponent>(&drumPadsGroup, &drumPads);
     mixerTabs->addTab("Main", juce::Colours::darkgrey, mainTab.get(), false);
 
-    // Tab 2: Per-Channel Mixer (full width)
-    if (auto* mixer = audioProcessor.getPerChannelMixer())
+    // Tab 2: Mixer (full width)
+    if (auto* mixer = audioProcessor.getMixer())
     {
-        perChannelMixerPanel = std::make_unique<PerChannelMixerPanel>(*mixer);
-        mixerTabs->addTab("Per-Channel Mixer", juce::Colours::darkgrey, perChannelMixerPanel.get(), false);
+        perChannelMixerPanel = std::make_unique<MixerPanel>(*mixer);
+        mixerTabs->addTab("Mixer", juce::Colours::darkgrey, perChannelMixerPanel.get(), false);
     }
 
     addAndMakeVisible(mixerTabs.get());
@@ -1003,15 +695,15 @@ void FlamAudioProcessorEditor::loadKitFromPath(const juce::File& kitFile)
             // Update drum pads to match the kit
             updateDrumPadsFromKit();
 
-            // Configure per-channel mixer with kit's channel count
-            if (auto* mixer = audioProcessor.getPerChannelMixer())
+            // Configure mixer with kit's channel count
+            if (auto* mixer = audioProcessor.getMixer())
             {
                 int numChannels = static_cast<int>(currentKit->channelNames.size());
                 if (numChannels > 0)
                 {
                     mixer->setNumChannels(numChannels, currentKit->channelNames);
 
-                    // Refresh the per-channel mixer UI
+                    // Refresh the mixer UI
                     if (perChannelMixerPanel)
                         perChannelMixerPanel->refreshChannels();
                 }

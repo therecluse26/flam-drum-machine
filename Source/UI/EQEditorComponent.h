@@ -1,7 +1,7 @@
 #pragma once
 
 #include <juce_gui_basics/juce_gui_basics.h>
-#include "../Core/PerChannelMixer.h"
+#include "../Core/Mixer.h"
 
 namespace flam {
 
@@ -16,7 +16,7 @@ namespace flam {
 class EQEditorComponent : public juce::Component
 {
 public:
-    EQEditorComponent(PerChannelMixer& mixer, int channelIdx, bool isMaster = false)
+    EQEditorComponent(Mixer& mixer, int channelIdx, bool isMaster = false)
         : mixerRef(mixer)
         , channelIndex(channelIdx)
         , isMasterEQ(isMaster)
@@ -109,7 +109,7 @@ private:
         return labels[bandIndex];
     }
 
-    PerChannelMixer& mixerRef;
+    Mixer& mixerRef;
     int channelIndex;
     bool isMasterEQ;
 
