@@ -6,6 +6,7 @@
 #include "EQEditorComponent.h"
 #include "SaturationEditorComponent.h"
 #include "CompressorEditorComponent.h"
+#include "LimiterEditorComponent.h"
 #include "VerticalFader.h"
 #include "../Core/Mixer.h"
 
@@ -184,12 +185,8 @@ private:
 
     void showLimiterEditor()
     {
-        // Create limiter editor component
-        // For now, just show a simple editor with threshold and release
-        auto* limiterEditor = new juce::Component();
-        limiterEditor->setSize(300, 120);
-
-        // TODO: Implement LimiterEditorComponent when limiter DSP is added
+        // Create limiter editor with threshold and release controls
+        auto* limiterEditor = new LimiterEditorComponent(mixerRef);
 
         // Show in CallOutBox popover near the Limiter button
         auto& callOutBox = juce::CallOutBox::launchAsynchronously(
