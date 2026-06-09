@@ -7,10 +7,32 @@
 
 namespace flam {
 
+juce::AudioProcessor::BusesProperties FlamAudioProcessor::createBusLayout()
+{
+    // Pre-declare and ENABLE all 17 buses (1 stereo Main Mix + 16 mono individual channels)
+    // All buses must be enabled at construction - disabling/enabling them later causes crashes
+    return juce::AudioProcessor::BusesProperties()
+        .withOutput("Main Mix", juce::AudioChannelSet::stereo(), true)
+        .withOutput("Bus 1", juce::AudioChannelSet::mono(), true)
+        .withOutput("Bus 2", juce::AudioChannelSet::mono(), true)
+        .withOutput("Bus 3", juce::AudioChannelSet::mono(), true)
+        .withOutput("Bus 4", juce::AudioChannelSet::mono(), true)
+        .withOutput("Bus 5", juce::AudioChannelSet::mono(), true)
+        .withOutput("Bus 6", juce::AudioChannelSet::mono(), true)
+        .withOutput("Bus 7", juce::AudioChannelSet::mono(), true)
+        .withOutput("Bus 8", juce::AudioChannelSet::mono(), true)
+        .withOutput("Bus 9", juce::AudioChannelSet::mono(), true)
+        .withOutput("Bus 10", juce::AudioChannelSet::mono(), true)
+        .withOutput("Bus 11", juce::AudioChannelSet::mono(), true)
+        .withOutput("Bus 12", juce::AudioChannelSet::mono(), true)
+        .withOutput("Bus 13", juce::AudioChannelSet::mono(), true)
+        .withOutput("Bus 14", juce::AudioChannelSet::mono(), true)
+        .withOutput("Bus 15", juce::AudioChannelSet::mono(), true)
+        .withOutput("Bus 16", juce::AudioChannelSet::mono(), true);
+}
+
 FlamAudioProcessor::FlamAudioProcessor()
-    : AudioProcessor(BusesProperties()
-                         .withOutput("Output", juce::AudioChannelSet::stereo(), true)
-                         )
+    : AudioProcessor(createBusLayout())
     , perChannelMixer(std::make_unique<Mixer>())
     , parameters(*this, nullptr, juce::Identifier("FLAM"), createParameterLayout())
 {
@@ -161,23 +183,44 @@ void FlamAudioProcessor::releaseResources()
 #ifndef JucePlugin_PreferredChannelConfigurations
 bool FlamAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const
 {
-    // We only support mono or stereo output, no input needed
-    if (layouts.getMainOutputChannelSet() != juce::AudioChannelSet::mono()
-        && layouts.getMainOutputChannelSet() != juce::AudioChannelSet::stereo())
+    // Main Mix must be stereo
+    if (layouts.getMainOutputChannelSet() != juce::AudioChannelSet::stereo())
         return false;
+
+    // Individual buses (if enabled) must be mono
+    for (int busIdx = 1; busIdx < layouts.outputBuses.size(); ++busIdx)
+    {
+        if (!layouts.getChannelSet(false, busIdx).isDisabled() &&
+            layouts.getChannelSet(false, busIdx) != juce::AudioChannelSet::mono())
+            return false;
+    }
 
     return true;
 }
 #endif
 
+void FlamAudioProcessor::configureBusesForChannelCount(int numChannels)
+{
+    // Clamp to valid range (we have 16 individual bus slots + 1 Main Mix)
+    numChannels = juce::jlimit(1, 16, numChannels);
+
+    // Enable buses 1 through numChannels (bus 0 is Main Mix, always enabled)
+    for (int busIdx = 1; busIdx <= 16; ++busIdx)
+    {
+        if (auto* bus = getBus(false, busIdx))
+        {
+            if (busIdx <= numChannels)
+                bus->enable();  // Enable buses for channels we have
+            else
+                bus->enable(false);  // Disable unused buses
+        }
+    }
+}
+
 void FlamAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
     juce::ScopedNoDenormals noDenormals;
-    auto totalNumInputChannels = getTotalNumInputChannels();
-    auto totalNumOutputChannels = getTotalNumOutputChannels();
-
-    for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
-        buffer.clear(i, 0, buffer.getNumSamples());
+    const int numSamples = buffer.getNumSamples();
 
     updateEngineParameters();
 
@@ -187,27 +230,58 @@ void FlamAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::Mi
     // Process multi-channel audio through mixer
     if (perChannelMixer)
     {
-        const int numSamples = buffer.getNumSamples();
+        const int numMixerChannels = perChannelMixer->getNumChannels();
 
-        // Ensure output buffer is large enough (may need resize if block size changed)
-        if (mixerOutputBuffer.getNumSamples() < numSamples)
-            mixerOutputBuffer.setSize(2, numSamples, false, false, true);
+        // Allocate unified output buffer:
+        // - Channels 0-1: Main Mix (stereo)
+        // - Channels 2+: Individual buses (mono, one per mixer channel)
+        const int totalOutputChannels = 2 + numMixerChannels;
 
-        // Clear output buffer
-        mixerOutputBuffer.clear();
+        if (mixerOutputBuffer.getNumChannels() < totalOutputChannels ||
+            mixerOutputBuffer.getNumSamples() < numSamples)
+        {
+            mixerOutputBuffer.setSize(totalOutputChannels, numSamples, false, false, true);
+        }
 
         // Get multi-channel buffer from engine and process through mixer
-        // This buffer contains the full multi-channel output (e.g., 8 channels for 8-mic kit)
         const auto& multiChannelBuffer = engine.getMultiChannelBuffer();
 
-        // Process through mixer (routing, FX, solo/mute, etc.)
+        // Process through mixer (routing, FX, solo/mute, metering)
+        // Mixer will write to all output channels based on routing settings
         perChannelMixer->process(multiChannelBuffer, mixerOutputBuffer, numSamples);
 
-        // Copy stereo mixer output back to main buffer
-        buffer.clear();
-        buffer.copyFrom(0, 0, mixerOutputBuffer, 0, 0, numSamples);
-        if (buffer.getNumChannels() >= 2)
-            buffer.copyFrom(1, 0, mixerOutputBuffer, 1, 0, numSamples);
+        // Split mixer output buffer into JUCE's separate output buses
+
+        // Bus 0: Main Mix (stereo) - copy from mixerOutputBuffer channels 0-1
+        if (getBusCount(false) > 0)
+        {
+            auto mainBus = getBusBuffer(buffer, false, 0);
+            mainBus.clear();
+            if (mainBus.getNumChannels() >= 1)
+                mainBus.copyFrom(0, 0, mixerOutputBuffer, 0, 0, numSamples);
+            if (mainBus.getNumChannels() >= 2)
+                mainBus.copyFrom(1, 0, mixerOutputBuffer, 1, 0, numSamples);
+        }
+
+        // Buses 1-N: Individual channels (mono) - copy from mixerOutputBuffer channels 2+
+        const int totalBuses = getBusCount(false);
+        for (int busIdx = 1; busIdx <= numMixerChannels && busIdx < totalBuses; ++busIdx)
+        {
+            // Only process enabled buses
+            if (auto* bus = getBus(false, busIdx))
+            {
+                if (bus->isEnabled())
+                {
+                    auto individualBus = getBusBuffer(buffer, false, busIdx);
+                    if (individualBus.getNumChannels() >= 1)
+                    {
+                        const int srcChannel = 2 + (busIdx - 1);  // Channel 2 is bus 1, etc.
+                        individualBus.clear();
+                        individualBus.copyFrom(0, 0, mixerOutputBuffer, srcChannel, 0, numSamples);
+                    }
+                }
+            }
+        }
     }
 }
 

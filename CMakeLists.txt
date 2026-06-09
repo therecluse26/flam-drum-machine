@@ -6,13 +6,15 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Find yaml-cpp (optional - will use JUCE JSON parser as fallback if not found)
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(YAML_CPP yaml-cpp)
+find_package(PkgConfig QUIET)
+if(PkgConfig_FOUND)
+    pkg_check_modules(YAML_CPP yaml-cpp)
+endif()
 
 if(NOT YAML_CPP_FOUND)
-    message(WARNING "yaml-cpp not found via pkg-config. FlamKitLoader will only support JSON format.")
-    message(WARNING "To enable YAML support on NixOS: run 'nix-shell' from the project root before building.")
-    message(WARNING "The shell.nix file already includes yaml-cpp as a dependency.")
+    message(STATUS "yaml-cpp not found. FlamKitLoader will only support JSON format.")
+    message(STATUS "To enable YAML support: install yaml-cpp or run 'nix-shell' on NixOS.")
+    set(YAML_CPP_FOUND FALSE)
 endif()
 
 # Download JUCE if not present
