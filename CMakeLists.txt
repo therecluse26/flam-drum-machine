@@ -255,7 +255,18 @@ if(FLAM_PLUGINVAL)
     include(cmake/FetchPluginval.cmake)
 
     if(PLUGINVAL_EXECUTABLE AND EXISTS "${PLUGINVAL_EXECUTABLE}")
-        set(_flam_vst3 "${CMAKE_BINARY_DIR}/FLAM_artefacts/VST3/FLAM.vst3")
+        # Build the VST3 path to match JUCE's $<CONFIG>-based output layout:
+        #   <binary_dir>/FLAM_artefacts/$<CONFIG>/VST3/FLAM.vst3
+        # For single-config generators, $<CONFIG> == CMAKE_BUILD_TYPE at build time.
+        if(CMAKE_CONFIGURATION_TYPES)
+            # Multi-config (MSVC, Xcode, Ninja Multi-Config): evaluate at CTest time.
+            set(_flam_vst3 "${CMAKE_BINARY_DIR}/FLAM_artefacts/$<CONFIG>/VST3/FLAM.vst3")
+        elseif(CMAKE_BUILD_TYPE)
+            set(_flam_vst3 "${CMAKE_BINARY_DIR}/FLAM_artefacts/${CMAKE_BUILD_TYPE}/VST3/FLAM.vst3")
+        else()
+            # No build type → JUCE emits with an empty config dir (e.g. local dev builds).
+            set(_flam_vst3 "${CMAKE_BINARY_DIR}/FLAM_artefacts/VST3/FLAM.vst3")
+        endif()
 
         # On Linux use the Xvfb wrapper so GUI open/close tests run in CI.
         if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
@@ -280,8 +291,14 @@ if(FLAM_PLUGINVAL)
 
         set_tests_properties(FLAM_L3_PluginvalHostContract PROPERTIES
             TIMEOUT  300
-            LABELS   "L3;pluginval;host-contract"
-            REQUIRED_FILES "${_flam_vst3}")
+            LABELS   "L3;pluginval;host-contract")
+        # REQUIRED_FILES supports generator expressions only from CMake 3.27+.
+        # For single-config generators the path is already a literal — always safe.
+        # For multi-config, skip the pre-check; pluginval will error naturally if missing.
+        if(NOT CMAKE_CONFIGURATION_TYPES)
+            set_tests_properties(FLAM_L3_PluginvalHostContract PROPERTIES
+                REQUIRED_FILES "${_flam_vst3}")
+        endif()
 
         message(STATUS "[CTEST-6] pluginval L3 test registered "
                        "(strictness 8, VST3: ${_flam_vst3})")

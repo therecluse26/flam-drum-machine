@@ -1,0 +1,231 @@
+name: CI
+
+# Green-gate: all three platform legs must pass before merge to `main`.
+# Required status checks to add in GitHub branch protection for `main`:
+#   - "CI / Linux x86_64"
+#   - "CI / macOS Universal (arm64+x86_64)"
+#   - "CI / Windows x64"
+# See BUILD.md §CI / Branch Protection for setup instructions.
+
+on:
+  push:
+    branches: ["main", "feature/**", "feat/**", "fix/**", "release/**"]
+  pull_request:
+    branches: ["main"]
+
+# Cancel any in-flight run for the same ref when a new commit lands.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  JUCE_TAG: "8.0.4"
+  PLUGINVAL_VERSION: "1.0.3"
+
+# ============================================================================
+#  Linux x86_64
+#  Legs: build → L1+L2 tests → pluginval L3 (VST3) → ASan+UBSan L4
+# ============================================================================
+jobs:
+  linux:
+    name: "Linux x86_64"
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # JUCE source is git-ignored; cache it by tag to avoid repeated clones.
+      - name: Cache JUCE source
+        uses: actions/cache@v4
+        with:
+          path: JUCE
+          key: juce-${{ env.JUCE_TAG }}-linux
+
+      # Cache the pluginval binary fetched at CMake configure time.
+      - name: Cache pluginval binary
+        uses: actions/cache@v4
+        with:
+          path: build/_pluginval_bin
+          key: pluginval-linux-${{ env.PLUGINVAL_VERSION }}
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            cmake ninja-build pkg-config \
+            libasound2-dev \
+            libx11-dev libxcomposite-dev libxcursor-dev libxext-dev \
+            libxinerama-dev libxrandr-dev libxrender-dev \
+            libfreetype6-dev libfontconfig1-dev \
+            libgl1-mesa-dev libglu1-mesa-dev \
+            libpipewire-0.3-dev \
+            xvfb
+
+      # -----------------------------------------------------------------
+      # Main Release build (VST3 + tests + pluginval)
+      # -----------------------------------------------------------------
+      - name: Configure (Release)
+        run: |
+          cmake -B build -S . -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_TESTING=ON \
+            -DFLAM_PLUGINVAL=ON
+
+      - name: Build (Release)
+        run: cmake --build build --parallel
+
+      - name: "Test — L1 + L2"
+        run: |
+          ctest --test-dir build \
+            --exclude-regex "FLAM_L3_PluginvalHostContract" \
+            --output-on-failure -V
+
+      - name: "Test — L3 pluginval (VST3)"
+        run: |
+          ctest --test-dir build \
+            -R "FLAM_L3_PluginvalHostContract" \
+            --output-on-failure -V
+
+      # -----------------------------------------------------------------
+      # Sanitizer leg — separate Debug build tree (ASan + UBSan)
+      # -----------------------------------------------------------------
+      - name: Configure (ASan+UBSan)
+        run: |
+          cmake -B build_sanitized -S . -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DBUILD_TESTING=ON \
+            -DFLAM_SANITIZE=ON \
+            -DFLAM_PLUGINVAL=OFF
+
+      - name: Build test targets (sanitized)
+        run: |
+          cmake --build build_sanitized \
+            --target flam-tests FlamL1Tests --parallel
+
+      - name: "Test — L4 ASan+UBSan"
+        env:
+          ASAN_OPTIONS: detect_leaks=1:abort_on_error=1
+          UBSAN_OPTIONS: print_stacktrace=1:abort_on_error=1
+        run: |
+          ctest --test-dir build_sanitized \
+            --exclude-regex "FLAM_L3_PluginvalHostContract" \
+            --output-on-failure -V --timeout 120
+
+# ============================================================================
+#  macOS — Universal Binary (arm64 + x86_64)
+#  Legs: build → L1+L2 tests → pluginval L3 (VST3) → pluginval L3 (AU)
+# ============================================================================
+  macos:
+    name: "macOS Universal (arm64+x86_64)"
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cache JUCE source
+        uses: actions/cache@v4
+        with:
+          path: JUCE
+          key: juce-${{ env.JUCE_TAG }}-macos
+
+      - name: Cache pluginval binary
+        uses: actions/cache@v4
+        with:
+          path: build/_pluginval_bin
+          key: pluginval-macos-${{ env.PLUGINVAL_VERSION }}
+
+      # Ninja is pre-installed on macos-14 runners.
+      - name: Configure (Universal Release)
+        run: |
+          cmake -B build -S . -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            "-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64" \
+            -DBUILD_TESTING=ON \
+            -DFLAM_PLUGINVAL=ON
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: "Test — L1 + L2"
+        run: |
+          ctest --test-dir build \
+            --exclude-regex "FLAM_L3_PluginvalHostContract" \
+            --output-on-failure -V
+
+      - name: "Test — L3 pluginval (VST3)"
+        run: |
+          ctest --test-dir build \
+            -R "FLAM_L3_PluginvalHostContract" \
+            --output-on-failure -V
+
+      # AU validation: pluginval validates the .component bundle directly.
+      # The AU binary is a Universal bundle produced by the same build above.
+      - name: "Test — L3 pluginval (AU, macOS only)"
+        run: |
+          AU_PATH="build/FLAM_artefacts/Release/AU/FLAM.component"
+          PV_BIN="build/_pluginval_bin/pluginval.app/Contents/MacOS/pluginval"
+          if [ ! -d "$AU_PATH" ]; then
+            echo "AU component not found at $AU_PATH — skipping AU validation"
+            ls build/FLAM_artefacts/Release/ 2>/dev/null || true
+            exit 0
+          fi
+          if [ ! -f "$PV_BIN" ]; then
+            echo "pluginval binary not found at $PV_BIN — skipping AU validation"
+            exit 0
+          fi
+          mkdir -p build/pluginval-results-au
+          "$PV_BIN" \
+            --strictness-level 8 \
+            --validate-in-process \
+            --output-dir "build/pluginval-results-au" \
+            "$AU_PATH"
+
+# ============================================================================
+#  Windows x64
+#  Legs: build → L1+L2 tests → pluginval L3 (VST3)
+#  Sanitizers: not supported on MSVC (Linux leg covers this).
+# ============================================================================
+  windows:
+    name: "Windows x64"
+    runs-on: windows-2022
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cache JUCE source
+        uses: actions/cache@v4
+        with:
+          path: JUCE
+          key: juce-${{ env.JUCE_TAG }}-windows
+
+      - name: Cache pluginval binary
+        uses: actions/cache@v4
+        with:
+          path: build/_pluginval_bin
+          key: pluginval-windows-${{ env.PLUGINVAL_VERSION }}
+
+      # Visual Studio generator — -A x64 selects 64-bit MSVC toolchain.
+      # No CMAKE_BUILD_TYPE for multi-config; use --config Release at build/test time.
+      - name: Configure
+        run: |
+          cmake -B build -S . -A x64 `
+            -DBUILD_TESTING=ON `
+            -DFLAM_PLUGINVAL=ON
+
+      - name: Build (Release)
+        run: cmake --build build --config Release --parallel
+
+      - name: "Test — L1 + L2"
+        run: |
+          ctest --test-dir build --config Release `
+            --exclude-regex "FLAM_L3_PluginvalHostContract" `
+            --output-on-failure -V
+
+      - name: "Test — L3 pluginval (VST3)"
+        run: |
+          ctest --test-dir build --config Release `
+            -R "FLAM_L3_PluginvalHostContract" `
+            --output-on-failure -V
