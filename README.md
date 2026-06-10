@@ -153,28 +153,29 @@ See [Resources/Kits/README.md](Resources/Kits/README.md) for the kit format spec
 
 ## 🏗️ Architecture
 
-FlamKit is built around a modular, real-time safe architecture:
+FlamKit is built around a modular, real-time safe architecture. See [ARCHITECTURE.md](ARCHITECTURE.md) for the full verified module map and status tags.
 
 ```
 Source/
-├── Core/                    # Audio engine
-│   ├── FlamEngine           # Main engine coordinator
-│   ├── VoiceManager         # Voice allocation (128 voices)
-│   ├── HybridStreamingLoader # 100ms preload + disk streaming
-│   ├── MultiChannelRouter   # Multi-output DAW routing
-│   └── PerChannelMixer      # Built-in per-channel mixing
-├── Formats/                 # Kit loading and parsing
-│   └── FlamKitLoader        # YAML/JSON kit parser
-├── DSP/                     # Audio processing
-│   ├── EffectsChain         # Per-channel and master effects
-│   └── IRConvolver          # Convolution reverb
-├── Plugin/                  # Plugin wrapper
-│   ├── PluginProcessor      # Multi-output bus management
-│   └── PluginEditor         # Valhalla-inspired UI
-└── UI/                      # User interface components
-    ├── KitBrowser           # Visual kit selection
-    ├── MixerView            # Dynamic per-channel faders
-    └── RoutingMatrix        # Multi-output visualization
+├── Core/
+│   ├── FlamEngine                 # Engine coordinator (AudioProcessorGraph) ✅
+│   ├── VoiceManager               # Voice pool (128), round-robin, choke groups ✅
+│   ├── SampleVoice                # Per-voice render (ADSR + streaming handoff) ✅
+│   ├── SampleStreamingManager     # 100ms preload + background disk streaming ✅
+│   └── Mixer                      # Per-channel mixer with FX chain 🟡
+├── Formats/
+│   └── FlamKitLoader              # flamkit.yaml / .json parser ✅
+├── DSP/
+│   ├── SimpleEQ / SimpleCompressor      # Master bus EQ + compressor ✅
+│   ├── TenBandGraphicEQ / SaturationProcessor / CompressorProcessor / LimiterProcessor  # Per-channel FX (via Mixer) ✅
+│   └── IRConvolver                # Convolution reverb 🟡
+├── Plugin/
+│   ├── PluginProcessor            # JUCE entry point; owns engine + bus config ✅
+│   └── PluginEditor               # Valhalla-inspired UI ✅
+└── UI/
+    ├── MixerPanel                 # Dynamic channel fader container ✅
+    ├── ChannelStripComponent      # Per-channel fader / pan / mute / solo ✅
+    └── ...                        # Level meters, knobs, faders ✅
 ```
 
 ### Key Design Principles
@@ -228,19 +229,23 @@ Nyquist theorem proves 44.1 kHz captures all audible frequencies (up to 22.05 kH
 ## 🗺️ Roadmap
 
 ### Version 1.0 — Professional Core (MVP)
-- [x] Multi-channel sample architecture (1-16 channels/sample)
-- [x] Multi-output routing to DAW tracks
-- [x] Hybrid streaming (100ms preload + disk streaming)
-- [x] Multi-layer velocity sampling with round-robin cycling
-- [x] Choke groups and articulation switching
-- [x] Humanization engine (timing + velocity variation)
-- [x] Per-channel mixer (volume, pan, solo, mute)
-- [x] Master effects chain (EQ, compression, saturation)
-- [x] Convolution reverb
-- [x] YAML kit format with dynamic bus configuration
-- [x] VST3/AU/AAX plugin formats + Standalone
-- [ ] Official website with direct kit downloads
-- [ ] Initial release with 2-3 demo kits available for download
+
+Status matches [ARCHITECTURE.md](ARCHITECTURE.md): ✅ implemented & integrated · 🟡 built, not yet in active signal path · 🔵 planned
+
+- ✅ Multi-channel sample architecture (1–16 channels/sample)
+- ✅ Hybrid streaming (100ms preload + disk streaming via `SampleStreamingManager`)
+- ✅ Multi-layer velocity sampling with round-robin cycling
+- ✅ Choke groups
+- ✅ YAML kit format (`flamkit.yaml`)
+- ✅ Master EQ + compressor
+- ✅ VST3 / AU / AAX plugin formats + Standalone
+- 🟡 Multi-output routing to DAW tracks — `Mixer` built; signal path integration in progress
+- 🟡 Per-channel mixer (volume, pan, solo, mute) — built, not yet in signal path
+- 🟡 Convolution reverb — built, not yet wired into signal path
+- 🟡 Articulation switching — data model complete; runtime switching in progress
+- 🟡 Humanization engine — parameter registered; implementation not yet wired
+- 🔵 Official website with direct kit downloads
+- 🔵 Initial release with 2–3 demo kits available for download
 
 ### Version 1.1 — Distributed Repositories
 - [ ] Repository browser UI (in-plugin)
@@ -307,12 +312,15 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 FlamKit is licensed under the **GNU General Public License v3.0 (GPLv3)**. See [LICENSE](LICENSE) for details.
 
-**What this means:**
-- ✅ Use FlamKit for free (personal or commercial)
-- ✅ Fork and modify the code
-- ✅ Distribute your modifications under GPLv3
-- ❌ Create closed-source competitive forks
-- ❌ Remove GPL license from derivative works
+**What GPLv3 means for FlamKit:**
+- ✅ Use FlamKit as a plugin in any DAW — personal or commercial
+- ✅ Study, fork, and modify the source code
+- ✅ Distribute your modifications — must be under GPLv3
+- ✅ Derivative works (code incorporating FlamKit) must also be GPLv3 (strong copyleft)
+- ❌ Incorporate FlamKit code into a closed-source or proprietary application
+- ❌ Relicense — derivative works must remain GPLv3
+
+> **Note:** GPLv3 is strong copyleft — unlike LGPL, it does **not** permit linking FlamKit into proprietary applications. Any project that incorporates FlamKit source must also be GPLv3-licensed.
 
 Third-party components:
 - **JUCE** — AGPLv3 (free tier, compatible with GPLv3 for local desktop plugins) / Commercial License
