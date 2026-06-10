@@ -37,8 +37,23 @@ public:
     void setPolyphony(int maxVoices);
     int getPolyphony() const { return maxActiveVoices.load(); }
 
+    int getActiveVoiceCount() const;  // For testing / metering
+
     void setRoundRobinEnabled(bool enabled) { useRoundRobin.store(enabled); }
     bool isRoundRobinEnabled() const { return useRoundRobin.load(); }
+
+    /** Seed the internal RNG for deterministic/test mode.
+     *  Not real-time safe — call only from the non-audio thread before playback starts. */
+    void seedRNG(uint64_t seed) noexcept { rng = juce::Random(static_cast<juce::int64>(seed)); }
+
+    /** In offline mode the full sample is loaded into preloadBuffer; no streaming needed. */
+    void setOfflineMode(bool offline) { offlineMode.store(offline); }
+    bool isOfflineMode() const { return offlineMode.load(); }
+
+    /** Returns false while the background preload thread is still running. */
+    bool isKitLoaded() const { return !isKitLoading.load(); }
+    /** Blocks the calling thread until kit preloading is complete. CLI/test use only. */
+    void waitForKitLoaded() const { while (isKitLoading.load()) juce::Thread::sleep(10); }
 
     /**
      * Get the number of output channels required for the currently loaded kit.
@@ -62,6 +77,8 @@ private:
 
     std::atomic<int> maxActiveVoices{64};
     std::atomic<bool> useRoundRobin{true};
+    std::atomic<bool> offlineMode{false};
+    std::atomic<bool> isKitLoading{false};
 
     std::array<int, MAX_CHOKE_GROUPS> chokeGroupLastVoice;
 
@@ -110,6 +127,10 @@ private:
     int blockSize{512};
 
     juce::SpinLock voiceLock;
+
+    // Per-instance RNG — replaces juce::Random::getSystemRandom() for seedability.
+    // Audio-thread only; seed via seedRNG() before playback.
+    juce::Random rng;
 
     int findFreeVoice() const;
     void startVoice(int voiceIndex, int midiNote, float velocity, int sampleOffset);

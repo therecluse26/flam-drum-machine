@@ -38,9 +38,13 @@ std::unique_ptr<DrumKit> FlamKitLoader::loadKit(const juce::File& kitFile)
         return nullptr;
 #endif
     }
+    else if (extension == ".json")
+    {
+        kit = parseJsonKit(content);
+    }
     else
     {
-        lastError = "Unsupported file format (expected .yaml or .yml): " + extension;
+        lastError = "Unsupported file format (expected .yaml, .yml, or .json): " + extension;
         return nullptr;
     }
 
@@ -128,9 +132,13 @@ bool FlamKitLoader::saveKit(const DrumKit& kit, const juce::File& kitFile)
         return false;
 #endif
     }
+    else if (extension == ".json")
+    {
+        content = serializeKitToJson(kit);
+    }
     else
     {
-        lastError = "Unsupported file format (expected .yaml or .yml): " + extension;
+        lastError = "Unsupported file format (expected .yaml, .yml, or .json): " + extension;
         return false;
     }
     
@@ -302,7 +310,14 @@ std::unique_ptr<DrumKit> FlamKitLoader::parseJsonKit(const juce::String& content
     kit->author = json["author"].toString();
     kit->version = json["version"].toString();
     kit->description = json["description"].toString();
-    
+
+    auto channels = json["channels"];
+    if (channels.isArray())
+    {
+        for (const auto& channelJson : *channels.getArray())
+            kit->channelNames.push_back(channelJson["name"].toString());
+    }
+
     auto settings = json["settings"];
     if (settings.isObject())
     {

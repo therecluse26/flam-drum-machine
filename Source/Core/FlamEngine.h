@@ -37,6 +37,19 @@ public:
     void triggerNote(int midiNote, float velocity, int sampleOffset = 0);
     void releaseNote(int midiNote, int sampleOffset = 0);
 
+    /** Seed both RNGs (humanization + round-robin) for deterministic/test mode.
+     *  Not real-time safe — call only from the non-audio thread before playback starts. */
+    void seedRNG(uint64_t seed) noexcept;
+
+    /** Switch to offline mode: loads full samples instead of 5ms preload. Call before loadKit(). */
+    void setOfflineMode(bool offline);
+
+    /** Returns true once the background preload thread has finished. */
+    bool isKitLoaded() const;
+
+    /** Blocks until the background preload thread is done. CLI/test use only. */
+    void waitForKitLoaded() const;
+
     VoiceManager* getVoiceManager() const { return voiceManager.get(); }
     MixerBus* getMixerBus() const { return mixerBus.get(); }
     SimpleEQ* getEQ() const { return eq.get(); }

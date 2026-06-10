@@ -173,6 +173,27 @@ void FlamEngine::triggerNote(int midiNote, float velocity, int sampleOffset)
     voiceManager->triggerNote(midiNote, velocity, sampleOffset);
 }
 
+void FlamEngine::seedRNG(uint64_t seed) noexcept
+{
+    randomGenerator = juce::Random(static_cast<juce::int64>(seed));
+    voiceManager->seedRNG(seed);
+}
+
+void FlamEngine::setOfflineMode(bool offline)
+{
+    voiceManager->setOfflineMode(offline);
+}
+
+bool FlamEngine::isKitLoaded() const
+{
+    return voiceManager->isKitLoaded();
+}
+
+void FlamEngine::waitForKitLoaded() const
+{
+    voiceManager->waitForKitLoaded();
+}
+
 void FlamEngine::releaseNote(int midiNote, int sampleOffset)
 {
     voiceManager->releaseNote(midiNote, sampleOffset);

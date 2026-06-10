@@ -1,0 +1,42 @@
+# Synthetic fixture kit for golden-render tests (CTEST-5).
+# Tiny generated sine-wave samples — deterministic, no real drum samples required.
+# To regenerate the WAV files: python3 Tests/Fixtures/generate_fixtures.py
+# After any change here, rebuild the golden with: GoldenRenderTest --update-golden
+
+name: "Golden Test Kit"
+author: "FLAM Test Suite"
+version: "1.0.0"
+description: "Synthetic fixture kit for deterministic golden-render testing"
+
+channels:
+  - name: "Left"
+  - name: "Right"
+
+settings:
+  masterGain: 1.0
+  maxPolyphony: 8
+  useRoundRobin: true
+  defaultHumanization: 0.0  # Must be zero for deterministic rendering
+
+pieces:
+  - name: "Test Kick"
+    midiNote: 36
+    articulations:
+      - name: "Hit"
+        chokeGroup: -1
+        attackTime: 0.001
+        holdTime: 0.0
+        decayTime: 0.01     # 10ms decay — voice ends quickly so golden is compact
+        sustainLevel: 0.0
+        releaseTime: 0.005
+        layers:
+          - sampleFile: "samples/kick_a.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/kick_b.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 1.0
+            roundRobinGroup: 1

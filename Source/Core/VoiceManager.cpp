@@ -246,8 +246,13 @@ void VoiceManager::loadKit(std::unique_ptr<DrumKit> kit)
         setRoundRobinEnabled(currentKit->settings.useRoundRobin);
     }
 
-    // Load preload buffers in background thread (first 5ms of each sample)
-    juce::Thread::launch([this]() {
+    // Signal that a background load is starting (cleared when the lambda finishes)
+    isKitLoading.store(true);
+
+    // In offline mode, load the full sample; in real-time mode load only the first 5ms
+    const bool offline = offlineMode.load();
+
+    juce::Thread::launch([this, offline]() {
         juce::AudioFormatManager formatManager;
         formatManager.registerBasicFormats();
 
@@ -257,7 +262,10 @@ void VoiceManager::loadKit(std::unique_ptr<DrumKit> kit)
         {
             const juce::SpinLock::ScopedLockType lock(voiceLock);
             if (!currentKit)
+            {
+                isKitLoading.store(false);
                 return;
+            }
 
             // Collect all layer pointers
             for (auto& piece : currentKit->pieces)
@@ -289,11 +297,15 @@ void VoiceManager::loadKit(std::unique_ptr<DrumKit> kit)
             const int numChannels = static_cast<int>(reader->numChannels);
             const double srcSampleRate = reader->sampleRate;
 
-            // Calculate preload size (5ms worth of samples)
-            const int preloadSamples = static_cast<int>((srcSampleRate * 5.0) / 1000.0);
+            // Offline: load full sample (capped at 30 s) to avoid streaming mid-render.
+            // Real-time: load first 5 ms; SampleStreamingManager delivers the rest.
+            const int preloadSamples = offline
+                ? static_cast<int>(juce::jmin(totalLength,
+                      static_cast<juce::int64>(srcSampleRate * 30.0)))
+                : static_cast<int>((srcSampleRate * 5.0) / 1000.0);
             const int actualPreloadSize = juce::jmin(preloadSamples, static_cast<int>(totalLength));
 
-            // Allocate and read only the preload portion
+            // Allocate and read the preload portion
             auto preloadBuffer = std::make_shared<juce::AudioBuffer<float>>(numChannels, actualPreloadSize);
 
             if (!reader->read(preloadBuffer.get(), 0, actualPreloadSize, 0, true, true))
@@ -304,6 +316,8 @@ void VoiceManager::loadKit(std::unique_ptr<DrumKit> kit)
             layer->sourceSampleRate = srcSampleRate;
             layer->totalSampleLength = totalLength;
         }
+
+        isKitLoading.store(false);
     });
 }
 
@@ -457,16 +471,24 @@ const SampleLayer* VoiceManager::findBestLayer(const DrumPiece* piece,
         if (availableLayers.empty())
             availableLayers = matchingLayers;
 
-        // Pick randomly from available layers
-        const int randomIndex = static_cast<int>(
-            juce::Random::getSystemRandom().nextInt(static_cast<int>(availableLayers.size()))
-        );
+        // Pick randomly from available layers using the per-instance RNG (seedable for tests)
+        const int randomIndex = rng.nextInt(static_cast<int>(availableLayers.size()));
 
         return availableLayers[randomIndex];
     }
 
     // Round-robin disabled - return first matching layer
     return matchingLayers[0];
+}
+
+int VoiceManager::getActiveVoiceCount() const
+{
+    const juce::SpinLock::ScopedLockType lock(voiceLock);
+    int count = 0;
+    for (const auto& voice : voices)
+        if (voice.isActive)
+            ++count;
+    return count;
 }
 
 int VoiceManager::getRequiredChannelCount() const
