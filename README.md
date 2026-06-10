@@ -96,7 +96,7 @@ See [BUILD.md](BUILD.md) for detailed build instructions.
 
 ```bash
 # Clone and build
-git clone https://github.com/your-username/flam-drum-machine.git
+git clone https://github.com/flam/flam-drum-machine.git
 cd flam-drum-machine
 mkdir build && cd build
 cmake ..
@@ -335,8 +335,8 @@ Special thanks to the open-source audio development community and the ecosystem 
 ## 💬 Support
 
 - **Documentation**: [docs.flam-audio.org](https://docs.flam-audio.org) (planned)
-- **Issues**: [GitHub Issues](https://github.com/your-username/flam-drum-machine/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/your-username/flam-drum-machine/discussions)
+- **Issues**: [GitHub Issues](https://github.com/flam/flam-drum-machine/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/flam/flam-drum-machine/discussions)
 - **Discord**: [FlamKit Community Server](https://discord.gg/flam) (planned)
 
 ---

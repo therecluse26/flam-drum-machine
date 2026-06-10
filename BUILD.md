@@ -79,7 +79,7 @@ sudo pacman -S \
 ### Configure and Build
 ```bash
 # Clone the repository (if not already done)
-git clone https://github.com/your-username/flam-drum-machine.git
+git clone https://github.com/flam/flam-drum-machine.git
 cd flam-drum-machine
 
 # Create build directory
