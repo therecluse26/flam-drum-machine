@@ -12,7 +12,6 @@
 #include <catch2/catch_test_macros.hpp>
 #include <juce_core/juce_core.h>
 #include <juce_audio_basics/juce_audio_basics.h>
-#include <juce_audio_formats/juce_audio_formats.h>
 
 #include "Core/FlamEngine.h"
 
@@ -25,8 +24,11 @@
 
 static constexpr const char* FIXTURE_KIT_PATH =
     FLAM_TEST_FIXTURES_DIR "/golden-kit/flamkit.yaml";
-static constexpr const char* GOLDEN_WAV_PATH =
-    FLAM_TEST_FIXTURES_DIR "/goldens/golden_render.wav";
+// Golden stored as raw 32-bit float (interleaved L/R) to avoid any PCM
+// quantization round-trip error.  The .f32 extension is unconventional but
+// makes the format self-documenting.
+static constexpr const char* GOLDEN_PATH =
+    FLAM_TEST_FIXTURES_DIR "/goldens/golden_render.f32";
 
 // ---------------------------------------------------------------------------
 // Render parameters — must stay constant across all platforms for the golden
@@ -42,46 +44,42 @@ static const int HIT_SAMPLES[] = { 0, 11025, 22050, 33075 };
 static constexpr int TOTAL_RENDER_SAMPLES = 44100;  // 1 second
 
 // ---------------------------------------------------------------------------
-// WAV I/O helpers
+// Golden I/O — raw 32-bit float, interleaved channels.
+// Using raw float avoids WAV PCM quantization (which would add ~-138 dBFS
+// error and could mask near-threshold changes).
 // ---------------------------------------------------------------------------
-static void writeWav(const juce::AudioBuffer<float>& buf,
-                     const juce::String& path,
-                     double sampleRate)
+static void writeGolden(const juce::AudioBuffer<float>& buf,
+                        const juce::String& path)
 {
-    juce::WavAudioFormat fmt;
     juce::File outFile(path);
     outFile.getParentDirectory().createDirectory();
     outFile.deleteFile();
 
-    auto* fos = outFile.createOutputStream().release();
+    auto fos = outFile.createOutputStream();
     REQUIRE(fos != nullptr);
 
-    auto writer = std::unique_ptr<juce::AudioFormatWriter>(
-        fmt.createWriterFor(fos, sampleRate,
-                            (unsigned)buf.getNumChannels(), 24, {}, 0));
-    REQUIRE(writer != nullptr);
-    writer->writeFromAudioSampleBuffer(buf, 0, buf.getNumSamples());
+    const int nCh = buf.getNumChannels();
+    const int nSamples = buf.getNumSamples();
+    for (int i = 0; i < nSamples; ++i)
+        for (int ch = 0; ch < nCh; ++ch)
+            fos->writeFloat(buf.getSample(ch, i));
 }
 
-static juce::AudioBuffer<float> readWav(const juce::String& path)
+static juce::AudioBuffer<float> readGolden(const juce::String& path,
+                                           int numChannels, int numSamples)
 {
-    juce::WavAudioFormat fmt;
     juce::File inFile(path);
     if (!inFile.existsAsFile())
         return {};
 
-    auto* fis = inFile.createInputStream().release();
+    auto fis = inFile.createInputStream();
     if (!fis)
         return {};
 
-    auto reader = std::unique_ptr<juce::AudioFormatReader>(
-        fmt.createReaderFor(fis, true));
-    if (!reader)
-        return {};
-
-    juce::AudioBuffer<float> result((int)reader->numChannels,
-                                    (int)reader->lengthInSamples);
-    reader->read(&result, 0, (int)reader->lengthInSamples, 0, true, true);
+    juce::AudioBuffer<float> result(numChannels, numSamples);
+    for (int i = 0; i < numSamples; ++i)
+        for (int ch = 0; ch < numChannels; ++ch)
+            result.setSample(ch, i, fis->readFloat());
     return result;
 }
 
@@ -170,19 +168,17 @@ TEST_CASE("Golden render — output matches committed reference", "[golden_rende
 
     if (updateGolden)
     {
-        // Regenerate mode: write the current render as the new reference.
-        // Review the resulting WAV diff before committing.
-        INFO("FLAM_UPDATE_GOLDEN is set — writing new golden reference to " << GOLDEN_WAV_PATH);
-        writeWav(rendered, GOLDEN_WAV_PATH, RENDER_SAMPLE_RATE);
+        INFO("FLAM_UPDATE_GOLDEN is set — writing new golden reference to " << GOLDEN_PATH);
+        writeGolden(rendered, GOLDEN_PATH);
         SUCCEED("Golden reference updated.");
         return;
     }
 
     // Comparison mode: null-test against committed golden
-    INFO("Golden path: " << GOLDEN_WAV_PATH << "  — run with FLAM_UPDATE_GOLDEN=1 to regenerate");
-    REQUIRE(juce::File(GOLDEN_WAV_PATH).existsAsFile());
+    INFO("Golden path: " << GOLDEN_PATH << "  — run with FLAM_UPDATE_GOLDEN=1 to regenerate");
+    REQUIRE(juce::File(GOLDEN_PATH).existsAsFile());
 
-    auto golden = readWav(GOLDEN_WAV_PATH);
+    auto golden = readGolden(GOLDEN_PATH, rendered.getNumChannels(), TOTAL_RENDER_SAMPLES);
     REQUIRE(golden.getNumSamples() > 0);
     INFO("Golden samples: " << golden.getNumSamples()
          << " expected: " << TOTAL_RENDER_SAMPLES);
@@ -190,7 +186,7 @@ TEST_CASE("Golden render — output matches committed reference", "[golden_rende
 
     const float peakDiff = peakResidual(rendered, golden);
     const float peakDiffDB = (peakDiff > 0.0f)
-        ? juce::Decibels::gainToDecibels(peakDiff)
+        ? juce::Decibels::gainToDecibels(peakDiff, -200.0f)
         : -200.0f;
 
     INFO("Peak residual: " << peakDiffDB << " dBFS  (pass threshold: < -120 dBFS)");
@@ -213,7 +209,7 @@ TEST_CASE("Golden render — perturbation is detectable above -120 dBFS", "[gold
 
     const float peakDiff = peakResidual(rendered, perturbed);
     const float peakDiffDB = (peakDiff > 0.0f)
-        ? juce::Decibels::gainToDecibels(peakDiff)
+        ? juce::Decibels::gainToDecibels(peakDiff, -200.0f)
         : -200.0f;
 
     INFO("Perturbation residual: " << peakDiffDB << " dBFS");
