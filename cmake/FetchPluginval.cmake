@@ -3,7 +3,7 @@
 # LICENCE ISOLATION (DR3): pluginval is released under the GPLv3 by Tracktion.
 # This module downloads it as a standalone executable that is invoked only via
 # an external process — it is NEVER linked against FLAM source.  The GPLv3
-# therefore does not propagate to FLAM's LGPL-3.0 codebase.
+# therefore does not propagate to FLAM's GPL-3.0 codebase.
 #
 # Outputs:
 #   PLUGINVAL_EXECUTABLE — path to the pluginval binary (empty string if unavailable)

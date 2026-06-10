@@ -59,7 +59,7 @@ FlamKit uses a **decentralized kit distribution model** inspired by Linux packag
 6. **Multi-Output Routing:** Each microphone channel routes to independent DAW tracks — FlamKit becomes a virtual multitrack session
 7. **Open Format:** `flamkit.yaml` files are human-readable, version-controllable, and community-editable
 8. **Complete DAW Integration:** Every parameter exposed for automation — treat FlamKit like a hardware unit
-9. **Extensibility:** Clean JUCE module design; LGPL v3 prevents proprietary forks while allowing library reuse
+9. **Extensibility:** Clean JUCE module design; GPLv3 prevents proprietary forks while allowing library reuse
 10. **Cross-Platform:** Builds cleanly for Linux (PipeWire/ALSA), macOS (CoreAudio), Windows (ASIO/WASAPI)
 11. **Distributed Ecosystem:** No single point of failure or control for kit distribution
 
@@ -84,7 +84,7 @@ FlamKit uses a **decentralized kit distribution model** inspired by Linux packag
 
 - C++20 or newer
 - JUCE (latest release)
-- LGPL v3 license (prevents proprietary forks while allowing library reuse)
+- GPLv3 license (prevents proprietary forks while allowing library reuse)
 - Follow real-time safe audio thread principles (no dynamic allocation in callback)
 - Use `AudioBuffer<float>` and `AudioSampleBuffer` abstractions for clean sample handling
 - Prefer composition over inheritance for engine subsystems

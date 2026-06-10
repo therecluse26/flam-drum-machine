@@ -1,12 +1,12 @@
 # FlamKit - Free Layered Audio Machine
 
-[![License: LGPL v3](https://img.shields.io/badge/License-LGPLv3-blue.svg)](https://www.gnu.org/licenses/lgpl-3.0)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![C++20](https://img.shields.io/badge/C++-20-blue.svg)](https://en.cppreference.com/w/cpp/20)
 [![JUCE](https://img.shields.io/badge/JUCE-8.0-green.svg)](https://juce.com/)
 
 > **The best drum sampler that exists. Professional-grade. Multi-channel. Completely free.**
 
-FlamKit is an LGPL-licensed, cross-platform drum engine designed to rival — and surpass — commercial samplers like Superior Drummer and BFD, while remaining free and open source forever.
+FlamKit is a GPLv3-licensed, cross-platform drum engine designed to rival — and surpass — commercial samplers like Superior Drummer and BFD, while remaining free and open source forever.
 
 ---
 
@@ -21,7 +21,7 @@ Commercial drum samplers cost $300-$1000+. Many are limited to single platforms 
 - ✨ **Best-in-class quality** — Official kits match or exceed Superior Drummer, BFD3, and Steven Slate
 - 💰 **Zero cost** — Professional-grade samples and software, free forever
 - 🌍 **Open ecosystem** — Distributed repositories mean no single point of control
-- 🔓 **Complete transparency** — LGPL v3 means you own your tools
+- 🔓 **Complete transparency** — GPLv3 means you own your tools
 - ⚡ **Extreme efficiency** — 50-100MB RAM per kit vs. 1-2GB for competitors (10-20x improvement)
 
 We're contributing to an ecosystem (Reaper, Ardour, LSP, countless free plugins) where world-class production is accessible to anyone with creativity and a computer.
@@ -57,7 +57,7 @@ We're contributing to an ecosystem (Reaper, Ardour, LSP, countless free plugins)
 ### Open & Extensible
 - **Distributed Kit Repositories**: Download free kits from official and community sources (v1.1+)
 - **Human-Readable Format**: YAML kit definitions you can edit in any text editor
-- **LGPL v3 Licensed**: Free forever, fork-friendly, prevents proprietary capture
+- **GPLv3 Licensed**: Free forever, fork-friendly, prevents proprietary capture
 - **Cross-Platform**: Linux, macOS, Windows with identical performance
 
 ---
@@ -305,17 +305,17 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ## 📜 License
 
-FlamKit is licensed under the **GNU Lesser General Public License v3.0 (LGPL v3)**. See [LICENSE](LICENSE) for details.
+FlamKit is licensed under the **GNU General Public License v3.0 (GPLv3)**. See [LICENSE](LICENSE) for details.
 
 **What this means:**
 - ✅ Use FlamKit for free (personal or commercial)
 - ✅ Fork and modify the code
-- ✅ Link FlamKit libraries in your own projects
+- ✅ Distribute your modifications under GPLv3
 - ❌ Create closed-source competitive forks
-- ❌ Remove LGPL license from derivative works
+- ❌ Remove GPL license from derivative works
 
 Third-party components:
-- **JUCE** - ISC License / Commercial License
+- **JUCE** — AGPLv3 (free tier, compatible with GPLv3 for local desktop plugins) / Commercial License
 - **yaml-cpp** - MIT License (planned)
 
 ---
