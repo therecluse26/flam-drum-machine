@@ -7,6 +7,19 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 include(CTest)
 
+# ------------------------------------------------------------
+# L3/L4 testing options  (CTEST-6 / FLA-57)
+# ------------------------------------------------------------
+# FLAM_PLUGINVAL — download pluginval (Tracktion, GPLv3) and run it against
+#   the built VST3 as an external subprocess at strictness 8.  pluginval is
+#   NEVER linked into FLAM — process isolation is the DR3 licence firewall.
+#
+# FLAM_SANITIZE — compile L1/L2 test targets with ASan+UBSan (Linux/macOS).
+#   Use the scripts/run-sanitized-tests.sh one-command wrapper, or configure
+#   a separate build directory with -DFLAM_SANITIZE=ON.
+option(FLAM_PLUGINVAL "Enable pluginval L3 host-contract tests (downloads binary)" OFF)
+option(FLAM_SANITIZE  "Enable ASan+UBSan for L1/L2 test targets (L4, Linux/macOS only)" OFF)
+
 # Find yaml-cpp (optional - will use JUCE JSON parser as fallback if not found)
 find_package(PkgConfig QUIET)
 if(PkgConfig_FOUND)
@@ -208,6 +221,72 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
 endif()
 
 if(BUILD_TESTING)
-    add_subdirectory(tests)      # Catch2-based smoke + determinism tests
+    add_subdirectory(tests)      # Catch2-based smoke + determinism tests (CTEST-2/5)
     add_subdirectory(Tests)      # JUCE UnitTest-based L1 unit tests (CTEST-3)
+
+    # ------------------------------------------------------------------
+    # L4 — ASan + UBSan (CTEST-6 / FLA-57)
+    # Apply sanitizer flags to both test targets after subdirs define them.
+    # ------------------------------------------------------------------
+    if(FLAM_SANITIZE)
+        if(CMAKE_SYSTEM_NAME STREQUAL "Linux" OR CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+            message(STATUS "[CTEST-6] ASan+UBSan enabled on test targets (L4)")
+            foreach(_san_tgt flam-tests FlamL1Tests)
+                target_compile_options(${_san_tgt} PRIVATE
+                    -fsanitize=address,undefined
+                    -fno-omit-frame-pointer
+                    -g)
+                target_link_options(${_san_tgt} PRIVATE
+                    -fsanitize=address,undefined)
+            endforeach()
+        else()
+            message(WARNING "[CTEST-6] FLAM_SANITIZE is only supported on Linux and macOS")
+        endif()
+    endif()
+endif()
+
+# ------------------------------------------------------------------
+# L3 — pluginval host-contract validation (CTEST-6 / FLA-57)
+# Registered unconditionally when FLAM_PLUGINVAL=ON so that the test
+# appears in CTest output even without BUILD_TESTING=ON (the VST3 is
+# always built; the plugin tests are orthogonal to the engine tests).
+# ------------------------------------------------------------------
+if(FLAM_PLUGINVAL)
+    include(cmake/FetchPluginval.cmake)
+
+    if(PLUGINVAL_EXECUTABLE AND EXISTS "${PLUGINVAL_EXECUTABLE}")
+        set(_flam_vst3 "${CMAKE_BINARY_DIR}/FLAM_artefacts/VST3/FLAM.vst3")
+
+        # On Linux use the Xvfb wrapper so GUI open/close tests run in CI.
+        if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+            set(_pv_cmd
+                "${CMAKE_SOURCE_DIR}/scripts/pluginval-linux-launch.sh"
+                "${PLUGINVAL_EXECUTABLE}")
+        else()
+            set(_pv_cmd "${PLUGINVAL_EXECUTABLE}")
+        endif()
+
+        # Output directory for pluginval XML reports
+        set(_pv_out "${CMAKE_BINARY_DIR}/pluginval-results")
+        file(MAKE_DIRECTORY "${_pv_out}")
+
+        add_test(
+            NAME FLAM_L3_PluginvalHostContract
+            COMMAND ${_pv_cmd}
+                --strictness-level 8
+                --validate-in-process
+                --output-dir "${_pv_out}"
+                "${_flam_vst3}")
+
+        set_tests_properties(FLAM_L3_PluginvalHostContract PROPERTIES
+            TIMEOUT  300
+            LABELS   "L3;pluginval;host-contract"
+            REQUIRED_FILES "${_flam_vst3}")
+
+        message(STATUS "[CTEST-6] pluginval L3 test registered "
+                       "(strictness 8, VST3: ${_flam_vst3})")
+    else()
+        message(STATUS "[CTEST-6] pluginval executable not available — "
+                       "L3 test not registered (check network or set PLUGINVAL_EXECUTABLE)")
+    endif()
 endif()
