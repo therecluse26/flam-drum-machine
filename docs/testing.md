@@ -178,6 +178,27 @@ ctest --test-dir build \
 
 ---
 
+### Make shortcuts
+
+The root `Makefile` wraps every workflow below in a one-word target so you don't have to memorise the `cmake`/`ctest` invocations. On NixOS the recipes run inside `nix-shell` automatically; on other platforms append `RUN='sh -c'` (e.g. `make test RUN='sh -c'`).
+
+| Target | Equivalent to | Layer |
+|--------|---------------|-------|
+| `make test` | configure + build + `ctest --exclude-regex FLAM_L3` | L1+L2 (everyday loop) |
+| `make test-unit` | `ctest -R FlamL1UnitTests` | L1 |
+| `make test-golden` | `flam-tests "[golden_render]"` | L2 |
+| `make test-determinism` | `flam-tests "[determinism]"` | L2 |
+| `make golden-update` | `FLAM_UPDATE_GOLDEN=1 flam-tests "[golden_render]"` | golden re-bless |
+| `make test-pluginval` | reconfigure `-DFLAM_PLUGINVAL=ON` + `ctest -R FLAM_L3_…` | L3 |
+| `make test-sanitize` | `./scripts/run-sanitized-tests.sh` | L4 |
+| `make test-all` | `test` + `test-pluginval` + `test-sanitize` (serial) | L1–L4 |
+| `make standalone` | build the `FLAM_Standalone` target | L5 |
+| `make run` | build + launch the Standalone app | L5 |
+
+Run `make help` for the full list. The raw commands in the sections below remain valid and are what each target expands to.
+
+---
+
 ## Running Individual Test Layers
 
 ### L1 — Unit tests (FlamKitLoader, VoiceManager, DSP)

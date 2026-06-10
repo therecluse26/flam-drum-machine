@@ -70,7 +70,10 @@ x86/
 CMakeFiles/
 CMakeCache.txt
 cmake_install.cmake
+# Ignore CMake-generated Makefiles (they live under build*/ dirs)...
 Makefile
+# ...but DO track the hand-written root Makefile (dev shortcuts).
+!/Makefile
 compile_commands.json
 CTestTestfile.cmake
 _deps/
