@@ -28,17 +28,6 @@ static_assert(
     "FlamEngine::seedRNG(uint64_t) noexcept — signature changed");
 
 // ---------------------------------------------------------------------------
-// JUCE core init — must happen before any test that touches juce::Thread,
-// juce::Random, or any JUCE system object.
-// ---------------------------------------------------------------------------
-struct JuceNonGuiScope
-{
-    JuceNonGuiScope()  { juce::initialiseJuce_NonGUI(); }
-    ~JuceNonGuiScope() { juce::shutdownJuce_NonGUI(); }
-};
-static const JuceNonGuiScope s_juceInit;
-
-// ---------------------------------------------------------------------------
 // juce::Random seeding — validates the mechanism both classes rely on
 // ---------------------------------------------------------------------------
 TEST_CASE ("Same seed produces identical float sequence", "[determinism][rng]")
