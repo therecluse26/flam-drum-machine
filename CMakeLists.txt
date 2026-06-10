@@ -26,6 +26,7 @@ FetchContent_Declare(
     GIT_REPOSITORY https://github.com/juce-framework/JUCE.git
     GIT_TAG 8.0.4
     SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/JUCE
+    UPDATE_DISCONNECTED TRUE
 )
 FetchContent_MakeAvailable(JUCE)
 

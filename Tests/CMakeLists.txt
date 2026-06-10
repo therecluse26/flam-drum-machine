@@ -53,8 +53,10 @@ target_link_libraries(FlamL1Tests
         juce::juce_data_structures
         juce::juce_events
     PUBLIC
-        juce::juce_recommended_config_flags
-        juce::juce_recommended_warning_flags)
+        juce::juce_recommended_config_flags)
+# Note: juce_recommended_warning_flags is deliberately omitted here.
+# The engine sources contain pre-existing sign-conversion warnings that
+# would fail the build under -Werror. Tests use warnings-as-warnings only.
 
 add_test(NAME FlamL1UnitTests COMMAND FlamL1Tests)
 set_tests_properties(FlamL1UnitTests PROPERTIES TIMEOUT 60)

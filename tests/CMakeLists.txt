@@ -24,8 +24,8 @@ juce_add_console_app(flam-tests PRODUCT_NAME "FLAM Tests")
 target_sources(flam-tests
     PRIVATE
         smoke_test.cpp
-        # determinism_test.cpp    # Uncomment in FLA-53 (CTEST-2) once seedRNG APIs land
-        # GoldenRenderTest.cpp    # Uncomment in FLA-56 (CTEST-5) once golden-render APIs land
+        determinism_test.cpp    # FLA-53 / CTEST-2
+        GoldenRenderTest.cpp    # FLA-56 / CTEST-5
         ${FLAM_ENGINE_SOURCES})
 
 target_include_directories(flam-tests PRIVATE ${CMAKE_SOURCE_DIR}/Source)

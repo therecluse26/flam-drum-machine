@@ -190,8 +190,8 @@ private:
         vm.triggerNote(37, 0.8f, 0);
         vm.triggerNote(38, 0.8f, 0);  // should steal oldest
 
-        expectTrue(vm.getActiveVoiceCount() <= 2,
-                   "Active voices must not exceed polyphony cap");
+        expect(vm.getActiveVoiceCount() <= 2,
+               "Active voices must not exceed polyphony cap");
 
         vm.releaseResources();
     }
