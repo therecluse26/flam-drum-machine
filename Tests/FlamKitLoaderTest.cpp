@@ -12,7 +12,7 @@ static juce::String makeKitJson(
     int midiNote = 36,
     int chokeGroup = -1,
     int numLayers = 1,
-    int numChannels = 0)  // 0 = no channels array
+    int numChannels = 0)
 {
     juce::String layers;
     for (int i = 0; i < numLayers; ++i)
@@ -53,13 +53,19 @@ static juce::String makeKitJson(
            "\"layers\":[" + layers + "]}]}]}";
 }
 
-// Write JSON to a temp file and return the TemporaryFile handle
-static juce::TemporaryFile writeJsonFixture(const juce::String& json)
+// RAII wrapper for a temp .json file.
+// juce::TemporaryFile is non-copyable and non-movable, so it must be
+// constructed in-place — this struct is never returned by value.
+struct JsonFixture
 {
-    juce::TemporaryFile tmp(".json");
-    tmp.getFile().replaceWithText(json);
-    return tmp;
-}
+    juce::TemporaryFile file;
+    explicit JsonFixture(const juce::String& content) : file(".json")
+    {
+        file.getFile().replaceWithText(content);
+    }
+    juce::File get() const { return file.getFile(); }
+    JUCE_DECLARE_NON_COPYABLE (JsonFixture)
+};
 
 // ============================================================================
 
@@ -88,12 +94,12 @@ public:
 
 private:
     // -------------------------------------------------------------------------
-    // Error / edge-case tests (no yaml-cpp needed)
+    // Error / edge-case tests
     // -------------------------------------------------------------------------
 
     void testMissingFile()
     {
-        beginTest("Missing file → nullptr + error message");
+        beginTest("Missing file -> nullptr + error message");
         FlamKitLoader loader;
         auto kit = loader.loadKit(juce::File("/nonexistent/path/to/kit.json"));
         expect(kit == nullptr, "Should fail for non-existent file");
@@ -102,11 +108,10 @@ private:
 
     void testUnsupportedExtension()
     {
-        beginTest("Unsupported extension → nullptr + error");
-        auto tmp = writeJsonFixture(makeKitJson());
-        // Rename to unsupported extension by creating a sibling file
-        juce::File badFile = tmp.getFile().getSiblingFile("kit.xml");
-        tmp.getFile().copyFileTo(badFile);
+        beginTest("Unsupported extension -> nullptr + error");
+        JsonFixture f(makeKitJson());
+        juce::File badFile = f.get().getSiblingFile("kit.xml");
+        f.get().copyFileTo(badFile);
 
         FlamKitLoader loader;
         auto kit = loader.loadKit(badFile);
@@ -117,7 +122,7 @@ private:
 
     void testEmptyFile()
     {
-        beginTest("Empty file → nullptr");
+        beginTest("Empty file -> nullptr");
         juce::TemporaryFile tmp(".json");
         tmp.getFile().replaceWithText("");
         FlamKitLoader loader;
@@ -127,7 +132,7 @@ private:
 
     void testMalformedJson()
     {
-        beginTest("Malformed JSON → nullptr");
+        beginTest("Malformed JSON -> nullptr");
         juce::TemporaryFile tmp(".json");
         tmp.getFile().replaceWithText("{ this is definitely not valid json }}}");
         FlamKitLoader loader;
@@ -137,9 +142,8 @@ private:
 
     void testMissingNameFails()
     {
-        beginTest("Kit without name → validateKit fails");
+        beginTest("Kit without name -> validateKit fails");
         juce::TemporaryFile tmp(".json");
-        // Valid structure but empty name
         tmp.getFile().replaceWithText(
             "{\"name\":\"\",\"author\":\"A\",\"version\":\"1\",\"description\":\"\","
             "\"settings\":{\"masterGain\":1.0,\"maxPolyphony\":64,"
@@ -156,7 +160,7 @@ private:
 
     void testNoPiecesFails()
     {
-        beginTest("Kit with no pieces → validateKit fails");
+        beginTest("Kit with no pieces -> validateKit fails");
         juce::TemporaryFile tmp(".json");
         tmp.getFile().replaceWithText(
             "{\"name\":\"Kit\",\"author\":\"A\",\"version\":\"1\",\"description\":\"\","
@@ -171,7 +175,7 @@ private:
 
     void testEmptyArticulationFails()
     {
-        beginTest("Articulation with no layers → validateKit fails");
+        beginTest("Articulation with no layers -> validateKit fails");
         juce::TemporaryFile tmp(".json");
         tmp.getFile().replaceWithText(
             "{\"name\":\"Kit\",\"author\":\"A\",\"version\":\"1\",\"description\":\"\","
@@ -193,9 +197,9 @@ private:
     void testValidMinimalKit()
     {
         beginTest("Valid JSON kit parses successfully");
-        auto tmp = writeJsonFixture(makeKitJson());
+        JsonFixture f(makeKitJson());
         FlamKitLoader loader;
-        auto kit = loader.loadKit(tmp.getFile());
+        auto kit = loader.loadKit(f.get());
         expect(kit != nullptr, "Minimal valid kit should parse");
         if (!kit) return;
 
@@ -209,9 +213,9 @@ private:
     void testMidiNoteMapping()
     {
         beginTest("MIDI note parsed correctly");
-        auto tmp = writeJsonFixture(makeKitJson("Kit", "A", 42));
+        JsonFixture f(makeKitJson("Kit", "A", 42));
         FlamKitLoader loader;
-        auto kit = loader.loadKit(tmp.getFile());
+        auto kit = loader.loadKit(f.get());
         expect(kit != nullptr);
         if (!kit) return;
         expectEquals(kit->pieces[0].midiNote, 42);
@@ -219,21 +223,19 @@ private:
 
     void testVelocityRanges()
     {
-        beginTest("Velocity ranges parsed — 3 layers cover [0,1]");
-        auto tmp = writeJsonFixture(makeKitJson("Kit", "A", 36, -1, 3));
+        beginTest("Velocity ranges parsed: 3 layers cover [0,1]");
+        JsonFixture f(makeKitJson("Kit", "A", 36, -1, 3));
         FlamKitLoader loader;
-        auto kit = loader.loadKit(tmp.getFile());
+        auto kit = loader.loadKit(f.get());
         expect(kit != nullptr);
         if (!kit) return;
 
         const auto& layers = kit->pieces[0].articulations[0].layers;
         expectEquals((int)layers.size(), 3);
 
-        // Verify full velocity coverage: first layer starts at 0, last ends at 1
         expectWithinAbsoluteError(layers.front().velocityMin, 0.0f, 0.001f);
-        expectWithinAbsoluteError(layers.back().velocityMax, 1.0f, 0.001f);
+        expectWithinAbsoluteError(layers.back().velocityMax,  1.0f, 0.001f);
 
-        // Adjacent layers should be contiguous
         for (size_t i = 1; i < layers.size(); ++i)
             expectWithinAbsoluteError(layers[i].velocityMin,
                                       layers[i - 1].velocityMax, 0.001f);
@@ -242,9 +244,9 @@ private:
     void testChokeGroupParsed()
     {
         beginTest("chokeGroup field parsed correctly");
-        auto tmp = writeJsonFixture(makeKitJson("Kit", "A", 36, 0));
+        JsonFixture f(makeKitJson("Kit", "A", 36, 0));
         FlamKitLoader loader;
-        auto kit = loader.loadKit(tmp.getFile());
+        auto kit = loader.loadKit(f.get());
         expect(kit != nullptr);
         if (!kit) return;
         expectEquals(kit->pieces[0].articulations[0].chokeGroup, 0);
@@ -253,9 +255,9 @@ private:
     void testRoundRobinGroups()
     {
         beginTest("Round-robin group indices parsed per layer");
-        auto tmp = writeJsonFixture(makeKitJson("Kit", "A", 36, -1, 3));
+        JsonFixture f(makeKitJson("Kit", "A", 36, -1, 3));
         FlamKitLoader loader;
-        auto kit = loader.loadKit(tmp.getFile());
+        auto kit = loader.loadKit(f.get());
         expect(kit != nullptr);
         if (!kit) return;
 
@@ -268,9 +270,9 @@ private:
     void testChannelNamesDetection()
     {
         beginTest("Channel names parsed from JSON channels array");
-        auto tmp = writeJsonFixture(makeKitJson("Kit", "A", 36, -1, 1, 3));
+        JsonFixture f(makeKitJson("Kit", "A", 36, -1, 1, 3));
         FlamKitLoader loader;
-        auto kit = loader.loadKit(tmp.getFile());
+        auto kit = loader.loadKit(f.get());
         expect(kit != nullptr);
         if (!kit) return;
 
@@ -283,9 +285,9 @@ private:
     void testKitSettings()
     {
         beginTest("GlobalSettings parsed correctly");
-        auto tmp = writeJsonFixture(makeKitJson());
+        JsonFixture f(makeKitJson());
         FlamKitLoader loader;
-        auto kit = loader.loadKit(tmp.getFile());
+        auto kit = loader.loadKit(f.get());
         expect(kit != nullptr);
         if (!kit) return;
         expectWithinAbsoluteError(kit->settings.masterGain, 1.0f, 0.001f);

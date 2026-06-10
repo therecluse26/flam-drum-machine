@@ -262,27 +262,36 @@ private:
 
     void testCompressorHasNoEffectBelowThreshold()
     {
-        beginTest("Compressor: signal below threshold passes unchanged");
+        beginTest("Compressor: signal below threshold passes unchanged after warm-up");
         CompressorProcessor comp;
         comp.prepareToPlay(44100.0);
         comp.setEnabled(true);
         comp.setThreshold(-10.0f);
         comp.setRatio(4.0f);
+        comp.setRelease(100.0f);
         comp.setMakeupGain(0.0f);
 
-        const float inputLevel = 0.01f;  // Well below -10 dBFS threshold
+        const float inputLevel = 0.01f;  // -40 dBFS, well below -10 dBFS threshold
 
-        juce::AudioBuffer<float> original(2, 512);
-        fillConstant(original, inputLevel);
+        // The envelope starts at 0 dBFS and must decay below threshold (-10 dB)
+        // before the compressor is inactive. With 100ms release, the envelope reaches
+        // ~-40 dBFS after ~5 time constants ≈ 500ms (≈22,050 samples). Warm up with
+        // 60 blocks of 512 samples = 30,720 samples ≈ 700ms to safely exceed that.
+        for (int b = 0; b < 60; ++b)
+        {
+            juce::AudioBuffer<float> warm(2, 512);
+            fillConstant(warm, inputLevel);
+            comp.process(warm, 512);
+        }
 
+        // After warm-up the envelope is well below threshold; check steady-state output
         juce::AudioBuffer<float> buf(2, 512);
         fillConstant(buf, inputLevel);
         comp.process(buf, 512);
 
-        // Last sample after the envelope fully settles
         const float out = std::abs(buf.getSample(0, 511));
         expectWithinAbsoluteError(out, inputLevel, inputLevel * 0.05f,
-            "Below-threshold signal should pass with <5% change");
+            "Below-threshold signal should pass with <5% change after envelope settles");
     }
 };
 

@@ -39,17 +39,19 @@ static std::unique_ptr<DrumKit> makeSyntheticKit(
             layer.velocityMax = 1.0f;
             layer.roundRobinGroup = l + 1;
             layer.sourceSampleRate = 44100.0;
-            layer.totalSampleLength = 4096;
+            // 44,100 samples ≈ 1 second — long enough that voices don't expire
+            // during test render loops (typically 10-20 blocks of 512 samples).
+            const int PRELOAD_SAMPLES = 44100;
+            layer.totalSampleLength = PRELOAD_SAMPLES;
 
             // Pre-populate preload buffer so triggerNote() doesn't return early.
             // Background loader skips layers whose file doesn't exist, so this
             // synthetic buffer survives the loadKit() call unchanged.
             auto preload = std::make_shared<juce::AudioBuffer<float>>(
-                numPreloadChannels, 2048);
+                numPreloadChannels, PRELOAD_SAMPLES);
             preload->clear();
-            // Write a gentle tone so the buffer is non-silent
             for (int ch = 0; ch < numPreloadChannels; ++ch)
-                for (int s = 0; s < 2048; ++s)
+                for (int s = 0; s < PRELOAD_SAMPLES; ++s)
                     preload->setSample(ch, s,
                         0.5f * std::sin(2.0f * juce::MathConstants<float>::pi * 440.0f
                                         * (float)s / 44100.0f));
@@ -210,7 +212,10 @@ private:
         kit->settings.maxPolyphony = 64;
         kit->settings.useRoundRobin = true;
 
-        auto makeHHPiece = [](int note, int choke) {
+        // Preload must be large enough that voices don't expire during the test.
+        // With 44,100 samples (~1 second) the preload outlasts our render window.
+        const int PRELOAD_SIZE = 44100;
+        auto makeHHPiece = [PRELOAD_SIZE](int note, int choke) {
             DrumPiece piece;
             piece.name = "HH" + juce::String(note);
             piece.midiNote = note;
@@ -219,13 +224,13 @@ private:
             SampleLayer layer;
             layer.velocityMin = 0.0f;
             layer.velocityMax = 1.0f;
-            auto preload = std::make_shared<juce::AudioBuffer<float>>(2, 2048);
+            auto preload = std::make_shared<juce::AudioBuffer<float>>(2, PRELOAD_SIZE);
             preload->clear();
-            for (int s = 0; s < 2048; ++s)
+            for (int s = 0; s < PRELOAD_SIZE; ++s)
                 preload->setSample(0, s, 0.3f);
             layer.preloadBuffer = preload;
             layer.sourceSampleRate = 44100.0;
-            layer.totalSampleLength = 4096;
+            layer.totalSampleLength = PRELOAD_SIZE;  // Equals preload → no streaming needed
             art.layers.push_back(layer);
             piece.articulations.push_back(art);
             return piece;
@@ -246,9 +251,11 @@ private:
         expect(vm.getActiveVoiceCount() >= 1,
                "New note must get a voice after choke trigger");
 
-        // Render a full second to let the choked voice fully release
+        // Render enough to let the 5ms quick-release complete (~220 samples @ 44.1kHz).
+        // 10 blocks of 512 = 5,120 samples ≈ 116ms. The choked voice finishes in
+        // that window; the new voice has 44,100 samples of preload and stays active.
         juce::AudioBuffer<float> buf(2, 512);
-        for (int block = 0; block < 100; ++block)
+        for (int block = 0; block < 10; ++block)
         {
             buf.clear();
             vm.renderNextBlock(buf, 0, 512);
