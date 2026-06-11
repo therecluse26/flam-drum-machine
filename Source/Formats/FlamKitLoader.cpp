@@ -42,13 +42,9 @@ std::unique_ptr<DrumKit> FlamKitLoader::loadKit(const juce::File& kitFile)
         return nullptr;
 #endif
     }
-    else if (extension == ".json")
-    {
-        kit = parseJsonKit(content);
-    }
     else
     {
-        lastError = "Unsupported file format (expected .yaml, .yml, or .json): " + extension;
+        lastError = "Unsupported file format (expected .yaml or .yml): " + extension;
         return nullptr;
     }
 
@@ -91,13 +87,9 @@ bool FlamKitLoader::saveKit(const DrumKit& kit, const juce::File& kitFile)
         return false;
 #endif
     }
-    else if (extension == ".json")
-    {
-        content = serializeKitToJson(kit);
-    }
     else
     {
-        lastError = "Unsupported file format (expected .yaml, .yml, or .json): " + extension;
+        lastError = "Unsupported file format (expected .yaml or .yml): " + extension;
         return false;
     }
     
@@ -256,83 +248,6 @@ std::unique_ptr<DrumKit> FlamKitLoader::parseYamlKit(const juce::String& content
 #endif
 }
 
-std::unique_ptr<DrumKit> FlamKitLoader::parseJsonKit(const juce::String& content)
-{
-    auto kit = std::make_unique<DrumKit>();
-    
-    auto json = juce::JSON::parse(content);
-    if (!json.isObject())
-    {
-        lastError = "Invalid JSON format";
-        return nullptr;
-    }
-    
-    kit->name = json["name"].toString();
-    kit->author = json["author"].toString();
-    kit->version = json["version"].toString();
-    kit->description = json["description"].toString();
-
-    auto channels = json["channels"];
-    if (channels.isArray())
-    {
-        for (const auto& channelJson : *channels.getArray())
-            kit->channelNames.push_back(channelJson["name"].toString());
-    }
-
-    auto settings = json["settings"];
-    if (settings.isObject())
-    {
-        kit->settings.masterGain = (float)settings["masterGain"];
-        kit->settings.maxPolyphony = (int)settings["maxPolyphony"];
-        kit->settings.useRoundRobin = (bool)settings["useRoundRobin"];
-        kit->settings.defaultHumanization = (float)settings["defaultHumanization"];
-    }
-    
-    auto pieces = json["pieces"];
-    if (pieces.isArray())
-    {
-        for (const auto& pieceJson : *pieces.getArray())
-        {
-            DrumPiece piece;
-            piece.name = pieceJson["name"].toString();
-            piece.midiNote = (int)pieceJson["midiNote"];
-            
-            auto articulations = pieceJson["articulations"];
-            if (articulations.isArray())
-            {
-                for (const auto& artJson : *articulations.getArray())
-                {
-                    Articulation art;
-                    art.name = artJson["name"].toString();
-                    art.chokeGroup = (int)artJson["chokeGroup"];
-                    
-                    auto layers = artJson["layers"];
-                    if (layers.isArray())
-                    {
-                        for (const auto& layerJson : *layers.getArray())
-                        {
-                            SampleLayer layer;
-                            layer.velocityMin = (float)layerJson["velocityMin"];
-                            layer.velocityMax = (float)layerJson["velocityMax"];
-                            layer.gain = (float)layerJson["gain"];
-                            layer.roundRobinGroup = (int)layerJson["roundRobinGroup"];
-                            
-                            // Note: sample file paths would need to be resolved relative to kit file
-                            art.layers.push_back(layer);
-                        }
-                    }
-                    
-                    piece.articulations.push_back(art);
-                }
-            }
-            
-            kit->pieces.push_back(piece);
-        }
-    }
-    
-    return kit;
-}
-
 juce::String FlamKitLoader::serializeKitToYaml(const DrumKit& kit)
 {
     // Placeholder YAML serialization
@@ -343,59 +258,6 @@ juce::String FlamKitLoader::serializeKitToYaml(const DrumKit& kit)
     yaml << "description: " << kit.description << "\n";
     
     return yaml;
-}
-
-juce::String FlamKitLoader::serializeKitToJson(const DrumKit& kit)
-{
-    juce::DynamicObject::Ptr root = new juce::DynamicObject();
-    
-    root->setProperty("name", kit.name);
-    root->setProperty("author", kit.author);
-    root->setProperty("version", kit.version);
-    root->setProperty("description", kit.description);
-    
-    juce::DynamicObject::Ptr settings = new juce::DynamicObject();
-    settings->setProperty("masterGain", kit.settings.masterGain);
-    settings->setProperty("maxPolyphony", kit.settings.maxPolyphony);
-    settings->setProperty("useRoundRobin", kit.settings.useRoundRobin);
-    settings->setProperty("defaultHumanization", kit.settings.defaultHumanization);
-    root->setProperty("settings", settings.get());
-    
-    juce::Array<juce::var> piecesArray;
-    for (const auto& piece : kit.pieces)
-    {
-        juce::DynamicObject::Ptr pieceObj = new juce::DynamicObject();
-        pieceObj->setProperty("name", piece.name);
-        pieceObj->setProperty("midiNote", piece.midiNote);
-        
-        juce::Array<juce::var> artArray;
-        for (const auto& art : piece.articulations)
-        {
-            juce::DynamicObject::Ptr artObj = new juce::DynamicObject();
-            artObj->setProperty("name", art.name);
-            artObj->setProperty("chokeGroup", art.chokeGroup);
-            
-            juce::Array<juce::var> layersArray;
-            for (const auto& layer : art.layers)
-            {
-                juce::DynamicObject::Ptr layerObj = new juce::DynamicObject();
-                layerObj->setProperty("velocityMin", layer.velocityMin);
-                layerObj->setProperty("velocityMax", layer.velocityMax);
-                layerObj->setProperty("gain", layer.gain);
-                layerObj->setProperty("roundRobinGroup", layer.roundRobinGroup);
-                layersArray.add(layerObj.get());
-            }
-            artObj->setProperty("layers", layersArray);
-            
-            artArray.add(artObj.get());
-        }
-        pieceObj->setProperty("articulations", artArray);
-        
-        piecesArray.add(pieceObj.get());
-    }
-    root->setProperty("pieces", piecesArray);
-    
-    return juce::JSON::toString(juce::var(root.get()), true);
 }
 
 bool FlamKitLoader::validateKit(const DrumKit& kit)

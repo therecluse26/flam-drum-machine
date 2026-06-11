@@ -110,10 +110,8 @@ private:
     juce::String lastError;
     
     std::unique_ptr<DrumKit> parseYamlKit(const juce::String& content, const juce::File& kitFile);
-    std::unique_ptr<DrumKit> parseJsonKit(const juce::String& content);
-    
+
     juce::String serializeKitToYaml(const DrumKit& kit);
-    juce::String serializeKitToJson(const DrumKit& kit);
     
     bool validateKit(const DrumKit& kit);
     juce::File resolveRelativePath(const juce::File& kitFile, const juce::String& relativePath);
