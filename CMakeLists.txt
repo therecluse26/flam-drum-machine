@@ -66,7 +66,6 @@ target_sources(FLAM
         Source/Plugin/PluginEditor.cpp
         Source/Core/FlamEngine.cpp
         Source/Core/VoiceManager.cpp
-        Source/Core/MixerBus.cpp
         Source/Core/SampleVoice.cpp
         Source/Core/SampleStreamingManager.cpp
         Source/Core/Mixer.cpp
@@ -154,7 +153,6 @@ add_custom_command(TARGET FLAM POST_BUILD
 set(FLAM_ENGINE_SOURCES
     ${CMAKE_SOURCE_DIR}/Source/Core/FlamEngine.cpp
     ${CMAKE_SOURCE_DIR}/Source/Core/VoiceManager.cpp
-    ${CMAKE_SOURCE_DIR}/Source/Core/MixerBus.cpp
     ${CMAKE_SOURCE_DIR}/Source/Core/SampleVoice.cpp
     ${CMAKE_SOURCE_DIR}/Source/Core/SampleStreamingManager.cpp
     ${CMAKE_SOURCE_DIR}/Source/Core/Mixer.cpp

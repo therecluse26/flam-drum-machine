@@ -5,9 +5,6 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 #include "../Core/VoiceManager.h"
-#include "../Core/MixerBus.h"
-#include "../DSP/SimpleEQ.h"
-#include "../DSP/SimpleCompressor.h"
 
 namespace flam {
 
@@ -93,7 +90,6 @@ FlamAudioProcessor::FlamAudioProcessor()
     compHoldParam = dynamic_cast<juce::AudioParameterFloat*>(parameters.getParameter("comp_hold"));
     compThresholdParam = dynamic_cast<juce::AudioParameterFloat*>(parameters.getParameter("comp_threshold"));
     compRatioParam = dynamic_cast<juce::AudioParameterFloat*>(parameters.getParameter("comp_ratio"));
-    compLookaheadParam = dynamic_cast<juce::AudioParameterFloat*>(parameters.getParameter("comp_lookahead"));
     compMakeupGainParam = dynamic_cast<juce::AudioParameterFloat*>(parameters.getParameter("comp_makeup_gain"));
 }
 
@@ -429,10 +425,8 @@ juce::AudioProcessorValueTreeState::ParameterLayout FlamAudioProcessor::createPa
         "comp_ratio", "Compressor Ratio",
         juce::NormalisableRange<float>(1.0f, 20.0f, 0.1f, 0.3f),
         4.0f, ":1"));
-    layout.add(std::make_unique<juce::AudioParameterFloat>(
-        "comp_lookahead", "Compressor Lookahead",
-        juce::NormalisableRange<float>(0.0f, 10.0f, 0.1f),
-        0.0f, "ms"));
+    // comp_lookahead was removed (FLA-73): SimpleCompressor::setLookahead() was a no-op stub.
+    // APVTS gracefully ignores this key in pre-FLA-73 saved states (unknown params are skipped).
     layout.add(std::make_unique<juce::AudioParameterFloat>(
         "comp_makeup_gain", "Compressor Makeup Gain",
         juce::NormalisableRange<float>(-20.0f, 20.0f, 0.1f),
@@ -445,60 +439,6 @@ void FlamAudioProcessor::updateEngineParameters()
 {
     if (humanizationParam)
         engine.setHumanizationAmount(humanizationParam->get());
-
-    // Input gain
-    if (inputGainParam)
-        engine.setInputGain(inputGainParam->get());
-
-    // EQ parameters
-    if (auto* eq = engine.getEQ())
-    {
-        if (eqBypassParam) eq->setBypassed(!eqBypassParam->get());  // Invert: enabled=true means bypass=false
-        if (eq31HzParam) eq->setBandGain(0, eq31HzParam->get());
-        if (eq62HzParam) eq->setBandGain(1, eq62HzParam->get());
-        if (eq125HzParam) eq->setBandGain(2, eq125HzParam->get());
-        if (eq250HzParam) eq->setBandGain(3, eq250HzParam->get());
-        if (eq500HzParam) eq->setBandGain(4, eq500HzParam->get());
-        if (eq1kHzParam) eq->setBandGain(5, eq1kHzParam->get());
-        if (eq2kHzParam) eq->setBandGain(6, eq2kHzParam->get());
-        if (eq4kHzParam) eq->setBandGain(7, eq4kHzParam->get());
-        if (eq8kHzParam) eq->setBandGain(8, eq8kHzParam->get());
-        if (eq16kHzParam) eq->setBandGain(9, eq16kHzParam->get());
-    }
-
-    // Compressor parameters
-    if (auto* compressor = engine.getCompressor())
-    {
-        if (compBypassParam) compressor->setBypassed(!compBypassParam->get());  // Invert: enabled=true means bypass=false
-        if (compAttackParam) compressor->setAttack(compAttackParam->get());
-        if (compReleaseParam) compressor->setRelease(compReleaseParam->get());
-        if (compHoldParam) compressor->setHold(compHoldParam->get());
-        if (compThresholdParam) compressor->setThreshold(compThresholdParam->get());
-        if (compRatioParam) compressor->setRatio(compRatioParam->get());
-        if (compLookaheadParam) compressor->setLookahead(compLookaheadParam->get());
-        if (compMakeupGainParam) compressor->setMakeupGain(compMakeupGainParam->get());
-    }
-
-    if (auto* mixerBus = engine.getMixerBus())
-    {
-        if (masterVolumeParam)
-            mixerBus->setMasterLevel(masterVolumeParam->get());
-
-        if (closeVolumeParam)
-            mixerBus->setBusLevel(MixerBus::BusType::Close, closeVolumeParam->get());
-
-        if (overheadVolumeParam)
-            mixerBus->setBusLevel(MixerBus::BusType::Overhead, overheadVolumeParam->get());
-
-        if (roomVolumeParam)
-            mixerBus->setBusLevel(MixerBus::BusType::Room, roomVolumeParam->get());
-
-        if (ambientVolumeParam)
-            mixerBus->setBusLevel(MixerBus::BusType::Ambient, ambientVolumeParam->get());
-
-        if (bleedAmountParam)
-            mixerBus->setBleedAmount(bleedAmountParam->get());
-    }
 
     // Mirror APVTS master params into the audible Mixer master section.
     // All Mixer setters store into std::atomics — safe to call from the message thread.

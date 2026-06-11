@@ -5,7 +5,6 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 #include "../Formats/FlamKitLoader.h"
-#include "../DSP/SimpleCompressor.h"
 #include <thread>
 #include <cmath>
 

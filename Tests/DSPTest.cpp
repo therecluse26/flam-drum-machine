@@ -6,7 +6,6 @@
 #include "DSP/TenBandGraphicEQ.h"
 #include "DSP/SaturationProcessor.h"
 #include "Core/Mixer.h"
-#include "Core/MixerBus.h"
 
 namespace flam {
 
@@ -572,66 +571,6 @@ private:
 };
 
 // ============================================================================
-
-class MixerBusTest : public juce::UnitTest
-{
-public:
-    MixerBusTest() : juce::UnitTest("MixerBus", "Core") {}
-
-    void runTest() override
-    {
-        testLevelRoundTrip();
-        testPanRoundTrip();
-        testSoloRoundTrip();
-        testMuteRoundTrip();
-        testMasterLevelRoundTrip();
-    }
-
-private:
-    void testLevelRoundTrip()
-    {
-        beginTest("setBusLevel / getBusLevel round-trips");
-        MixerBus bus;
-        bus.setBusLevel(MixerBus::BusType::Close, -6.0f);
-        expectWithinAbsoluteError(bus.getBusLevel(MixerBus::BusType::Close), -6.0f, 1e-4f);
-    }
-
-    void testPanRoundTrip()
-    {
-        beginTest("setBusPan / getBusPan round-trips");
-        MixerBus bus;
-        bus.setBusPan(MixerBus::BusType::Room, 0.3f);
-        expectWithinAbsoluteError(bus.getBusPan(MixerBus::BusType::Room), 0.3f, 1e-4f);
-    }
-
-    void testSoloRoundTrip()
-    {
-        beginTest("setBusSolo / isBusSoloed round-trips");
-        MixerBus bus;
-        expect(!bus.isBusSoloed(MixerBus::BusType::Overhead), "Default solo = off");
-        bus.setBusSolo(MixerBus::BusType::Overhead, true);
-        expect(bus.isBusSoloed(MixerBus::BusType::Overhead), "Solo should be on after set");
-    }
-
-    void testMuteRoundTrip()
-    {
-        beginTest("setBusMute / isBusMuted round-trips");
-        MixerBus bus;
-        expect(!bus.isBusMuted(MixerBus::BusType::Ambient), "Default mute = off");
-        bus.setBusMute(MixerBus::BusType::Ambient, true);
-        expect(bus.isBusMuted(MixerBus::BusType::Ambient), "Mute should be on after set");
-    }
-
-    void testMasterLevelRoundTrip()
-    {
-        beginTest("setMasterLevel / getMasterLevel round-trips");
-        MixerBus bus;
-        bus.setMasterLevel(-3.0f);
-        expectWithinAbsoluteError(bus.getMasterLevel(), -3.0f, 1e-4f);
-    }
-};
-
-// ============================================================================
 // L2: Mixer master param write-through test
 // Asserts that every automatable master setter/getter round-trips through the
 // Mixer master state — the same path that updateEngineParameters() now drives.
@@ -775,7 +714,6 @@ static CompressorProcessorTest compressorTest;
 static TenBandGraphicEQTest    eqTest;
 static SaturationProcessorTest satTest;
 static MixerTest               mixerTest;
-static MixerBusTest            mixerBusTest;
 static MixerMasterParamTest    mixerMasterParamTest;
 
 } // namespace flam

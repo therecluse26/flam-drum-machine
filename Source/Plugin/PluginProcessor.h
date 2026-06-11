@@ -91,7 +91,6 @@ private:
     juce::AudioParameterFloat* compHoldParam{nullptr};
     juce::AudioParameterFloat* compThresholdParam{nullptr};
     juce::AudioParameterFloat* compRatioParam{nullptr};
-    juce::AudioParameterFloat* compLookaheadParam{nullptr};
     juce::AudioParameterFloat* compMakeupGainParam{nullptr};
 
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();

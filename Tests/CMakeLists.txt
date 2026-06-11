@@ -8,7 +8,6 @@ cmake_minimum_required(VERSION 3.22)
 # IR convolver (no juce::dsp::Convolution dependency).
 set(FLAM_L1_ENGINE_SOURCES
     ${CMAKE_SOURCE_DIR}/Source/Core/VoiceManager.cpp
-    ${CMAKE_SOURCE_DIR}/Source/Core/MixerBus.cpp
     ${CMAKE_SOURCE_DIR}/Source/Core/SampleVoice.cpp
     ${CMAKE_SOURCE_DIR}/Source/Core/SampleStreamingManager.cpp
     ${CMAKE_SOURCE_DIR}/Source/Core/Mixer.cpp

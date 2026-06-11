@@ -4,19 +4,13 @@
 
 #include "FlamEngine.h"
 #include "VoiceManager.h"
-#include "MixerBus.h"
 #include "../Formats/FlamKitLoader.h"
-#include "../DSP/SimpleEQ.h"
-#include "../DSP/SimpleCompressor.h"
 
 namespace flam {
 
 FlamEngine::FlamEngine()
     : voiceManager(std::make_unique<VoiceManager>())
-    , mixerBus(std::make_unique<MixerBus>())
     , kitLoader(std::make_unique<FlamKitLoader>())
-    , eq(std::make_unique<SimpleEQ>())
-    , compressor(std::make_unique<SimpleCompressor>())
 {
     setPlayConfigDetails(0, 2, 44100.0, 512);
 }
@@ -29,9 +23,6 @@ void FlamEngine::prepareToPlay(double sampleRate, int samplesPerBlock)
     currentBlockSize = samplesPerBlock;
 
     voiceManager->prepareToPlay(sampleRate, samplesPerBlock);
-    mixerBus->prepareToPlay(sampleRate, samplesPerBlock);
-    eq->prepareToPlay(sampleRate, samplesPerBlock);
-    compressor->prepareToPlay(sampleRate, samplesPerBlock);
 
     // Allocate internal buffer for multi-channel rendering
     // Get required channel count from loaded kit (defaults to 2 if no kit loaded)
@@ -46,9 +37,6 @@ void FlamEngine::releaseResources()
     AudioProcessorGraph::releaseResources();
 
     voiceManager->releaseResources();
-    mixerBus->releaseResources();
-    eq->reset();
-    compressor->reset();
 }
 
 void FlamEngine::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
@@ -73,8 +61,7 @@ void FlamEngine::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer
     voiceManager->renderNextBlock(internalBuffer, 0, numSamples);
 
     // Zero the legacy stereo output — callers use getMultiChannelBuffer() instead.
-    // Master FX (inputGain, EQ, Compressor, MixerBus scalar) are no longer applied here;
-    // the Mixer owns all post-render processing (FLA-68 Step 3+).
+    // All post-render processing (EQ, compression, gain, mixing) lives in the Mixer layer.
     buffer.clear();
 
     midiMessages.clear();
