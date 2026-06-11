@@ -72,46 +72,10 @@ void FlamEngine::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer
     internalBuffer.clear();
     voiceManager->renderNextBlock(internalBuffer, 0, numSamples);
 
-    // Copy multi-channel internal buffer to output buffer
-    // This is where the Mixer will process later - for now just copy what fits
+    // Zero the legacy stereo output — callers use getMultiChannelBuffer() instead.
+    // Master FX (inputGain, EQ, Compressor, MixerBus scalar) are no longer applied here;
+    // the Mixer owns all post-render processing (FLA-68 Step 3+).
     buffer.clear();
-    const int channelsToCopy = juce::jmin(buffer.getNumChannels(), internalBuffer.getNumChannels());
-    for (int ch = 0; ch < channelsToCopy; ++ch)
-    {
-        buffer.copyFrom(ch, 0, internalBuffer, ch, 0, numSamples);
-    }
-
-    // Measure input level (before input gain)
-    float inLevel = 0.0f;
-    for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
-    {
-        const float channelLevel = buffer.getMagnitude(ch, 0, numSamples);
-        inLevel = std::max(inLevel, channelLevel);
-    }
-    inputLevel.store(inLevel, std::memory_order_relaxed);
-
-    // Apply input gain
-    buffer.applyGain(inputGain);
-
-    // Update and apply EQ
-    eq->updateIfNeeded(currentSampleRate);
-    eq->processBlock(buffer);
-
-    // Apply compressor
-    compressor->processBlock(buffer);
-
-    // Apply master level (bypass multi-bus processing for now)
-    const float masterGain = juce::Decibels::decibelsToGain(mixerBus->getMasterLevel());
-    buffer.applyGain(masterGain);
-
-    // Measure output level (after all processing)
-    float outLevel = 0.0f;
-    for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
-    {
-        const float channelLevel = buffer.getMagnitude(ch, 0, numSamples);
-        outLevel = std::max(outLevel, channelLevel);
-    }
-    outputLevel.store(outLevel, std::memory_order_relaxed);
 
     midiMessages.clear();
 }
