@@ -52,16 +52,14 @@ Source/
 │   ├── VoiceManager.h/.cpp     ← Voice pool (128), round-robin, choke groups ✅
 │   ├── SampleVoice.h/.cpp      ← Single playing voice (ADSR, interpolation, streaming) ✅
 │   ├── SampleStreamingManager.h/.cpp  ← Hybrid preload+disk streaming thread ✅
-│   ├── Mixer.h/.cpp            ← Per-channel mixer with FX chain (16 buses) ✅
-│   ├── MixerBus.h/.cpp         ← Legacy 5-bus mixer (Close/OH/Room/Ambient/Master) 🟡
-│   └── SampleLoader.h/.cpp     ← Background sample loader — ORPHANED 🟡
+│   └── Mixer.h/.cpp            ← Per-channel mixer with FX chain (16 buses) ✅
 ├── DSP/
 │   ├── TenBandGraphicEQ.h/.cpp ← 10-band graphic EQ (ISO 1/3-octave) ✅ (via Mixer)
 │   ├── SaturationProcessor.h/.cpp  ← Soft-clip saturation ✅ (via Mixer)
 │   ├── CompressorProcessor.h/.cpp  ← Full-featured compressor ✅ (via Mixer)
 │   ├── LimiterProcessor.h/.cpp ← Brick-wall limiter ✅ (via Mixer)
-│   ├── SimpleEQ.h              ← Header-only 10-band EQ (FlamEngine master bus) ✅
-│   ├── SimpleCompressor.h      ← Header-only stereo compressor (FlamEngine master bus) ✅
+│   ├── SimpleEQ.h              ← Header-only EQ — orphaned, not included anywhere 🟡
+│   ├── SimpleCompressor.h      ← Header-only compressor — orphaned, not included anywhere 🟡
 │   └── IRConvolver.h/.cpp      ← Convolution reverb — built, no owner in signal path 🟡
 ├── Formats/
 │   └── FlamKitLoader.h/.cpp    ← flamkit.yaml (YAML) + .json parser ✅
@@ -92,27 +90,24 @@ Source/
 
 ### FlamEngine (`Source/Core/FlamEngine.h`, `FlamEngine.cpp`) ✅
 
-Entry point for audio processing. Owns:
+Pure multichannel voice renderer (FLA-70). Owns:
 
 | Member | Type | Role |
 |--------|------|------|
 | `voiceManager` | `unique_ptr<VoiceManager>` | Voice pool + kit state |
-| `mixerBus` | `unique_ptr<MixerBus>` | Legacy per-bus gain (master level only, see §6) |
 | `kitLoader` | `unique_ptr<FlamKitLoader>` | Loads `flamkit.yaml` / `.json` |
-| `eq` | `unique_ptr<SimpleEQ>` | Header-only master 10-band EQ |
-| `compressor` | `unique_ptr<SimpleCompressor>` | Header-only master compressor |
 | `internalBuffer` | `AudioBuffer<float>` | Multi-channel render scratch (N channels) |
+| `humanization` | `atomic<float>` | Velocity jitter amount (0–1) |
+| `latencyCompensation` | `atomic<int>` | Latency offset in samples |
+| `inputLevel` / `outputLevel` | `atomic<float>` | Level metering (read by UI) |
 
 `processBlock()` sequence (audio thread):
 1. Iterate `MidiBuffer` → `handleMidiEvent()` → `VoiceManager::triggerNote/releaseNote()`
-2. `internalBuffer.clear()` then `voiceManager->renderNextBlock(internalBuffer, ...)`
-3. Copy `internalBuffer` → output buffer (stereo downmix for now — see Known Debt §12)
-4. Input level measurement → `inputLevel` atomic
-5. `buffer.applyGain(inputGain)`
-6. `eq->updateIfNeeded()` + `eq->processBlock()`
-7. `compressor->processBlock()`
-8. `buffer.applyGain(masterGain)` from `mixerBus->getMasterLevel()`
-9. Output level measurement → `outputLevel` atomic
+2. Resize `internalBuffer` if block size increased (known allocation risk — see §4)
+3. `internalBuffer.clear()` then `voiceManager->renderNextBlock(internalBuffer, ...)`
+4. `buffer.clear()` — zero the legacy stereo output buffer; callers use `getMultiChannelBuffer()`
+
+All post-render processing (EQ, compression, gain, mixing) lives in `Mixer::process()`, called by `PluginProcessor` and `flam-render` after this method returns.
 
 ### VoiceManager (`Source/Core/VoiceManager.h`, `VoiceManager.cpp`) ✅
 
@@ -214,35 +209,36 @@ fifo.finishedRead(size1 + size2);
 
 ## 6. Audio/Mixer Pipeline
 
-### Current active path (stereo engine output) ✅
+### Production signal path ✅
 
 ```
-VoiceManager::renderNextBlock()
-  → internalBuffer (N-channel, kit-defined)
-  → downmix to output buffer (stereo — channels 0..min(2,N))
-  → SimpleEQ::processBlock()
-  → SimpleCompressor::processBlock()
-  → master gain scalar (from MixerBus::getMasterLevel())
-  → DAW output (stereo)
+FlamEngine::processBlock()
+  → internalBuffer (N-channel, kit-defined — pure voice rendering, no EQ/compression)
+Mixer::process(internalBuffer, allOutputBuses, numSamples)
+  ├─ per-channel strip: vol → pan → solo/mute → EQ → saturation → compressor → limiter
+  │    MainMix channels: summed into stereo output (allOutputBuses[0..1])
+  │    Bus channels: written to corresponding mono bus (allOutputBuses[2..N+1])
+  └─ master section: EQ → saturation → compressor → limiter → masterVolume
+  → DAW output: stereo Main Mix (channels 0–1) + up to 16 mono buses (channels 2–17)
 ```
 
-### Mixer (PerChannelMixer) ✅
+`Mixer::process()` is called by both `PluginProcessor::processBlock()` (plugin) and `flam-render` (CLI) after `FlamEngine::processBlock()` fills `internalBuffer`. This ensures offline renders and plugin output are sample-identical given the same Mixer settings.
 
-`Mixer` (`Source/Core/Mixer.h`) is owned by `PluginProcessor` as `perChannelMixer` and is the active signal path (FLA-72). It provides:
+### Mixer ✅
+
+`Mixer` (`Source/Core/Mixer.h`) is owned by `PluginProcessor` as `perChannelMixer`. It provides:
 
 - `setNumChannels(int n, vector<String> names)` — configures N channel strips (1–16) from kit metadata
 - Per-channel `OutputDestination` enum: `MainMix` or `Bus1`–`Bus16`
 - Per-channel FX chain order: `TenBandGraphicEQ` → `SaturationProcessor` → `CompressorProcessor` → `LimiterProcessor`
 - Per-channel atomics: volume, pan, solo, mute, peak level, clip detection
-- Master bus: volume, peak atomics + `LimiterProcessor`
+- Master bus: volume, peak atomics + full FX chain (`TenBandGraphicEQ` → `SaturationProcessor` → `CompressorProcessor` → `LimiterProcessor`)
 
-`Mixer::process(multiChannelInput, allOutputBuses, numSamples)` is called by both `PluginProcessor::processBlock()` (plugin) and `flam-render` (CLI) after `FlamEngine::processBlock()` fills `internalBuffer`. Channels 0–1 of `allOutputBuses` are the stereo Main Mix; channels 2–N are individual mono buses.
+APVTS master parameters (`masterVolume`, EQ bands, compressor settings) are mirrored into `Mixer` via `PluginProcessor::updateEngineParameters()` using the `setMaster*()` setters (FLA-69).
 
-### MixerBus (legacy, superseded) 🟡
+### MixerBus — deleted (FLA-73)
 
-`MixerBus` (`Source/Core/MixerBus.h`) is owned by `FlamEngine` and supports five named buses (Close, Overhead, Room, Ambient, Master). It was the pre-Mixer routing layer.
-
-**Current usage:** `MixerBus::processBlock()` is never called. Only `getMasterLevel()` was used as a master gain scalar; that responsibility has moved to `Mixer::setMasterVolume()`. `MixerBus` is a tracked removal candidate once `Mixer` is fully authoritative.
+`MixerBus` (`Source/Core/MixerBus.h/.cpp`) was a 5-bus fixed routing layer predating `Mixer`. It was deleted in FLA-73. Master volume responsibility moved to `Mixer::setMasterVolume()`.
 
 ### FX chain per channel (Mixer) ✅
 
@@ -255,7 +251,7 @@ VoiceManager::renderNextBlock()
 
 ### Panning
 
-Constant-power panning via `juce::dsp::Panner<float>` (MixerBus) and equal-power formula in `Mixer`. Panning state exposed as `std::atomic<float>` per channel strip.
+Equal-power panning formula in `Mixer`. Panning state exposed as `std::atomic<float>` per channel strip.
 
 ### Metering
 
@@ -356,11 +352,13 @@ Created by `FlamAudioProcessor::createBusLayout()` before base class initializat
 - 1 stereo output (`MainOutputChannels`)
 - 16 mono output buses (`Bus1`–`Bus16`, initially disabled)
 
-`CMakeLists.txt` declares `PLUGIN_OUTPUTS 2` for the JUCE plugin manifest (the initial static bus count). Dynamic bus enablement is handled at runtime.
+`CMakeLists.txt` declares `PLUGIN_OUTPUTS 2` for the JUCE plugin manifest. All 17 output buses are enabled statically at construction — see Static 17-bus layout below.
 
-### Dynamic bus enablement 🟡
+### Static 17-bus layout ✅
 
-`PluginProcessor::configureBusesForChannelCount(int numChannels)` enables buses 1–N after kit load and mixer configuration. This method exists but its interaction with host bus negotiation (some hosts query buses at load time, not dynamically) is an open TODO.
+All 17 buses (1 stereo Main Mix + 16 mono individual channels) are declared **and enabled** at construction time in `createBusLayout()` (FLA-71). This is necessary because JUCE does not reliably support changing bus count after processor construction — hosts such as Logic (AU) and Cubase/Reaper (VST3) query bus layout during plugin load before any kit is selected, and enabling buses dynamically after that point caused observed crashes. Unused buses (kit has fewer than 16 channels) emit silence, which is safe and accepted by all tested hosts.
+
+`configureBusesForChannelCount()` was deleted in FLA-71 as a dead code path.
 
 ### Parameters and automation (`AudioProcessorValueTreeState`)
 
@@ -372,11 +370,11 @@ Created by `FlamAudioProcessor::createBusLayout()` before base class initializat
 | Channel volumes | `closeVolume`, `overheadVolume`, `roomVolume`, `ambientVolume`, `bleedAmount` |
 | Input | `inputGain` |
 | 10-band EQ | `eqBypass`, `eq31Hz`…`eq16kHz` (10 float params) |
-| Compressor | `compBypass`, `compAttack`, `compRelease`, `compHold`, `compThreshold`, `compRatio`, `compLookahead`, `compMakeupGain` |
+| Compressor | `compBypass`, `compAttack`, `compRelease`, `compHold`, `compThreshold`, `compRatio`, `compMakeupGain` |
 
 All parameters are exposed for full DAW automation. State is persisted via `getStateInformation()` / `setStateInformation()` using `AudioProcessorValueTreeState::state` serialized as XML.
 
-**Note:** `compLookaheadParam` is registered but `SimpleCompressor::setLookahead()` is a passthrough stub — lookahead processing is not yet implemented.
+**`compLookahead` migration note (FLA-73):** The `comp_lookahead` APVTS parameter was removed because `SimpleCompressor::setLookahead()` was a no-op stub with no audible effect. `AudioProcessorValueTreeState` gracefully ignores unknown parameter keys when loading saved state, so pre-FLA-73 plugin presets load without crashing — the lookahead value is simply discarded.
 
 ---
 
@@ -476,17 +474,13 @@ This section consolidates all 🟡 items. These are tracked, not hidden. Each it
 
 `VoiceManager::renderNextBlock()` writes to an N-channel `internalBuffer`. After FLA-70 the legacy stereo output was cleared; after FLA-72, `PluginProcessor::processBlock()` and `flam-render` both call `Mixer::process(engine.getMultiChannelBuffer(), ...)` to produce the final stereo output. The `Mixer` is the active signal path.
 
-### MixerBus orphan
+### ~~MixerBus orphan~~ ✅ Resolved (FLA-73)
 
-**File:** `Source/Core/MixerBus.h/.cpp`
+`MixerBus.h/.cpp` was deleted. Master volume responsibility moved to `Mixer::setMasterVolume()` (wired via APVTS in FLA-69). No call sites remain.
 
-`MixerBus` is a 5-bus (Close/OH/Room/Ambient/Master) fixed routing layer predating `Mixer`. It is owned by `FlamEngine`, `prepareToPlay()` is called on it, but `processBlock()` is never called. `getMasterLevel()` was previously used as a master gain scalar by the engine; master gain is now owned by `Mixer::setMasterVolume()`. `MixerBus` should be removed before v1.0.
+### ~~SampleLoader orphan~~ ✅ Resolved (FLA-73)
 
-### SampleLoader orphan
-
-**File:** `Source/Core/SampleLoader.h/.cpp`
-
-`SampleLoader` is a background loading thread not listed in `CMakeLists.txt` `target_sources` or `FLAM_ENGINE_SOURCES`. It is not compiled into any target. Its role (preload sample data into `SampleLayer::preloadBuffer`) is handled by `VoiceManager`'s inline loading + `SampleStreamingManager`. `SampleLoader` should be deleted once confirmed no future use is planned.
+`SampleLoader.h/.cpp` was deleted. It was never compiled into any target; its intended role is fully covered by `VoiceManager`'s inline preloading + `SampleStreamingManager`.
 
 ### IRConvolver — no owner
 
@@ -494,17 +488,19 @@ This section consolidates all 🟡 items. These are tracked, not hidden. Each it
 
 `IRConvolver` is a fully implemented convolution reverb using `juce::dsp::Convolution`. It is compiled (in `FLAM_ENGINE_SOURCES`) but never instantiated in `FlamEngine`, `PluginProcessor`, or `Mixer`. No UI exists for it. It should be either wired into the per-channel FX chain in `Mixer` (after `LimiterProcessor`) or moved to a `FeatureSpecs/` spec until prioritized.
 
-### SimpleCompressor lookahead stub
+### ~~SimpleCompressor lookahead stub~~ ✅ Resolved (FLA-73)
 
-**File:** `Source/DSP/SimpleCompressor.h`, `Source/Plugin/PluginProcessor.h:103`
+`comp_lookahead` APVTS parameter and `SimpleCompressor::setLookahead()` were removed. Saved states from before FLA-73 load without crashing — APVTS discards unknown parameter keys on state restore. See the migration note in §9.
 
-`compLookaheadParam` is registered in `AudioProcessorValueTreeState` and wired to the UI. `SimpleCompressor::setLookahead()` accepts the value but does not implement lookahead buffering. This means the automation parameter exists but has no effect. Either implement the lookahead delay buffer or remove the parameter before v1.0 to avoid confusing users.
+### ~~Dynamic bus enablement — host negotiation~~ ✅ Resolved (FLA-71)
 
-### Dynamic bus enablement — host negotiation
+`configureBusesForChannelCount()` was deleted. The static 17-bus layout (1 stereo Main Mix + 16 mono buses, all enabled at construction) was adopted as the permanent strategy. Unused buses emit silence. See §9 for rationale.
 
-**File:** `Source/Plugin/PluginProcessor.cpp`
+### SimpleEQ and SimpleCompressor — orphaned headers
 
-Some plugin hosts (Logic Pro AU, Cubase VST3) query bus layout at plugin load time and cannot dynamically add buses after scanning. The static 17-bus layout (1 stereo Main Mix + 16 mono buses, all pre-enabled at construction) was adopted to avoid post-init bus changes that caused observed crashes. Unused buses emit silence. Requires testing against reference hosts to confirm the static layout is accepted by all supported DAWs.
+**Files:** `Source/DSP/SimpleEQ.h`, `Source/DSP/SimpleCompressor.h`
+
+These header-only files were the FlamEngine-internal EQ and compressor before FLA-70/FLA-73 moved all post-render processing into `Mixer`. They are not listed in `FLAM_ENGINE_SOURCES` and are not `#include`d by any compiled file — invisible to the build system. They should be deleted once confirmed there is no plan to use them as lightweight single-strip processors elsewhere.
 
 ### JSON format — secondary path
 
@@ -514,4 +510,4 @@ Some plugin hosts (Logic Pro AU, Cubase VST3) query bus layout at plugin load ti
 
 ---
 
-*Last verified against `/Source` tree on 2026-06-10. Any class name added, removed, or renamed must be reflected here in the same PR.*
+*Last verified against `/Source` tree on 2026-06-11. Any class name added, removed, or renamed must be reflected here in the same PR.*
