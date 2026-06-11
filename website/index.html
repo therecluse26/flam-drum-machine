@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FlamKit — Free, open-source drum sampler (VST3/AU/AAX)</title>
+<meta name="description" content="A free, open-source drum sampler for Mac, Windows & Linux. 808s, 909s, LinnDrum, acoustic kits. Under 5ms latency. GPLv3.">
+<meta property="og:title" content="FlamKit — Free, open-source drum sampler">
+<meta property="og:description" content="A free, open-source drum sampler for Mac, Windows & Linux. Under 5ms latency. GPLv3.">
+<meta property="og:type" content="website">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="styles.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "FlamKit",
+  "applicationCategory": "MultimediaApplication",
+  "operatingSystem": "macOS, Windows, Linux",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+  "description": "A free, open-source, multi-channel drum sampler. VST3, AU, AAX and Standalone. Under 5ms latency.",
+  "license": "https://www.gnu.org/licenses/gpl-3.0"
+}
+</script>
+</head>
+<body>
+
+<header class="nav">
+  <div class="nav-inner">
+    <a class="brand" href="index.html"><span class="dot"></span>FlamKit <small>FREE LAYERED AUDIO MACHINE</small></a>
+    <nav class="nav-links">
+      <a href="download.html">Download</a>
+      <a href="docs.html">Docs</a>
+      <a href="samples.html">Samples</a>
+      <a href="community.html">Community</a>
+      <a href="license.html">License</a>
+      <a href="roadmap.html">Roadmap</a>
+      <a class="cta" href="download.html">Download free</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section class="hero">
+    <h1>A free, open-source drum sampler<br>that <span class="accent">just works</span>.</h1>
+    <p class="sub">808s, 909s, LinnDrum and acoustic kits. Multi-channel, multi-output, under 5&nbsp;ms latency — in any DAW, on any OS. No price tag, no sign-up, source available forever.</p>
+    <div class="hero-cta">
+      <a class="btn btn-primary" href="download.html">Download free</a>
+      <a class="btn btn-ghost" href="https://github.com/therecluse26/flam-drum-machine">View on GitHub</a>
+    </div>
+    <div class="trust">
+      <span><b>Open source</b></span>
+      <span><b>GPLv3</b></span>
+      <span>VST3 · AU · AAX · Standalone</span>
+      <span>macOS · Windows · Linux</span>
+      <span><b>&lt;5&nbsp;ms</b> latency</span>
+      <span>24-bit / 48&nbsp;kHz</span>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow">Why FlamKit</p>
+    <h2>Professional drums shouldn't cost $500.</h2>
+    <p class="lead">Commercial drum samplers run $300–$1000+. FlamKit gives the bedroom producer and the professional studio the same world-class engine — free, forever.</p>
+    <div class="grid grid-3">
+      <div class="card">
+        <span class="ico">🥁</span>
+        <h3>Sounds pro out of the box</h3>
+        <p>Curated CC0 kits — punchy electronic machines and natural acoustic kits — with multi-velocity layers and round-robins so nothing sounds like a machine gun.</p>
+      </div>
+      <div class="card">
+        <span class="ico">⚡</span>
+        <h3>Fast &amp; native</h3>
+        <p>Built in C++20 on JUCE. Hybrid streaming keeps a full kit at 50–100&nbsp;MB RAM (vs. 1–2&nbsp;GB), with sample-accurate timing under 5&nbsp;ms at 64-sample buffers.</p>
+      </div>
+      <div class="card">
+        <span class="ico">🔓</span>
+        <h3>Truly open</h3>
+        <p>GPLv3. Human-readable <code>flamkit.yaml</code> kits you can edit in any text editor. Read the source, file an issue, shape the roadmap — no black boxes.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow">Multi-output routing</p>
+    <h2>A virtual multitrack drum session.</h2>
+    <p class="lead">Each microphone channel — kick close, snare top, overheads, room — routes to its own DAW track. Mix with your favourite native plugins, exactly like a real recording session.</p>
+    <div class="grid grid-3">
+      <div class="card"><h3>1–16 channels per hit</h3><p>Sample as many mics as you tracked. FlamKit detects the channel count from the kit and exposes the buses automatically.</p></div>
+      <div class="card"><h3>Full DAW automation</h3><p>Every parameter is exposed for automation. Treat FlamKit like a hardware unit in your session.</p></div>
+      <div class="card"><h3>Built-in mixer fallback</h3><p>Per-channel volume, pan, solo and mute for standalone use or hosts without multi-output.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="card" style="background:linear-gradient(135deg,#1a1c24,#15171e);border-color:#2c2f3a;">
+      <p class="eyebrow">For developers</p>
+      <h2 style="margin-bottom:10px;">Want to build your own? Ship a plugin in an afternoon.</h2>
+      <p style="color:var(--muted);max-width:640px;margin:0 0 22px;">FlamKit is a clean, fully documented JUCE codebase built around <code>AudioProcessorGraph</code>. Clone it, build it, and use it as the reference for shipping your own VST. GPLv3 keeps the whole ecosystem open.</p>
+      <a class="btn btn-ghost" href="docs.html#build">Build from source</a>
+    </div>
+  </section>
+
+  <section style="text-align:center;">
+    <h2>Make great drums for free.</h2>
+    <p class="lead" style="margin:8px auto 26px;">No bedroom producer should have to choose between groceries and a drum sampler.</p>
+    <div class="hero-cta">
+      <a class="btn btn-primary" href="download.html">Download FlamKit</a>
+      <a class="btn btn-ghost" href="community.html">Join the community</a>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site">
+  <div class="wrap foot-inner">
+    <div>FlamKit — Free Layered Audio Machine · GPLv3 · © 2026 FLAM</div>
+    <div class="foot-links">
+      <a href="https://github.com/therecluse26/flam-drum-machine">GitHub</a>
+      <a href="community.html">Community</a>
+      <a href="docs.html">Docs</a>
+      <a href="license.html">License</a>
+      <a href="roadmap.html">Roadmap</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
