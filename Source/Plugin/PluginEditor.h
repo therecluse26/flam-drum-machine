@@ -147,77 +147,151 @@ private:
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(CompressorMeter)
 };
 
-// Custom drum pad button component
-class DrumPad : public juce::Component
+// Custom drum pad button component — animated, velocity-sensitive, type-coloured.
+class DrumPad : public juce::Component, private juce::Timer
 {
 public:
     DrumPad(const juce::String& name, int midiNote, std::function<void(int, float)> callback)
         : padName(name), note(midiNote), onTrigger(callback)
+        , typeColour(drumTypeColour(name))
     {
+        startTimerHz(60);
+    }
+
+    ~DrumPad() override { stopTimer(); }
+
+    // Thread-safe: may be called from the audio callback or the UI thread.
+    void notifyHit(float velocity) noexcept
+    {
+        pendingHitVelocity.store(velocity, std::memory_order_release);
     }
 
     void paint(juce::Graphics& g) override
     {
-        auto bounds = getLocalBounds().toFloat().reduced(2.0f);
+        const auto fullBounds = getLocalBounds().toFloat().reduced(2.0f);
+        const float flash = hitAlpha;
 
-        // Draw pad background
-        if (isMouseOver || isPressed)
-            g.setColour(juce::Colours::lightblue);
-        else
-            g.setColour(juce::Colour(0xff2a2a2a));
+        // ── Background ──────────────────────────────────────────
+        const auto idleBg  = juce::Colour(0xff1e1e1e);
+        const auto flashBg = typeColour.withMultipliedBrightness(0.35f + 0.65f * lastVelocity);
+        g.setColour(isPressed ? typeColour.darker(0.25f)
+                              : idleBg.interpolatedWith(flashBg, flash));
+        g.fillRoundedRectangle(fullBounds, 6.0f);
 
-        g.fillRoundedRectangle(bounds, 4.0f);
+        if (isMouseOver && flash < 0.1f && !isPressed)
+        {
+            g.setColour(juce::Colours::white.withAlpha(0.04f));
+            g.fillRoundedRectangle(fullBounds, 6.0f);
+        }
 
-        // Draw border
-        g.setColour(isPressed ? juce::Colours::white : juce::Colours::grey);
-        g.drawRoundedRectangle(bounds, 4.0f, 2.0f);
+        // ── Border — glows at hit intensity ────────────────────
+        g.setColour(typeColour.withAlpha(0.30f + 0.70f * flash));
+        g.drawRoundedRectangle(fullBounds, 6.0f, flash > 0.05f ? 2.0f : 1.0f);
 
-        // Draw label
-        g.setColour(juce::Colours::white);
-        g.setFont(12.0f);
-        g.drawText(padName, bounds, juce::Justification::centred);
+        // ── Velocity bar (thin strip at bottom) ─────────────────
+        auto textBounds = fullBounds.reduced(4.0f, 2.0f);
 
-        // Draw MIDI note number at bottom
-        g.setFont(9.0f);
-        g.setColour(juce::Colours::grey);
-        auto noteText = "(" + juce::String(note) + ")";
-        g.drawText(noteText, bounds.removeFromBottom(12), juce::Justification::centred);
+        if (lastVelocity > 0.0f)
+        {
+            auto velStrip = textBounds.removeFromBottom(4.0f);
+            textBounds.removeFromBottom(2.0f); // gap
+
+            g.setColour(juce::Colours::black.withAlpha(0.45f));
+            g.fillRoundedRectangle(velStrip, 2.0f);
+
+            g.setColour(typeColour.withMultipliedBrightness(0.7f + 0.3f * flash));
+            g.fillRoundedRectangle(velStrip.withWidth(velStrip.getWidth() * lastVelocity), 2.0f);
+        }
+
+        // ── Pad name (upper 60% of text area) ──────────────────
+        g.setFont(juce::Font(11.0f, juce::Font::bold));
+        g.setColour(juce::Colours::white.withAlpha(0.90f));
+        g.drawText(padName,
+                   textBounds.withTrimmedBottom(textBounds.getHeight() * 0.40f),
+                   juce::Justification::centred);
+
+        // ── MIDI note + velocity hint (lower 40%) ───────────────
+        juce::String subLabel = "(" + juce::String(note) + ")";
+        if (flash > 0.08f)
+            subLabel += "  v" + juce::String(juce::roundToInt(lastVelocity * 127.0f));
+        g.setFont(juce::Font(9.0f));
+        g.setColour(juce::Colours::white.withAlpha(0.40f + 0.35f * flash));
+        g.drawText(subLabel,
+                   textBounds.withTrimmedTop(textBounds.getHeight() * 0.60f),
+                   juce::Justification::centred);
     }
 
     void mouseDown(const juce::MouseEvent& e) override
     {
         isPressed = true;
-        // Trigger with velocity based on mouse position
-        float velocity = juce::jmap(e.position.y, 0.0f, (float)getHeight(), 1.0f, 0.3f);
+        const float velocity = juce::jmap(e.position.y, 0.0f, (float)getHeight(), 1.0f, 0.3f);
+        notifyHit(velocity);
         if (onTrigger)
             onTrigger(note, velocity);
         repaint();
     }
 
-    void mouseUp(const juce::MouseEvent&) override
-    {
-        isPressed = false;
-        repaint();
-    }
-
-    void mouseEnter(const juce::MouseEvent&) override
-    {
-        isMouseOver = true;
-        repaint();
-    }
-
-    void mouseExit(const juce::MouseEvent&) override
-    {
-        isMouseOver = false;
-        repaint();
-    }
+    void mouseUp(const juce::MouseEvent&) override   { isPressed  = false; repaint(); }
+    void mouseEnter(const juce::MouseEvent&) override { isMouseOver = true;  repaint(); }
+    void mouseExit(const juce::MouseEvent&) override  { isMouseOver = false; repaint(); }
 
 private:
+    // Infer a colour from the drum piece name for visual identity.
+    static juce::Colour drumTypeColour(const juce::String& name) noexcept
+    {
+        const auto n = name.toLowerCase();
+        if (n.contains("kick") || n.contains("bass"))  return juce::Colour(0xffC0392B); // red
+        if (n.contains("snare") || n.contains("snr"))  return juce::Colour(0xff2980B9); // blue
+        if (n.contains("hihat") || n.contains("hi-hat") || n.contains(" hh"))
+                                                        return juce::Colour(0xff27AE60); // green
+        if (n.contains("crash"))                        return juce::Colour(0xffD4AC0D); // gold
+        if (n.contains("ride"))                         return juce::Colour(0xff8E44AD); // purple
+        if (n.contains("tom"))                          return juce::Colour(0xffD35400); // orange
+        if (n.contains("room") || n.contains("amb"))    return juce::Colour(0xff16A085); // teal
+        if (n.contains("overhead") || n.contains(" oh")) return juce::Colour(0xff5D8AA8); // steel blue
+        return juce::Colour(0xff5D6D7E); // default slate
+    }
+
+    void timerCallback() override
+    {
+        // Drain the atomic flag written by any thread (audio, UI, MIDI).
+        const float pending = pendingHitVelocity.exchange(-1.0f, std::memory_order_acq_rel);
+        if (pending >= 0.0f)
+        {
+            lastVelocity = pending;
+            hitAlpha     = 1.0f;
+            repaint();
+            return;
+        }
+
+        // Decay animation at ~0.82 per frame → ≈150 ms to 10% at 60 Hz.
+        if (hitAlpha > 0.001f)
+        {
+            hitAlpha *= 0.82f;
+            repaint();
+        }
+        else if (hitAlpha > 0.0f)
+        {
+            hitAlpha = 0.0f;
+            repaint();
+        }
+    }
+
     juce::String padName;
     int note;
     std::function<void(int, float)> onTrigger;
-    bool isPressed = false;
+    juce::Colour typeColour;
+
+    bool isPressed   = false;
     bool isMouseOver = false;
+
+    // Written by any thread; read and reset by the UI timer.
+    std::atomic<float> pendingHitVelocity { -1.0f };
+    // UI-thread only — driven exclusively by timerCallback.
+    float hitAlpha    = 0.0f;
+    float lastVelocity = 0.0f;
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DrumPad)
 };
 
 class FlamAudioProcessorEditor : public juce::AudioProcessorEditor
