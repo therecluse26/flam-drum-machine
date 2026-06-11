@@ -1,0 +1,59 @@
+MuldjordKit (FreePats edition) — License & Attribution
+======================================================
+
+Kit:        MuldjordKit — FreePats stereo edition, version 2020-10-18
+            (derived from the original 16-channel DrumGizmo MuldjordKit v3.0,
+            released August 7th 2018).
+Instrument: Tama Superstar acoustic kit — 2 kickdrums, 3 hanging/rack toms,
+            1 floor tom, 1 snare, 1 hi-hat, 2 crash cymbals, 2 ride cymbals,
+            1 china cymbal. Recorded by Lars Muldjord during the 2009 Sepulchrum
+            drum sessions. A rock / metal kit.
+Source:     FreePats project
+            Page:     https://freepats.zenvoid.org/Percussion/acoustic-drum-kit.html
+            Repo:     https://github.com/freepats/muldjordkit
+            Original: DrumGizmo project — https://drumgizmo.org/ (www.muldjord.com)
+Creator:    Lars Muldjord (kit, microphone setup, sampling, editing).
+            FreePats stereo edition assembled by Roberto (roberto@zenvoid.org).
+
+LICENSE: Creative Commons Attribution 4.0 International (CC-BY 4.0)
+         https://creativecommons.org/licenses/by/4.0/
+
+You are free to:
+  - Share — copy and redistribute the material in any medium or format
+  - Adapt — remix, transform, and build upon the material
+  for any purpose, even commercially.
+
+Under the following terms:
+  - Attribution — You must give appropriate credit, provide a link to the
+    license, and indicate if changes were made. You may do so in any reasonable
+    manner, but not in any way that suggests the licensor endorses you or your use.
+
+REQUIRED ATTRIBUTION (display this credit when shipping or using this kit):
+
+    The FreePats distribution terms (since 2021-01) require this exact credit in
+    the "album credits" field or similar liner notes:
+
+        "Drum samples provided by DrumGizmo.org."
+
+    FlamKit displays the following fuller credit, which satisfies the above and
+    also credits the original artist and license:
+
+        "MuldjordKit by Lars Muldjord / the DrumGizmo project (drumgizmo.org),
+         FreePats edition, licensed under CC-BY 4.0
+         (https://creativecommons.org/licenses/by/4.0/)."
+
+MODIFICATIONS MADE BY FLAM:
+  - Repackaged from the FreePats SFZ instrument into FlamKit's `flamkit.yaml`
+    format for use in the FlamKit drum engine.
+  - Drum pieces were mapped onto the General MIDI percussion layout (see
+    README.md). Two extra articulations (a second snare-rest and a second ride
+    bell) were placed on otherwise-empty acoustic-kit MIDI slots, documented in
+    README.md.
+  - Audio sample files (WAV) are unmodified from the FreePats release.
+
+NOTES:
+  - This license permits commercial use and redistribution bundled with FlamKit.
+  - There are NO Non-Commercial (NC) or No-Derivatives (ND) restrictions.
+  - The upstream FreePats SFZ (provenance reference) is included in this
+    directory as `MuldjordKit-FreePats-20201018.sfz`.
+  - Original kit README with full recording / mic documentation: see README.md.

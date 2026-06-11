@@ -16,6 +16,7 @@ not ship any kit whose provenance we cannot verify.
 | Kit | Genre | Channels | License | Provenance verified | Status |
 |-----|-------|----------|---------|---------------------|--------|
 | `drs-kit` (DRSKit) | Acoustic (rock/jazz) | 13 (multi-mic) | CC-BY 4.0 | ✅ Yes — DrumGizmo / DRSDrums | **CLEARED** |
+| `muldjord-kit` (MuldjordKit) | Acoustic (rock/metal) | 2 (stereo) | CC-BY 4.0 | ✅ Yes — FreePats / DrumGizmo (Lars Muldjord) | **CLEARED** |
 | `example-kit` | "Rock/Pop" (stereo) | 2 | **Unknown** | ❌ No — see below | **BLOCKED — do not ship** |
 | `minimal-kit` | "Rock/Pop" (stereo) | 2 | **Unknown** | ❌ No — see below | **BLOCKED — do not ship** |
 
@@ -35,6 +36,33 @@ not ship any kit whose provenance we cannot verify.
   Demonstrates FlamKit's multi-channel routing capability.
 - **Full license text & attribution:** see `drs-kit/LICENSE.txt`.
 - **Original kit docs (mic/channel map):** see `drs-kit/README.md`.
+
+### muldjord-kit — MuldjordKit, FreePats edition (CLEARED ✅)
+
+- **Source:** FreePats project —
+  https://freepats.zenvoid.org/Percussion/acoustic-drum-kit.html
+  (upstream repo: https://github.com/freepats/muldjordkit ; original kit:
+  DrumGizmo — https://drumgizmo.org/ , www.muldjord.com).
+- **Creator:** Lars Muldjord (Tama Superstar kit, recorded during the 2009
+  Sepulchrum sessions). FreePats stereo edition assembled by Roberto
+  (roberto@zenvoid.org).
+- **License:** Creative Commons Attribution 4.0 International (CC-BY 4.0).
+  Permits redistribution and commercial use **with attribution**. Verified at
+  source — the upstream GitHub repo carries a CC-BY-4.0 `LICENSE.txt`
+  (GitHub-detected SPDX `CC-BY-4.0`).
+- **Required attribution (must be shown to end users):** FreePats terms (since
+  2021-01) require the credit *"Drum samples provided by DrumGizmo.org."*
+  FlamKit displays the fuller credit:
+  > "MuldjordKit by Lars Muldjord / the DrumGizmo project (drumgizmo.org),
+  > FreePats edition, licensed under CC-BY 4.0
+  > (https://creativecommons.org/licenses/by/4.0/)."
+- **Format:** stereo (2-channel) WAV, 44.1 kHz, 24-bit. Confirmed by probing an
+  upstream sample. A lighter-weight contrast to DRSKit's 13-channel multi-mic
+  kit, and a different genre (rock/metal vs. rock/jazz).
+- **Full license text & attribution:** see `muldjord-kit/LICENSE.txt`.
+- **Kit docs (GM map, components, mic notes):** see `muldjord-kit/README.md`.
+- **Provenance reference:** upstream SFZ included as
+  `muldjord-kit/MuldjordKit-FreePats-20201018.sfz`.
 
 ### example-kit / minimal-kit — provenance UNVERIFIED (BLOCKED ❌)
 

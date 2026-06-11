@@ -1,0 +1,4177 @@
+# ============================================================================
+# MuldjordKit (FreePats edition) — FlamKit kit definition
+# ============================================================================
+name: "MuldjordKit"
+author: "Lars Muldjord (recorded 2009–2010, Sepulchrum sessions); FreePats stereo edition assembled by Roberto (roberto@zenvoid.org)"
+description: >-
+  Acoustic rock/metal drum kit — Tama Superstar, sampled by Lars Muldjord and
+  released through the DrumGizmo project. This is the FreePats stereo edition:
+  2 kicks, 1 snare (+ rest/cross-stick), 4 toms, hi-hat (open/closed), 2 crashes,
+  2 rides (+ bells) and a china, with deep velocity layering and random
+  round-robin. Licensed CC-BY 4.0 — attribution REQUIRED (see LICENSE.txt).
+version: "1.0"
+sampleRate: 44100
+bitDepth: 24
+tags: ["acoustic", "rock", "metal", "stereo", "tama"]
+
+# ============================================================================
+# LICENSE / PROVENANCE  (CC-BY 4.0 — attribution REQUIRED)
+# ============================================================================
+# Kit:          MuldjordKit — FreePats stereo edition (version 2020-10-18),
+#               derived from the original 16-channel DrumGizmo MuldjordKit v3.0.
+# Instrument:   Tama Superstar acoustic kit (2 kicks, 3 rack toms, 1 floor tom,
+#               snare, hi-hat, 2 crashes, 2 rides, china).
+# Source:       FreePats — https://freepats.zenvoid.org/Percussion/acoustic-drum-kit.html
+#               Upstream repo: https://github.com/freepats/muldjordkit (LICENSE: CC-BY-4.0)
+#               Original kit:  DrumGizmo — https://drumgizmo.org/  (www.muldjord.com)
+# Creator:      Lars Muldjord (recording, sampling, editing). FreePats stereo
+#               downmix assembled by Roberto (roberto@zenvoid.org).
+# License:      Creative Commons Attribution 4.0 International (CC-BY 4.0)
+#               https://creativecommons.org/licenses/by/4.0/
+# REQUIRED ATTRIBUTION (must be displayed to end users — FreePats terms, since 2021-01):
+#   "Drum samples provided by DrumGizmo.org."
+#   Recommended fuller credit:
+#   "MuldjordKit by Lars Muldjord / the DrumGizmo project (drumgizmo.org),
+#    FreePats edition, licensed under CC-BY 4.0."
+# Modifications: Repackaged from the FreePats SFZ into flamkit.yaml; sample paths
+#               point at the FreePats SFZ+WAV distribution. Audio samples unmodified.
+# Redistribution: PERMITTED with attribution. Commercial use PERMITTED. No NC/ND.
+# Full attribution text & provenance: see LICENSE.txt in this directory.
+
+# ============================================================================
+# CHANNEL DEFINITIONS  (stereo — 2 channels)
+# ============================================================================
+# The FreePats edition is a pre-mixed STEREO kit (the original DrumGizmo release
+# provides 16 individually-routable mic channels). All sample WAVs are 2-channel.
+channels:
+  - name: "Left"
+    index: 0
+  - name: "Right"
+    index: 1
+
+# ============================================================================
+# GLOBAL SETTINGS
+# ============================================================================
+settings:
+  masterGain: 1.0
+  maxPolyphony: 64
+  useRoundRobin: true
+  defaultHumanization: 0.1
+
+# ============================================================================
+# DRUM PIECES  (mapped to the General MIDI percussion layout)
+# ============================================================================
+pieces:
+  # ----- Kick 2 (MIDI 35) -----
+  - name: "Kick 2"
+    midiNote: 35
+    articulations:
+      - name: "Hit"
+        chokeGroup: -1
+        attackTime: 0.001
+        holdTime: 0
+        decayTime: 0.5
+        sustainLevel: 0
+        releaseTime: 0.1
+        layers:
+          - sampleFile: "samples/KdrumR/3-KdrumR.wav"
+            velocityMin: 0
+            velocityMax: 0.063
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/KdrumR/5-KdrumR.wav"
+            velocityMin: 0
+            velocityMax: 0.063
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/KdrumR/7-KdrumR.wav"
+            velocityMin: 0
+            velocityMax: 0.063
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/KdrumR/9-KdrumR.wav"
+            velocityMin: 0
+            velocityMax: 0.063
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/KdrumR/5-KdrumR.wav"
+            velocityMin: 0.0709
+            velocityMax: 0.1339
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/KdrumR/7-KdrumR.wav"
+            velocityMin: 0.0709
+            velocityMax: 0.1339
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/KdrumR/9-KdrumR.wav"
+            velocityMin: 0.0709
+            velocityMax: 0.1339
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/KdrumR/11-KdrumR.wav"
+            velocityMin: 0.0709
+            velocityMax: 0.1339
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/KdrumR/7-KdrumR.wav"
+            velocityMin: 0.1417
+            velocityMax: 0.2047
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/KdrumR/9-KdrumR.wav"
+            velocityMin: 0.1417
+            velocityMax: 0.2047
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/KdrumR/11-KdrumR.wav"
+            velocityMin: 0.1417
+            velocityMax: 0.2047
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/KdrumR/13-KdrumR.wav"
+            velocityMin: 0.1417
+            velocityMax: 0.2047
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/KdrumR/9-KdrumR.wav"
+            velocityMin: 0.2126
+            velocityMax: 0.2756
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/KdrumR/11-KdrumR.wav"
+            velocityMin: 0.2126
+            velocityMax: 0.2756
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/KdrumR/13-KdrumR.wav"
+            velocityMin: 0.2126
+            velocityMax: 0.2756
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/KdrumR/15-KdrumR.wav"
+            velocityMin: 0.2126
+            velocityMax: 0.2756
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/KdrumR/11-KdrumR.wav"
+            velocityMin: 0.2835
+            velocityMax: 0.3465
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/KdrumR/13-KdrumR.wav"
+            velocityMin: 0.2835
+            velocityMax: 0.3465
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/KdrumR/15-KdrumR.wav"
+            velocityMin: 0.2835
+            velocityMax: 0.3465
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/KdrumR/16-KdrumR.wav"
+            velocityMin: 0.2835
+            velocityMax: 0.3465
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/KdrumR/13-KdrumR.wav"
+            velocityMin: 0.3543
+            velocityMax: 0.4173
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/KdrumR/15-KdrumR.wav"
+            velocityMin: 0.3543
+            velocityMax: 0.4173
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/KdrumR/16-KdrumR.wav"
+            velocityMin: 0.3543
+            velocityMax: 0.4173
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/KdrumR/17-KdrumR.wav"
+            velocityMin: 0.3543
+            velocityMax: 0.4173
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/KdrumR/15-KdrumR.wav"
+            velocityMin: 0.4252
+            velocityMax: 0.4882
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/KdrumR/16-KdrumR.wav"
+            velocityMin: 0.4252
+            velocityMax: 0.4882
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/KdrumR/17-KdrumR.wav"
+            velocityMin: 0.4252
+            velocityMax: 0.4882
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/KdrumR/19-KdrumR.wav"
+            velocityMin: 0.4252
+            velocityMax: 0.4882
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/KdrumR/16-KdrumR.wav"
+            velocityMin: 0.4961
+            velocityMax: 0.5591
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/KdrumR/17-KdrumR.wav"
+            velocityMin: 0.4961
+            velocityMax: 0.5591
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/KdrumR/19-KdrumR.wav"
+            velocityMin: 0.4961
+            velocityMax: 0.5591
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/KdrumR/20-KdrumR.wav"
+            velocityMin: 0.4961
+            velocityMax: 0.5591
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/KdrumR/17-KdrumR.wav"
+            velocityMin: 0.5669
+            velocityMax: 0.6299
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/KdrumR/19-KdrumR.wav"
+            velocityMin: 0.5669
+            velocityMax: 0.6299
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/KdrumR/20-KdrumR.wav"
+            velocityMin: 0.5669
+            velocityMax: 0.6299
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/KdrumR/21-KdrumR.wav"
+            velocityMin: 0.5669
+            velocityMax: 0.6299
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/KdrumR/19-KdrumR.wav"
+            velocityMin: 0.6378
+            velocityMax: 0.7008
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/KdrumR/20-KdrumR.wav"
+            velocityMin: 0.6378
+            velocityMax: 0.7008
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/KdrumR/21-KdrumR.wav"
+            velocityMin: 0.6378
+            velocityMax: 0.7008
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/KdrumR/23-KdrumR.wav"
+            velocityMin: 0.6378
+            velocityMax: 0.7008
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/KdrumR/19-KdrumR.wav"
+            velocityMin: 0.7087
+            velocityMax: 0.7717
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/KdrumR/20-KdrumR.wav"
+            velocityMin: 0.7087
+            velocityMax: 0.7717
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/KdrumR/21-KdrumR.wav"
+            velocityMin: 0.7087
+            velocityMax: 0.7717
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/KdrumR/23-KdrumR.wav"
+            velocityMin: 0.7087
+            velocityMax: 0.7717
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/KdrumR/24-KdrumR.wav"
+            velocityMin: 0.7087
+            velocityMax: 0.7717
+            gain: 1.0
+            roundRobinGroup: 4
+          - sampleFile: "samples/KdrumR/20-KdrumR.wav"
+            velocityMin: 0.7795
+            velocityMax: 0.8504
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/KdrumR/21-KdrumR.wav"
+            velocityMin: 0.7795
+            velocityMax: 0.8504
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/KdrumR/23-KdrumR.wav"
+            velocityMin: 0.7795
+            velocityMax: 0.8504
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/KdrumR/24-KdrumR.wav"
+            velocityMin: 0.7795
+            velocityMax: 0.8504
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/KdrumR/25-KdrumR.wav"
+            velocityMin: 0.7795
+            velocityMax: 0.8504
+            gain: 1.0
+            roundRobinGroup: 4
+          - sampleFile: "samples/KdrumR/21-KdrumR.wav"
+            velocityMin: 0.8583
+            velocityMax: 0.9606
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/KdrumR/23-KdrumR.wav"
+            velocityMin: 0.8583
+            velocityMax: 0.9606
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/KdrumR/24-KdrumR.wav"
+            velocityMin: 0.8583
+            velocityMax: 0.9606
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/KdrumR/25-KdrumR.wav"
+            velocityMin: 0.8583
+            velocityMax: 0.9606
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/KdrumR/26-KdrumR.wav"
+            velocityMin: 0.8583
+            velocityMax: 0.9606
+            gain: 1.0
+            roundRobinGroup: 4
+          - sampleFile: "samples/KdrumR/23-KdrumR.wav"
+            velocityMin: 0.9685
+            velocityMax: 1
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/KdrumR/24-KdrumR.wav"
+            velocityMin: 0.9685
+            velocityMax: 1
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/KdrumR/25-KdrumR.wav"
+            velocityMin: 0.9685
+            velocityMax: 1
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/KdrumR/26-KdrumR.wav"
+            velocityMin: 0.9685
+            velocityMax: 1
+            gain: 1.0
+            roundRobinGroup: 3
+  # ----- Kick (MIDI 36) -----
+  - name: "Kick"
+    midiNote: 36
+    articulations:
+      - name: "Hit"
+        chokeGroup: -1
+        attackTime: 0.001
+        holdTime: 0
+        decayTime: 0.5
+        sustainLevel: 0
+        releaseTime: 0.1
+        layers:
+          - sampleFile: "samples/KdrumL/2-KdrumL.wav"
+            velocityMin: 0
+            velocityMax: 0.063
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/KdrumL/4-KdrumL.wav"
+            velocityMin: 0
+            velocityMax: 0.063
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/KdrumL/6-KdrumL.wav"
+            velocityMin: 0
+            velocityMax: 0.063
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/KdrumL/8-KdrumL.wav"
+            velocityMin: 0
+            velocityMax: 0.063
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/KdrumL/4-KdrumL.wav"
+            velocityMin: 0.0709
+            velocityMax: 0.1339
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/KdrumL/6-KdrumL.wav"
+            velocityMin: 0.0709
+            velocityMax: 0.1339
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/KdrumL/8-KdrumL.wav"
+            velocityMin: 0.0709
+            velocityMax: 0.1339
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/KdrumL/10-KdrumL.wav"
+            velocityMin: 0.0709
+            velocityMax: 0.1339
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/KdrumL/6-KdrumL.wav"
+            velocityMin: 0.1417
+            velocityMax: 0.2047
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/KdrumL/8-KdrumL.wav"
+            velocityMin: 0.1417
+            velocityMax: 0.2047
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/KdrumL/10-KdrumL.wav"
+            velocityMin: 0.1417
+            velocityMax: 0.2047
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/KdrumL/12-KdrumL.wav"
+            velocityMin: 0.1417
+            velocityMax: 0.2047
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/KdrumL/8-KdrumL.wav"
+            velocityMin: 0.2126
+            velocityMax: 0.2756
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/KdrumL/10-KdrumL.wav"
+            velocityMin: 0.2126
+            velocityMax: 0.2756
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/KdrumL/12-KdrumL.wav"
+            velocityMin: 0.2126
+            velocityMax: 0.2756
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/KdrumL/13-KdrumL.wav"
+            velocityMin: 0.2126
+            velocityMax: 0.2756
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/KdrumL/10-KdrumL.wav"
+            velocityMin: 0.2835
+            velocityMax: 0.3465
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/KdrumL/12-KdrumL.wav"
+            velocityMin: 0.2835
+            velocityMax: 0.3465
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/KdrumL/13-KdrumL.wav"
+            velocityMin: 0.2835
+            velocityMax: 0.3465
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/KdrumL/15-KdrumL.wav"
+            velocityMin: 0.2835
+            velocityMax: 0.3465
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/KdrumL/12-KdrumL.wav"
+            velocityMin: 0.3543
+            velocityMax: 0.4173
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/KdrumL/13-KdrumL.wav"
+            velocityMin: 0.3543
+            velocityMax: 0.4173
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/KdrumL/15-KdrumL.wav"
+            velocityMin: 0.3543
+            velocityMax: 0.4173
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/KdrumL/16-KdrumL.wav"
+            velocityMin: 0.3543
+            velocityMax: 0.4173
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/KdrumL/13-KdrumL.wav"
+            velocityMin: 0.4252
+            velocityMax: 0.4882
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/KdrumL/15-KdrumL.wav"
+            velocityMin: 0.4252
+            velocityMax: 0.4882
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/KdrumL/16-KdrumL.wav"
+            velocityMin: 0.4252
+            velocityMax: 0.4882
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/KdrumL/17-KdrumL.wav"
+            velocityMin: 0.4252
+            velocityMax: 0.4882
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/KdrumL/15-KdrumL.wav"
+            velocityMin: 0.4961
+            velocityMax: 0.5591
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/KdrumL/16-KdrumL.wav"
+            velocityMin: 0.4961
+            velocityMax: 0.5591
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/KdrumL/17-KdrumL.wav"
+            velocityMin: 0.4961
+            velocityMax: 0.5591
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/KdrumL/19-KdrumL.wav"
+            velocityMin: 0.4961
+            velocityMax: 0.5591
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/KdrumL/16-KdrumL.wav"
+            velocityMin: 0.5669
+            velocityMax: 0.6299
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/KdrumL/17-KdrumL.wav"
+            velocityMin: 0.5669
+            velocityMax: 0.6299
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/KdrumL/19-KdrumL.wav"
+            velocityMin: 0.5669
+            velocityMax: 0.6299
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/KdrumL/20-KdrumL.wav"
+            velocityMin: 0.5669
+            velocityMax: 0.6299
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/KdrumL/17-KdrumL.wav"
+            velocityMin: 0.6378
+            velocityMax: 0.7008
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/KdrumL/19-KdrumL.wav"
+            velocityMin: 0.6378
+            velocityMax: 0.7008
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/KdrumL/20-KdrumL.wav"
+            velocityMin: 0.6378
+            velocityMax: 0.7008
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/KdrumL/21-KdrumL.wav"
+            velocityMin: 0.6378
+            velocityMax: 0.7008
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/KdrumL/17-KdrumL.wav"
+            velocityMin: 0.7087
+            velocityMax: 0.7717
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/KdrumL/19-KdrumL.wav"
+            velocityMin: 0.7087
+            velocityMax: 0.7717
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/KdrumL/20-KdrumL.wav"
+            velocityMin: 0.7087
+            velocityMax: 0.7717
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/KdrumL/21-KdrumL.wav"
+            velocityMin: 0.7087
+            velocityMax: 0.7717
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/KdrumL/23-KdrumL.wav"
+            velocityMin: 0.7087
+            velocityMax: 0.7717
+            gain: 1.0
+            roundRobinGroup: 4
+          - sampleFile: "samples/KdrumL/19-KdrumL.wav"
+            velocityMin: 0.7795
+            velocityMax: 0.8504
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/KdrumL/20-KdrumL.wav"
+            velocityMin: 0.7795
+            velocityMax: 0.8504
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/KdrumL/21-KdrumL.wav"
+            velocityMin: 0.7795
+            velocityMax: 0.8504
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/KdrumL/23-KdrumL.wav"
+            velocityMin: 0.7795
+            velocityMax: 0.8504
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/KdrumL/24-KdrumL.wav"
+            velocityMin: 0.7795
+            velocityMax: 0.8504
+            gain: 1.0
+            roundRobinGroup: 4
+          - sampleFile: "samples/KdrumL/20-KdrumL.wav"
+            velocityMin: 0.8583
+            velocityMax: 0.9606
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/KdrumL/21-KdrumL.wav"
+            velocityMin: 0.8583
+            velocityMax: 0.9606
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/KdrumL/23-KdrumL.wav"
+            velocityMin: 0.8583
+            velocityMax: 0.9606
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/KdrumL/24-KdrumL.wav"
+            velocityMin: 0.8583
+            velocityMax: 0.9606
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/KdrumL/25-KdrumL.wav"
+            velocityMin: 0.8583
+            velocityMax: 0.9606
+            gain: 1.0
+            roundRobinGroup: 4
+          - sampleFile: "samples/KdrumL/21-KdrumL.wav"
+            velocityMin: 0.9685
+            velocityMax: 1
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/KdrumL/23-KdrumL.wav"
+            velocityMin: 0.9685
+            velocityMax: 1
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/KdrumL/24-KdrumL.wav"
+            velocityMin: 0.9685
+            velocityMax: 1
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/KdrumL/25-KdrumL.wav"
+            velocityMin: 0.9685
+            velocityMax: 1
+            gain: 1.0
+            roundRobinGroup: 3
+  # ----- Side Stick (MIDI 37) -----
+  - name: "Side Stick"
+    midiNote: 37
+    articulations:
+      - name: "Hit"
+        chokeGroup: -1
+        attackTime: 0.001
+        holdTime: 0
+        decayTime: 0.1
+        sustainLevel: 0
+        releaseTime: 0.05
+        layers:
+          - sampleFile: "samples/SnareRest1/1-SnareRest.wav"
+            velocityMin: 0
+            velocityMax: 0.0866
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/SnareRest1/2-SnareRest.wav"
+            velocityMin: 0
+            velocityMax: 0.0866
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/SnareRest1/3-SnareRest.wav"
+            velocityMin: 0
+            velocityMax: 0.0866
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/SnareRest1/4-SnareRest.wav"
+            velocityMin: 0
+            velocityMax: 0.0866
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/SnareRest1/2-SnareRest.wav"
+            velocityMin: 0.0945
+            velocityMax: 0.1811
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/SnareRest1/3-SnareRest.wav"
+            velocityMin: 0.0945
+            velocityMax: 0.1811
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/SnareRest1/4-SnareRest.wav"
+            velocityMin: 0.0945
+            velocityMax: 0.1811
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/SnareRest1/5-SnareRest.wav"
+            velocityMin: 0.0945
+            velocityMax: 0.1811
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/SnareRest1/3-SnareRest.wav"
+            velocityMin: 0.189
+            velocityMax: 0.2756
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/SnareRest1/4-SnareRest.wav"
+            velocityMin: 0.189
+            velocityMax: 0.2756
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/SnareRest1/5-SnareRest.wav"
+            velocityMin: 0.189
+            velocityMax: 0.2756
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/SnareRest1/6-SnareRest.wav"
+            velocityMin: 0.189
+            velocityMax: 0.2756
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/SnareRest1/4-SnareRest.wav"
+            velocityMin: 0.2835
+            velocityMax: 0.378
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/SnareRest1/5-SnareRest.wav"
+            velocityMin: 0.2835
+            velocityMax: 0.378
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/SnareRest1/6-SnareRest.wav"
+            velocityMin: 0.2835
+            velocityMax: 0.378
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/SnareRest1/7-SnareRest.wav"
+            velocityMin: 0.2835
+            velocityMax: 0.378
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/SnareRest1/5-SnareRest.wav"
+            velocityMin: 0.3858
+            velocityMax: 0.4803
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/SnareRest1/6-SnareRest.wav"
+            velocityMin: 0.3858
+            velocityMax: 0.4803
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/SnareRest1/7-SnareRest.wav"
+            velocityMin: 0.3858
+            velocityMax: 0.4803
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/SnareRest1/8-SnareRest.wav"
+            velocityMin: 0.3858
+            velocityMax: 0.4803
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/SnareRest1/6-SnareRest.wav"
+            velocityMin: 0.4882
+            velocityMax: 0.5827
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/SnareRest1/7-SnareRest.wav"
+            velocityMin: 0.4882
+            velocityMax: 0.5827
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/SnareRest1/8-SnareRest.wav"
+            velocityMin: 0.4882
+            velocityMax: 0.5827
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/SnareRest1/9-SnareRest.wav"
+            velocityMin: 0.4882
+            velocityMax: 0.5827
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/SnareRest1/7-SnareRest.wav"
+            velocityMin: 0.5906
+            velocityMax: 0.685
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/SnareRest1/8-SnareRest.wav"
+            velocityMin: 0.5906
+            velocityMax: 0.685
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/SnareRest1/9-SnareRest.wav"
+            velocityMin: 0.5906
+            velocityMax: 0.685
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/SnareRest1/10-SnareRest.wav"
+            velocityMin: 0.5906
+            velocityMax: 0.685
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/SnareRest1/8-SnareRest.wav"
+            velocityMin: 0.6929
+            velocityMax: 0.7874
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/SnareRest1/9-SnareRest.wav"
+            velocityMin: 0.6929
+            velocityMax: 0.7874
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/SnareRest1/10-SnareRest.wav"
+            velocityMin: 0.6929
+            velocityMax: 0.7874
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/SnareRest1/11-SnareRest.wav"
+            velocityMin: 0.6929
+            velocityMax: 0.7874
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/SnareRest1/9-SnareRest.wav"
+            velocityMin: 0.7953
+            velocityMax: 0.8898
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/SnareRest1/10-SnareRest.wav"
+            velocityMin: 0.7953
+            velocityMax: 0.8898
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/SnareRest1/11-SnareRest.wav"
+            velocityMin: 0.7953
+            velocityMax: 0.8898
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/SnareRest1/12-SnareRest.wav"
+            velocityMin: 0.7953
+            velocityMax: 0.8898
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/SnareRest1/9-SnareRest.wav"
+            velocityMin: 0.8976
+            velocityMax: 0.9528
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/SnareRest1/10-SnareRest.wav"
+            velocityMin: 0.8976
+            velocityMax: 0.9528
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/SnareRest1/11-SnareRest.wav"
+            velocityMin: 0.8976
+            velocityMax: 0.9528
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/SnareRest1/12-SnareRest.wav"
+            velocityMin: 0.8976
+            velocityMax: 0.9528
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/SnareRest1/13-SnareRest.wav"
+            velocityMin: 0.8976
+            velocityMax: 0.9528
+            gain: 1.0
+            roundRobinGroup: 4
+          - sampleFile: "samples/SnareRest1/10-SnareRest.wav"
+            velocityMin: 0.9606
+            velocityMax: 1
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/SnareRest1/11-SnareRest.wav"
+            velocityMin: 0.9606
+            velocityMax: 1
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/SnareRest1/12-SnareRest.wav"
+            velocityMin: 0.9606
+            velocityMax: 1
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/SnareRest1/13-SnareRest.wav"
+            velocityMin: 0.9606
+            velocityMax: 1
+            gain: 1.0
+            roundRobinGroup: 3
+  # ----- Snare (MIDI 38) -----
+  - name: "Snare"
+    midiNote: 38
+    articulations:
+      - name: "Hit"
+        chokeGroup: -1
+        attackTime: 0.001
+        holdTime: 0
+        decayTime: 0.3
+        sustainLevel: 0
+        releaseTime: 0.15
+        layers:
+          - sampleFile: "samples/Snare1/5-Snare.wav"
+            velocityMin: 0
+            velocityMax: 0.063
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Snare1/10-Snare.wav"
+            velocityMin: 0
+            velocityMax: 0.063
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Snare1/15-Snare.wav"
+            velocityMin: 0
+            velocityMax: 0.063
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Snare1/20-Snare.wav"
+            velocityMin: 0
+            velocityMax: 0.063
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/Snare1/10-Snare.wav"
+            velocityMin: 0.0709
+            velocityMax: 0.1339
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Snare1/15-Snare.wav"
+            velocityMin: 0.0709
+            velocityMax: 0.1339
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Snare1/20-Snare.wav"
+            velocityMin: 0.0709
+            velocityMax: 0.1339
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Snare1/25-Snare.wav"
+            velocityMin: 0.0709
+            velocityMax: 0.1339
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/Snare1/15-Snare.wav"
+            velocityMin: 0.1417
+            velocityMax: 0.2047
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Snare1/20-Snare.wav"
+            velocityMin: 0.1417
+            velocityMax: 0.2047
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Snare1/25-Snare.wav"
+            velocityMin: 0.1417
+            velocityMax: 0.2047
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Snare1/30-Snare.wav"
+            velocityMin: 0.1417
+            velocityMax: 0.2047
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/Snare1/20-Snare.wav"
+            velocityMin: 0.2126
+            velocityMax: 0.2756
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Snare1/25-Snare.wav"
+            velocityMin: 0.2126
+            velocityMax: 0.2756
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Snare1/30-Snare.wav"
+            velocityMin: 0.2126
+            velocityMax: 0.2756
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Snare1/33-Snare.wav"
+            velocityMin: 0.2126
+            velocityMax: 0.2756
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/Snare1/25-Snare.wav"
+            velocityMin: 0.2835
+            velocityMax: 0.3465
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Snare1/30-Snare.wav"
+            velocityMin: 0.2835
+            velocityMax: 0.3465
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Snare1/33-Snare.wav"
+            velocityMin: 0.2835
+            velocityMax: 0.3465
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Snare1/36-Snare.wav"
+            velocityMin: 0.2835
+            velocityMax: 0.3465
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/Snare1/30-Snare.wav"
+            velocityMin: 0.3543
+            velocityMax: 0.4173
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Snare1/33-Snare.wav"
+            velocityMin: 0.3543
+            velocityMax: 0.4173
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Snare1/36-Snare.wav"
+            velocityMin: 0.3543
+            velocityMax: 0.4173
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Snare1/39-Snare.wav"
+            velocityMin: 0.3543
+            velocityMax: 0.4173
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/Snare1/33-Snare.wav"
+            velocityMin: 0.4252
+            velocityMax: 0.4882
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Snare1/36-Snare.wav"
+            velocityMin: 0.4252
+            velocityMax: 0.4882
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Snare1/39-Snare.wav"
+            velocityMin: 0.4252
+            velocityMax: 0.4882
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Snare1/42-Snare.wav"
+            velocityMin: 0.4252
+            velocityMax: 0.4882
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/Snare1/36-Snare.wav"
+            velocityMin: 0.4961
+            velocityMax: 0.5591
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Snare1/39-Snare.wav"
+            velocityMin: 0.4961
+            velocityMax: 0.5591
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Snare1/42-Snare.wav"
+            velocityMin: 0.4961
+            velocityMax: 0.5591
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Snare1/45-Snare.wav"
+            velocityMin: 0.4961
+            velocityMax: 0.5591
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/Snare1/39-Snare.wav"
+            velocityMin: 0.5669
+            velocityMax: 0.6299
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Snare1/42-Snare.wav"
+            velocityMin: 0.5669
+            velocityMax: 0.6299
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Snare1/45-Snare.wav"
+            velocityMin: 0.5669
+            velocityMax: 0.6299
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Snare1/48-Snare.wav"
+            velocityMin: 0.5669
+            velocityMax: 0.6299
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/Snare1/42-Snare.wav"
+            velocityMin: 0.6378
+            velocityMax: 0.7008
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Snare1/45-Snare.wav"
+            velocityMin: 0.6378
+            velocityMax: 0.7008
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Snare1/48-Snare.wav"
+            velocityMin: 0.6378
+            velocityMax: 0.7008
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Snare1/51-Snare.wav"
+            velocityMin: 0.6378
+            velocityMax: 0.7008
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/Snare1/42-Snare.wav"
+            velocityMin: 0.7087
+            velocityMax: 0.7717
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Snare1/45-Snare.wav"
+            velocityMin: 0.7087
+            velocityMax: 0.7717
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Snare1/48-Snare.wav"
+            velocityMin: 0.7087
+            velocityMax: 0.7717
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Snare1/51-Snare.wav"
+            velocityMin: 0.7087
+            velocityMax: 0.7717
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/Snare1/53-Snare.wav"
+            velocityMin: 0.7087
+            velocityMax: 0.7717
+            gain: 1.0
+            roundRobinGroup: 4
+          - sampleFile: "samples/Snare1/45-Snare.wav"
+            velocityMin: 0.7795
+            velocityMax: 0.8504
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Snare1/48-Snare.wav"
+            velocityMin: 0.7795
+            velocityMax: 0.8504
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Snare1/51-Snare.wav"
+            velocityMin: 0.7795
+            velocityMax: 0.8504
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Snare1/53-Snare.wav"
+            velocityMin: 0.7795
+            velocityMax: 0.8504
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/Snare1/55-Snare.wav"
+            velocityMin: 0.7795
+            velocityMax: 0.8504
+            gain: 1.0
+            roundRobinGroup: 4
+          - sampleFile: "samples/Snare1/48-Snare.wav"
+            velocityMin: 0.8583
+            velocityMax: 0.9528
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Snare1/51-Snare.wav"
+            velocityMin: 0.8583
+            velocityMax: 0.9528
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Snare1/53-Snare.wav"
+            velocityMin: 0.8583
+            velocityMax: 0.9528
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Snare1/55-Snare.wav"
+            velocityMin: 0.8583
+            velocityMax: 0.9528
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/Snare1/56-Snare.wav"
+            velocityMin: 0.8583
+            velocityMax: 0.9528
+            gain: 1.0
+            roundRobinGroup: 4
+          - sampleFile: "samples/Snare1/51-Snare.wav"
+            velocityMin: 0.9606
+            velocityMax: 1
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Snare1/53-Snare.wav"
+            velocityMin: 0.9606
+            velocityMax: 1
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Snare1/55-Snare.wav"
+            velocityMin: 0.9606
+            velocityMax: 1
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Snare1/56-Snare.wav"
+            velocityMin: 0.9606
+            velocityMax: 1
+            gain: 1.0
+            roundRobinGroup: 3
+  # ----- Snare Rest (MIDI 39) -----
+  - name: "Snare Rest"
+    midiNote: 39
+    articulations:
+      - name: "Hit"
+        chokeGroup: -1
+        attackTime: 0.001
+        holdTime: 0
+        decayTime: 0.1
+        sustainLevel: 0
+        releaseTime: 0.05
+        layers:
+          - sampleFile: "samples/SnareRest2/1-SnareRest.wav"
+            velocityMin: 0
+            velocityMax: 0.0866
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/SnareRest2/2-SnareRest.wav"
+            velocityMin: 0
+            velocityMax: 0.0866
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/SnareRest2/3-SnareRest.wav"
+            velocityMin: 0
+            velocityMax: 0.0866
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/SnareRest2/2-SnareRest.wav"
+            velocityMin: 0.0945
+            velocityMax: 0.1811
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/SnareRest2/3-SnareRest.wav"
+            velocityMin: 0.0945
+            velocityMax: 0.1811
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/SnareRest2/4-SnareRest.wav"
+            velocityMin: 0.0945
+            velocityMax: 0.1811
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/SnareRest2/3-SnareRest.wav"
+            velocityMin: 0.189
+            velocityMax: 0.2756
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/SnareRest2/4-SnareRest.wav"
+            velocityMin: 0.189
+            velocityMax: 0.2756
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/SnareRest2/5-SnareRest.wav"
+            velocityMin: 0.189
+            velocityMax: 0.2756
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/SnareRest2/4-SnareRest.wav"
+            velocityMin: 0.2835
+            velocityMax: 0.3701
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/SnareRest2/5-SnareRest.wav"
+            velocityMin: 0.2835
+            velocityMax: 0.3701
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/SnareRest2/6-SnareRest.wav"
+            velocityMin: 0.2835
+            velocityMax: 0.3701
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/SnareRest2/5-SnareRest.wav"
+            velocityMin: 0.378
+            velocityMax: 0.4646
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/SnareRest2/6-SnareRest.wav"
+            velocityMin: 0.378
+            velocityMax: 0.4646
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/SnareRest2/7-SnareRest.wav"
+            velocityMin: 0.378
+            velocityMax: 0.4646
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/SnareRest2/6-SnareRest.wav"
+            velocityMin: 0.4724
+            velocityMax: 0.5591
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/SnareRest2/7-SnareRest.wav"
+            velocityMin: 0.4724
+            velocityMax: 0.5591
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/SnareRest2/8-SnareRest.wav"
+            velocityMin: 0.4724
+            velocityMax: 0.5591
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/SnareRest2/7-SnareRest.wav"
+            velocityMin: 0.5669
+            velocityMax: 0.6535
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/SnareRest2/8-SnareRest.wav"
+            velocityMin: 0.5669
+            velocityMax: 0.6535
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/SnareRest2/9-SnareRest.wav"
+            velocityMin: 0.5669
+            velocityMax: 0.6535
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/SnareRest2/8-SnareRest.wav"
+            velocityMin: 0.6614
+            velocityMax: 0.748
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/SnareRest2/9-SnareRest.wav"
+            velocityMin: 0.6614
+            velocityMax: 0.748
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/SnareRest2/10-SnareRest.wav"
+            velocityMin: 0.6614
+            velocityMax: 0.748
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/SnareRest2/9-SnareRest.wav"
+            velocityMin: 0.7559
+            velocityMax: 0.8583
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/SnareRest2/10-SnareRest.wav"
+            velocityMin: 0.7559
+            velocityMax: 0.8583
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/SnareRest2/12-SnareRest.wav"
+            velocityMin: 0.7559
+            velocityMax: 0.8583
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/SnareRest2/9-SnareRest.wav"
+            velocityMin: 0.8661
+            velocityMax: 0.9685
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/SnareRest2/10-SnareRest.wav"
+            velocityMin: 0.8661
+            velocityMax: 0.9685
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/SnareRest2/12-SnareRest.wav"
+            velocityMin: 0.8661
+            velocityMax: 0.9685
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/SnareRest2/13-SnareRest.wav"
+            velocityMin: 0.8661
+            velocityMax: 0.9685
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/SnareRest2/10-SnareRest.wav"
+            velocityMin: 0.9764
+            velocityMax: 1
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/SnareRest2/12-SnareRest.wav"
+            velocityMin: 0.9764
+            velocityMax: 1
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/SnareRest2/13-SnareRest.wav"
+            velocityMin: 0.9764
+            velocityMax: 1
+            gain: 1.0
+            roundRobinGroup: 2
+  # ----- Snare 2 (MIDI 40) -----
+  - name: "Snare 2"
+    midiNote: 40
+    articulations:
+      - name: "Hit"
+        chokeGroup: -1
+        attackTime: 0.001
+        holdTime: 0
+        decayTime: 0.3
+        sustainLevel: 0
+        releaseTime: 0.15
+        layers:
+          - sampleFile: "samples/Snare2/5-Snare.wav"
+            velocityMin: 0
+            velocityMax: 0.063
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Snare2/10-Snare.wav"
+            velocityMin: 0
+            velocityMax: 0.063
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Snare2/15-Snare.wav"
+            velocityMin: 0
+            velocityMax: 0.063
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Snare2/20-Snare.wav"
+            velocityMin: 0
+            velocityMax: 0.063
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/Snare2/10-Snare.wav"
+            velocityMin: 0.0709
+            velocityMax: 0.1339
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Snare2/15-Snare.wav"
+            velocityMin: 0.0709
+            velocityMax: 0.1339
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Snare2/20-Snare.wav"
+            velocityMin: 0.0709
+            velocityMax: 0.1339
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Snare2/25-Snare.wav"
+            velocityMin: 0.0709
+            velocityMax: 0.1339
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/Snare2/15-Snare.wav"
+            velocityMin: 0.1417
+            velocityMax: 0.2047
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Snare2/20-Snare.wav"
+            velocityMin: 0.1417
+            velocityMax: 0.2047
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Snare2/25-Snare.wav"
+            velocityMin: 0.1417
+            velocityMax: 0.2047
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Snare2/30-Snare.wav"
+            velocityMin: 0.1417
+            velocityMax: 0.2047
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/Snare2/20-Snare.wav"
+            velocityMin: 0.2126
+            velocityMax: 0.2756
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Snare2/25-Snare.wav"
+            velocityMin: 0.2126
+            velocityMax: 0.2756
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Snare2/30-Snare.wav"
+            velocityMin: 0.2126
+            velocityMax: 0.2756
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Snare2/33-Snare.wav"
+            velocityMin: 0.2126
+            velocityMax: 0.2756
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/Snare2/25-Snare.wav"
+            velocityMin: 0.2835
+            velocityMax: 0.3465
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Snare2/30-Snare.wav"
+            velocityMin: 0.2835
+            velocityMax: 0.3465
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Snare2/33-Snare.wav"
+            velocityMin: 0.2835
+            velocityMax: 0.3465
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Snare2/36-Snare.wav"
+            velocityMin: 0.2835
+            velocityMax: 0.3465
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/Snare2/30-Snare.wav"
+            velocityMin: 0.3543
+            velocityMax: 0.4173
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Snare2/33-Snare.wav"
+            velocityMin: 0.3543
+            velocityMax: 0.4173
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Snare2/36-Snare.wav"
+            velocityMin: 0.3543
+            velocityMax: 0.4173
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Snare2/39-Snare.wav"
+            velocityMin: 0.3543
+            velocityMax: 0.4173
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/Snare2/33-Snare.wav"
+            velocityMin: 0.4252
+            velocityMax: 0.4882
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Snare2/36-Snare.wav"
+            velocityMin: 0.4252
+            velocityMax: 0.4882
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Snare2/39-Snare.wav"
+            velocityMin: 0.4252
+            velocityMax: 0.4882
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Snare2/42-Snare.wav"
+            velocityMin: 0.4252
+            velocityMax: 0.4882
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/Snare2/36-Snare.wav"
+            velocityMin: 0.4961
+            velocityMax: 0.5591
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Snare2/39-Snare.wav"
+            velocityMin: 0.4961
+            velocityMax: 0.5591
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Snare2/42-Snare.wav"
+            velocityMin: 0.4961
+            velocityMax: 0.5591
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Snare2/45-Snare.wav"
+            velocityMin: 0.4961
+            velocityMax: 0.5591
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/Snare2/39-Snare.wav"
+            velocityMin: 0.5669
+            velocityMax: 0.6299
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Snare2/42-Snare.wav"
+            velocityMin: 0.5669
+            velocityMax: 0.6299
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Snare2/45-Snare.wav"
+            velocityMin: 0.5669
+            velocityMax: 0.6299
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Snare2/48-Snare.wav"
+            velocityMin: 0.5669
+            velocityMax: 0.6299
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/Snare2/42-Snare.wav"
+            velocityMin: 0.6378
+            velocityMax: 0.7008
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Snare2/45-Snare.wav"
+            velocityMin: 0.6378
+            velocityMax: 0.7008
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Snare2/48-Snare.wav"
+            velocityMin: 0.6378
+            velocityMax: 0.7008
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Snare2/51-Snare.wav"
+            velocityMin: 0.6378
+            velocityMax: 0.7008
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/Snare2/42-Snare.wav"
+            velocityMin: 0.7087
+            velocityMax: 0.7717
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Snare2/45-Snare.wav"
+            velocityMin: 0.7087
+            velocityMax: 0.7717
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Snare2/48-Snare.wav"
+            velocityMin: 0.7087
+            velocityMax: 0.7717
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Snare2/51-Snare.wav"
+            velocityMin: 0.7087
+            velocityMax: 0.7717
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/Snare2/53-Snare.wav"
+            velocityMin: 0.7087
+            velocityMax: 0.7717
+            gain: 1.0
+            roundRobinGroup: 4
+          - sampleFile: "samples/Snare2/45-Snare.wav"
+            velocityMin: 0.7795
+            velocityMax: 0.8504
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Snare2/48-Snare.wav"
+            velocityMin: 0.7795
+            velocityMax: 0.8504
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Snare2/51-Snare.wav"
+            velocityMin: 0.7795
+            velocityMax: 0.8504
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Snare2/53-Snare.wav"
+            velocityMin: 0.7795
+            velocityMax: 0.8504
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/Snare2/55-Snare.wav"
+            velocityMin: 0.7795
+            velocityMax: 0.8504
+            gain: 1.0
+            roundRobinGroup: 4
+          - sampleFile: "samples/Snare2/48-Snare.wav"
+            velocityMin: 0.8583
+            velocityMax: 0.9528
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Snare2/51-Snare.wav"
+            velocityMin: 0.8583
+            velocityMax: 0.9528
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Snare2/53-Snare.wav"
+            velocityMin: 0.8583
+            velocityMax: 0.9528
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Snare2/55-Snare.wav"
+            velocityMin: 0.8583
+            velocityMax: 0.9528
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/Snare2/56-Snare.wav"
+            velocityMin: 0.8583
+            velocityMax: 0.9528
+            gain: 1.0
+            roundRobinGroup: 4
+          - sampleFile: "samples/Snare2/51-Snare.wav"
+            velocityMin: 0.9606
+            velocityMax: 1
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Snare2/53-Snare.wav"
+            velocityMin: 0.9606
+            velocityMax: 1
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Snare2/55-Snare.wav"
+            velocityMin: 0.9606
+            velocityMax: 1
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Snare2/56-Snare.wav"
+            velocityMin: 0.9606
+            velocityMax: 1
+            gain: 1.0
+            roundRobinGroup: 3
+  # ----- Floor Tom (MIDI 41) -----
+  - name: "Floor Tom"
+    midiNote: 41
+    articulations:
+      - name: "Hit"
+        chokeGroup: -1
+        attackTime: 0.001
+        holdTime: 0
+        decayTime: 0.5
+        sustainLevel: 0
+        releaseTime: 0.2
+        layers:
+          - sampleFile: "samples/Tom4/1-Tom4.wav"
+            velocityMin: 0
+            velocityMax: 0.063
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Tom4/2-Tom4.wav"
+            velocityMin: 0
+            velocityMax: 0.063
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Tom4/4-Tom4.wav"
+            velocityMin: 0
+            velocityMax: 0.063
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Tom4/6-Tom4.wav"
+            velocityMin: 0
+            velocityMax: 0.063
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/Tom4/2-Tom4.wav"
+            velocityMin: 0.0709
+            velocityMax: 0.1339
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Tom4/4-Tom4.wav"
+            velocityMin: 0.0709
+            velocityMax: 0.1339
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Tom4/6-Tom4.wav"
+            velocityMin: 0.0709
+            velocityMax: 0.1339
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Tom4/8-Tom4.wav"
+            velocityMin: 0.0709
+            velocityMax: 0.1339
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/Tom4/4-Tom4.wav"
+            velocityMin: 0.1417
+            velocityMax: 0.2047
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Tom4/6-Tom4.wav"
+            velocityMin: 0.1417
+            velocityMax: 0.2047
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Tom4/8-Tom4.wav"
+            velocityMin: 0.1417
+            velocityMax: 0.2047
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Tom4/10-Tom4.wav"
+            velocityMin: 0.1417
+            velocityMax: 0.2047
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/Tom4/6-Tom4.wav"
+            velocityMin: 0.2126
+            velocityMax: 0.2756
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Tom4/8-Tom4.wav"
+            velocityMin: 0.2126
+            velocityMax: 0.2756
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Tom4/10-Tom4.wav"
+            velocityMin: 0.2126
+            velocityMax: 0.2756
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Tom4/11-Tom4.wav"
+            velocityMin: 0.2126
+            velocityMax: 0.2756
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/Tom4/8-Tom4.wav"
+            velocityMin: 0.2835
+            velocityMax: 0.3465
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Tom4/10-Tom4.wav"
+            velocityMin: 0.2835
+            velocityMax: 0.3465
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Tom4/11-Tom4.wav"
+            velocityMin: 0.2835
+            velocityMax: 0.3465
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Tom4/12-Tom4.wav"
+            velocityMin: 0.2835
+            velocityMax: 0.3465
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/Tom4/10-Tom4.wav"
+            velocityMin: 0.3543
+            velocityMax: 0.4173
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Tom4/11-Tom4.wav"
+            velocityMin: 0.3543
+            velocityMax: 0.4173
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Tom4/12-Tom4.wav"
+            velocityMin: 0.3543
+            velocityMax: 0.4173
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Tom4/13-Tom4.wav"
+            velocityMin: 0.3543
+            velocityMax: 0.4173
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/Tom4/11-Tom4.wav"
+            velocityMin: 0.4252
+            velocityMax: 0.4882
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Tom4/12-Tom4.wav"
+            velocityMin: 0.4252
+            velocityMax: 0.4882
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Tom4/13-Tom4.wav"
+            velocityMin: 0.4252
+            velocityMax: 0.4882
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Tom4/14-Tom4.wav"
+            velocityMin: 0.4252
+            velocityMax: 0.4882
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/Tom4/12-Tom4.wav"
+            velocityMin: 0.4961
+            velocityMax: 0.5591
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Tom4/13-Tom4.wav"
+            velocityMin: 0.4961
+            velocityMax: 0.5591
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Tom4/14-Tom4.wav"
+            velocityMin: 0.4961
+            velocityMax: 0.5591
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Tom4/15-Tom4.wav"
+            velocityMin: 0.4961
+            velocityMax: 0.5591
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/Tom4/13-Tom4.wav"
+            velocityMin: 0.5669
+            velocityMax: 0.6299
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Tom4/14-Tom4.wav"
+            velocityMin: 0.5669
+            velocityMax: 0.6299
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Tom4/15-Tom4.wav"
+            velocityMin: 0.5669
+            velocityMax: 0.6299
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Tom4/16-Tom4.wav"
+            velocityMin: 0.5669
+            velocityMax: 0.6299
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/Tom4/14-Tom4.wav"
+            velocityMin: 0.6378
+            velocityMax: 0.7008
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Tom4/15-Tom4.wav"
+            velocityMin: 0.6378
+            velocityMax: 0.7008
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Tom4/16-Tom4.wav"
+            velocityMin: 0.6378
+            velocityMax: 0.7008
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Tom4/17-Tom4.wav"
+            velocityMin: 0.6378
+            velocityMax: 0.7008
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/Tom4/14-Tom4.wav"
+            velocityMin: 0.7087
+            velocityMax: 0.7717
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Tom4/15-Tom4.wav"
+            velocityMin: 0.7087
+            velocityMax: 0.7717
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Tom4/16-Tom4.wav"
+            velocityMin: 0.7087
+            velocityMax: 0.7717
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Tom4/17-Tom4.wav"
+            velocityMin: 0.7087
+            velocityMax: 0.7717
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/Tom4/18-Tom4.wav"
+            velocityMin: 0.7087
+            velocityMax: 0.7717
+            gain: 1.0
+            roundRobinGroup: 4
+          - sampleFile: "samples/Tom4/15-Tom4.wav"
+            velocityMin: 0.7795
+            velocityMax: 0.8504
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Tom4/16-Tom4.wav"
+            velocityMin: 0.7795
+            velocityMax: 0.8504
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Tom4/17-Tom4.wav"
+            velocityMin: 0.7795
+            velocityMax: 0.8504
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Tom4/18-Tom4.wav"
+            velocityMin: 0.7795
+            velocityMax: 0.8504
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/Tom4/19-Tom4.wav"
+            velocityMin: 0.7795
+            velocityMax: 0.8504
+            gain: 1.0
+            roundRobinGroup: 4
+          - sampleFile: "samples/Tom4/16-Tom4.wav"
+            velocityMin: 0.8583
+            velocityMax: 0.9606
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Tom4/17-Tom4.wav"
+            velocityMin: 0.8583
+            velocityMax: 0.9606
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Tom4/18-Tom4.wav"
+            velocityMin: 0.8583
+            velocityMax: 0.9606
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Tom4/19-Tom4.wav"
+            velocityMin: 0.8583
+            velocityMax: 0.9606
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/Tom4/20-Tom4.wav"
+            velocityMin: 0.8583
+            velocityMax: 0.9606
+            gain: 1.0
+            roundRobinGroup: 4
+          - sampleFile: "samples/Tom4/17-Tom4.wav"
+            velocityMin: 0.9685
+            velocityMax: 1
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Tom4/18-Tom4.wav"
+            velocityMin: 0.9685
+            velocityMax: 1
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Tom4/19-Tom4.wav"
+            velocityMin: 0.9685
+            velocityMax: 1
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Tom4/20-Tom4.wav"
+            velocityMin: 0.9685
+            velocityMax: 1
+            gain: 1.0
+            roundRobinGroup: 3
+  # ----- Hi-Hat Closed (MIDI 42) -----
+  - name: "Hi-Hat Closed"
+    midiNote: 42
+    articulations:
+      - name: "Hit"
+        chokeGroup: 0
+        attackTime: 0.001
+        holdTime: 0
+        decayTime: 0.1
+        sustainLevel: 0
+        releaseTime: 0.05
+        layers:
+          - sampleFile: "samples/HihatClosed/1-HihatClosed.wav"
+            velocityMin: 0
+            velocityMax: 0.063
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/HihatClosed/3-HihatClosed.wav"
+            velocityMin: 0
+            velocityMax: 0.063
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/HihatClosed/5-HihatClosed.wav"
+            velocityMin: 0
+            velocityMax: 0.063
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/HihatClosed/8-HihatClosed.wav"
+            velocityMin: 0
+            velocityMax: 0.063
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/HihatClosed/3-HihatClosed.wav"
+            velocityMin: 0.0709
+            velocityMax: 0.1339
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/HihatClosed/5-HihatClosed.wav"
+            velocityMin: 0.0709
+            velocityMax: 0.1339
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/HihatClosed/8-HihatClosed.wav"
+            velocityMin: 0.0709
+            velocityMax: 0.1339
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/HihatClosed/10-HihatClosed.wav"
+            velocityMin: 0.0709
+            velocityMax: 0.1339
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/HihatClosed/5-HihatClosed.wav"
+            velocityMin: 0.1417
+            velocityMax: 0.2047
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/HihatClosed/8-HihatClosed.wav"
+            velocityMin: 0.1417
+            velocityMax: 0.2047
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/HihatClosed/10-HihatClosed.wav"
+            velocityMin: 0.1417
+            velocityMax: 0.2047
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/HihatClosed/12-HihatClosed.wav"
+            velocityMin: 0.1417
+            velocityMax: 0.2047
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/HihatClosed/8-HihatClosed.wav"
+            velocityMin: 0.2126
+            velocityMax: 0.2756
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/HihatClosed/10-HihatClosed.wav"
+            velocityMin: 0.2126
+            velocityMax: 0.2756
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/HihatClosed/12-HihatClosed.wav"
+            velocityMin: 0.2126
+            velocityMax: 0.2756
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/HihatClosed/14-HihatClosed.wav"
+            velocityMin: 0.2126
+            velocityMax: 0.2756
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/HihatClosed/10-HihatClosed.wav"
+            velocityMin: 0.2835
+            velocityMax: 0.3465
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/HihatClosed/12-HihatClosed.wav"
+            velocityMin: 0.2835
+            velocityMax: 0.3465
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/HihatClosed/14-HihatClosed.wav"
+            velocityMin: 0.2835
+            velocityMax: 0.3465
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/HihatClosed/16-HihatClosed.wav"
+            velocityMin: 0.2835
+            velocityMax: 0.3465
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/HihatClosed/12-HihatClosed.wav"
+            velocityMin: 0.3543
+            velocityMax: 0.4173
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/HihatClosed/14-HihatClosed.wav"
+            velocityMin: 0.3543
+            velocityMax: 0.4173
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/HihatClosed/16-HihatClosed.wav"
+            velocityMin: 0.3543
+            velocityMax: 0.4173
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/HihatClosed/18-HihatClosed.wav"
+            velocityMin: 0.3543
+            velocityMax: 0.4173
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/HihatClosed/14-HihatClosed.wav"
+            velocityMin: 0.4252
+            velocityMax: 0.4882
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/HihatClosed/16-HihatClosed.wav"
+            velocityMin: 0.4252
+            velocityMax: 0.4882
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/HihatClosed/18-HihatClosed.wav"
+            velocityMin: 0.4252
+            velocityMax: 0.4882
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/HihatClosed/20-HihatClosed.wav"
+            velocityMin: 0.4252
+            velocityMax: 0.4882
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/HihatClosed/16-HihatClosed.wav"
+            velocityMin: 0.4961
+            velocityMax: 0.5591
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/HihatClosed/18-HihatClosed.wav"
+            velocityMin: 0.4961
+            velocityMax: 0.5591
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/HihatClosed/20-HihatClosed.wav"
+            velocityMin: 0.4961
+            velocityMax: 0.5591
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/HihatClosed/22-HihatClosed.wav"
+            velocityMin: 0.4961
+            velocityMax: 0.5591
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/HihatClosed/18-HihatClosed.wav"
+            velocityMin: 0.5669
+            velocityMax: 0.6299
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/HihatClosed/20-HihatClosed.wav"
+            velocityMin: 0.5669
+            velocityMax: 0.6299
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/HihatClosed/22-HihatClosed.wav"
+            velocityMin: 0.5669
+            velocityMax: 0.6299
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/HihatClosed/24-HihatClosed.wav"
+            velocityMin: 0.5669
+            velocityMax: 0.6299
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/HihatClosed/20-HihatClosed.wav"
+            velocityMin: 0.6378
+            velocityMax: 0.7008
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/HihatClosed/22-HihatClosed.wav"
+            velocityMin: 0.6378
+            velocityMax: 0.7008
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/HihatClosed/24-HihatClosed.wav"
+            velocityMin: 0.6378
+            velocityMax: 0.7008
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/HihatClosed/26-HihatClosed.wav"
+            velocityMin: 0.6378
+            velocityMax: 0.7008
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/HihatClosed/20-HihatClosed.wav"
+            velocityMin: 0.7087
+            velocityMax: 0.7717
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/HihatClosed/22-HihatClosed.wav"
+            velocityMin: 0.7087
+            velocityMax: 0.7717
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/HihatClosed/24-HihatClosed.wav"
+            velocityMin: 0.7087
+            velocityMax: 0.7717
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/HihatClosed/26-HihatClosed.wav"
+            velocityMin: 0.7087
+            velocityMax: 0.7717
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/HihatClosed/27-HihatClosed.wav"
+            velocityMin: 0.7087
+            velocityMax: 0.7717
+            gain: 1.0
+            roundRobinGroup: 4
+          - sampleFile: "samples/HihatClosed/22-HihatClosed.wav"
+            velocityMin: 0.7795
+            velocityMax: 0.8504
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/HihatClosed/24-HihatClosed.wav"
+            velocityMin: 0.7795
+            velocityMax: 0.8504
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/HihatClosed/26-HihatClosed.wav"
+            velocityMin: 0.7795
+            velocityMax: 0.8504
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/HihatClosed/27-HihatClosed.wav"
+            velocityMin: 0.7795
+            velocityMax: 0.8504
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/HihatClosed/28-HihatClosed.wav"
+            velocityMin: 0.7795
+            velocityMax: 0.8504
+            gain: 1.0
+            roundRobinGroup: 4
+          - sampleFile: "samples/HihatClosed/24-HihatClosed.wav"
+            velocityMin: 0.8583
+            velocityMax: 0.9528
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/HihatClosed/26-HihatClosed.wav"
+            velocityMin: 0.8583
+            velocityMax: 0.9528
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/HihatClosed/27-HihatClosed.wav"
+            velocityMin: 0.8583
+            velocityMax: 0.9528
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/HihatClosed/28-HihatClosed.wav"
+            velocityMin: 0.8583
+            velocityMax: 0.9528
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/HihatClosed/29-HihatClosed.wav"
+            velocityMin: 0.8583
+            velocityMax: 0.9528
+            gain: 1.0
+            roundRobinGroup: 4
+          - sampleFile: "samples/HihatClosed/26-HihatClosed.wav"
+            velocityMin: 0.9606
+            velocityMax: 1
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/HihatClosed/27-HihatClosed.wav"
+            velocityMin: 0.9606
+            velocityMax: 1
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/HihatClosed/28-HihatClosed.wav"
+            velocityMin: 0.9606
+            velocityMax: 1
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/HihatClosed/29-HihatClosed.wav"
+            velocityMin: 0.9606
+            velocityMax: 1
+            gain: 1.0
+            roundRobinGroup: 3
+  # ----- Rack Tom 3 (Low) (MIDI 45) -----
+  - name: "Rack Tom 3 (Low)"
+    midiNote: 45
+    articulations:
+      - name: "Hit"
+        chokeGroup: -1
+        attackTime: 0.001
+        holdTime: 0
+        decayTime: 0.5
+        sustainLevel: 0
+        releaseTime: 0.2
+        layers:
+          - sampleFile: "samples/Tom3/1-Tom3.wav"
+            velocityMin: 0
+            velocityMax: 0.0709
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Tom3/2-Tom3.wav"
+            velocityMin: 0
+            velocityMax: 0.0709
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Tom3/3-Tom3.wav"
+            velocityMin: 0
+            velocityMax: 0.0709
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Tom3/4-Tom3.wav"
+            velocityMin: 0
+            velocityMax: 0.0709
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/Tom3/2-Tom3.wav"
+            velocityMin: 0.0787
+            velocityMax: 0.1496
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Tom3/3-Tom3.wav"
+            velocityMin: 0.0787
+            velocityMax: 0.1496
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Tom3/4-Tom3.wav"
+            velocityMin: 0.0787
+            velocityMax: 0.1496
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Tom3/5-Tom3.wav"
+            velocityMin: 0.0787
+            velocityMax: 0.1496
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/Tom3/3-Tom3.wav"
+            velocityMin: 0.1575
+            velocityMax: 0.2283
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Tom3/4-Tom3.wav"
+            velocityMin: 0.1575
+            velocityMax: 0.2283
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Tom3/5-Tom3.wav"
+            velocityMin: 0.1575
+            velocityMax: 0.2283
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Tom3/6-Tom3.wav"
+            velocityMin: 0.1575
+            velocityMax: 0.2283
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/Tom3/4-Tom3.wav"
+            velocityMin: 0.2362
+            velocityMax: 0.3071
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Tom3/5-Tom3.wav"
+            velocityMin: 0.2362
+            velocityMax: 0.3071
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Tom3/6-Tom3.wav"
+            velocityMin: 0.2362
+            velocityMax: 0.3071
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Tom3/7-Tom3.wav"
+            velocityMin: 0.2362
+            velocityMax: 0.3071
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/Tom3/5-Tom3.wav"
+            velocityMin: 0.315
+            velocityMax: 0.3858
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Tom3/6-Tom3.wav"
+            velocityMin: 0.315
+            velocityMax: 0.3858
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Tom3/7-Tom3.wav"
+            velocityMin: 0.315
+            velocityMax: 0.3858
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Tom3/8-Tom3.wav"
+            velocityMin: 0.315
+            velocityMax: 0.3858
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/Tom3/6-Tom3.wav"
+            velocityMin: 0.3937
+            velocityMax: 0.4646
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Tom3/7-Tom3.wav"
+            velocityMin: 0.3937
+            velocityMax: 0.4646
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Tom3/8-Tom3.wav"
+            velocityMin: 0.3937
+            velocityMax: 0.4646
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Tom3/9-Tom3.wav"
+            velocityMin: 0.3937
+            velocityMax: 0.4646
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/Tom3/7-Tom3.wav"
+            velocityMin: 0.4724
+            velocityMax: 0.5512
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Tom3/8-Tom3.wav"
+            velocityMin: 0.4724
+            velocityMax: 0.5512
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Tom3/9-Tom3.wav"
+            velocityMin: 0.4724
+            velocityMax: 0.5512
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Tom3/10-Tom3.wav"
+            velocityMin: 0.4724
+            velocityMax: 0.5512
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/Tom3/8-Tom3.wav"
+            velocityMin: 0.5591
+            velocityMax: 0.6378
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Tom3/9-Tom3.wav"
+            velocityMin: 0.5591
+            velocityMax: 0.6378
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Tom3/10-Tom3.wav"
+            velocityMin: 0.5591
+            velocityMax: 0.6378
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Tom3/11-Tom3.wav"
+            velocityMin: 0.5591
+            velocityMax: 0.6378
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/Tom3/9-Tom3.wav"
+            velocityMin: 0.6457
+            velocityMax: 0.7244
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Tom3/10-Tom3.wav"
+            velocityMin: 0.6457
+            velocityMax: 0.7244
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Tom3/11-Tom3.wav"
+            velocityMin: 0.6457
+            velocityMax: 0.7244
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Tom3/12-Tom3.wav"
+            velocityMin: 0.6457
+            velocityMax: 0.7244
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/Tom3/9-Tom3.wav"
+            velocityMin: 0.7323
+            velocityMax: 0.811
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Tom3/10-Tom3.wav"
+            velocityMin: 0.7323
+            velocityMax: 0.811
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Tom3/11-Tom3.wav"
+            velocityMin: 0.7323
+            velocityMax: 0.811
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Tom3/12-Tom3.wav"
+            velocityMin: 0.7323
+            velocityMax: 0.811
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/Tom3/13-Tom3.wav"
+            velocityMin: 0.7323
+            velocityMax: 0.811
+            gain: 1.0
+            roundRobinGroup: 4
+          - sampleFile: "samples/Tom3/10-Tom3.wav"
+            velocityMin: 0.8189
+            velocityMax: 0.8976
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Tom3/11-Tom3.wav"
+            velocityMin: 0.8189
+            velocityMax: 0.8976
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Tom3/12-Tom3.wav"
+            velocityMin: 0.8189
+            velocityMax: 0.8976
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Tom3/13-Tom3.wav"
+            velocityMin: 0.8189
+            velocityMax: 0.8976
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/Tom3/14-Tom3.wav"
+            velocityMin: 0.8189
+            velocityMax: 0.8976
+            gain: 1.0
+            roundRobinGroup: 4
+          - sampleFile: "samples/Tom3/11-Tom3.wav"
+            velocityMin: 0.9055
+            velocityMax: 0.9764
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Tom3/12-Tom3.wav"
+            velocityMin: 0.9055
+            velocityMax: 0.9764
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Tom3/13-Tom3.wav"
+            velocityMin: 0.9055
+            velocityMax: 0.9764
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Tom3/14-Tom3.wav"
+            velocityMin: 0.9055
+            velocityMax: 0.9764
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/Tom3/15-Tom3.wav"
+            velocityMin: 0.9055
+            velocityMax: 0.9764
+            gain: 1.0
+            roundRobinGroup: 4
+          - sampleFile: "samples/Tom3/12-Tom3.wav"
+            velocityMin: 0.9843
+            velocityMax: 1
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Tom3/13-Tom3.wav"
+            velocityMin: 0.9843
+            velocityMax: 1
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Tom3/14-Tom3.wav"
+            velocityMin: 0.9843
+            velocityMax: 1
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Tom3/15-Tom3.wav"
+            velocityMin: 0.9843
+            velocityMax: 1
+            gain: 1.0
+            roundRobinGroup: 3
+  # ----- Hi-Hat Open (MIDI 46) -----
+  - name: "Hi-Hat Open"
+    midiNote: 46
+    articulations:
+      - name: "Hit"
+        chokeGroup: 0
+        attackTime: 0.001
+        holdTime: 0
+        decayTime: 1
+        sustainLevel: 0.3
+        releaseTime: 0.5
+        layers:
+          - sampleFile: "samples/HihatOpen/2-HihatOpen.wav"
+            velocityMin: 0
+            velocityMax: 0.063
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/HihatOpen/4-HihatOpen.wav"
+            velocityMin: 0
+            velocityMax: 0.063
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/HihatOpen/6-HihatOpen.wav"
+            velocityMin: 0
+            velocityMax: 0.063
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/HihatOpen/8-HihatOpen.wav"
+            velocityMin: 0
+            velocityMax: 0.063
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/HihatOpen/4-HihatOpen.wav"
+            velocityMin: 0.0709
+            velocityMax: 0.1339
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/HihatOpen/6-HihatOpen.wav"
+            velocityMin: 0.0709
+            velocityMax: 0.1339
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/HihatOpen/8-HihatOpen.wav"
+            velocityMin: 0.0709
+            velocityMax: 0.1339
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/HihatOpen/10-HihatOpen.wav"
+            velocityMin: 0.0709
+            velocityMax: 0.1339
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/HihatOpen/6-HihatOpen.wav"
+            velocityMin: 0.1417
+            velocityMax: 0.2047
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/HihatOpen/8-HihatOpen.wav"
+            velocityMin: 0.1417
+            velocityMax: 0.2047
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/HihatOpen/10-HihatOpen.wav"
+            velocityMin: 0.1417
+            velocityMax: 0.2047
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/HihatOpen/12-HihatOpen.wav"
+            velocityMin: 0.1417
+            velocityMax: 0.2047
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/HihatOpen/8-HihatOpen.wav"
+            velocityMin: 0.2126
+            velocityMax: 0.2756
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/HihatOpen/10-HihatOpen.wav"
+            velocityMin: 0.2126
+            velocityMax: 0.2756
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/HihatOpen/12-HihatOpen.wav"
+            velocityMin: 0.2126
+            velocityMax: 0.2756
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/HihatOpen/14-HihatOpen.wav"
+            velocityMin: 0.2126
+            velocityMax: 0.2756
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/HihatOpen/10-HihatOpen.wav"
+            velocityMin: 0.2835
+            velocityMax: 0.3465
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/HihatOpen/12-HihatOpen.wav"
+            velocityMin: 0.2835
+            velocityMax: 0.3465
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/HihatOpen/14-HihatOpen.wav"
+            velocityMin: 0.2835
+            velocityMax: 0.3465
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/HihatOpen/16-HihatOpen.wav"
+            velocityMin: 0.2835
+            velocityMax: 0.3465
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/HihatOpen/12-HihatOpen.wav"
+            velocityMin: 0.3543
+            velocityMax: 0.4173
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/HihatOpen/14-HihatOpen.wav"
+            velocityMin: 0.3543
+            velocityMax: 0.4173
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/HihatOpen/16-HihatOpen.wav"
+            velocityMin: 0.3543
+            velocityMax: 0.4173
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/HihatOpen/18-HihatOpen.wav"
+            velocityMin: 0.3543
+            velocityMax: 0.4173
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/HihatOpen/14-HihatOpen.wav"
+            velocityMin: 0.4252
+            velocityMax: 0.4882
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/HihatOpen/16-HihatOpen.wav"
+            velocityMin: 0.4252
+            velocityMax: 0.4882
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/HihatOpen/18-HihatOpen.wav"
+            velocityMin: 0.4252
+            velocityMax: 0.4882
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/HihatOpen/20-HihatOpen.wav"
+            velocityMin: 0.4252
+            velocityMax: 0.4882
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/HihatOpen/16-HihatOpen.wav"
+            velocityMin: 0.4961
+            velocityMax: 0.5591
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/HihatOpen/18-HihatOpen.wav"
+            velocityMin: 0.4961
+            velocityMax: 0.5591
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/HihatOpen/20-HihatOpen.wav"
+            velocityMin: 0.4961
+            velocityMax: 0.5591
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/HihatOpen/22-HihatOpen.wav"
+            velocityMin: 0.4961
+            velocityMax: 0.5591
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/HihatOpen/18-HihatOpen.wav"
+            velocityMin: 0.5669
+            velocityMax: 0.6299
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/HihatOpen/20-HihatOpen.wav"
+            velocityMin: 0.5669
+            velocityMax: 0.6299
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/HihatOpen/22-HihatOpen.wav"
+            velocityMin: 0.5669
+            velocityMax: 0.6299
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/HihatOpen/24-HihatOpen.wav"
+            velocityMin: 0.5669
+            velocityMax: 0.6299
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/HihatOpen/20-HihatOpen.wav"
+            velocityMin: 0.6378
+            velocityMax: 0.7008
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/HihatOpen/22-HihatOpen.wav"
+            velocityMin: 0.6378
+            velocityMax: 0.7008
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/HihatOpen/24-HihatOpen.wav"
+            velocityMin: 0.6378
+            velocityMax: 0.7008
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/HihatOpen/26-HihatOpen.wav"
+            velocityMin: 0.6378
+            velocityMax: 0.7008
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/HihatOpen/20-HihatOpen.wav"
+            velocityMin: 0.7087
+            velocityMax: 0.7717
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/HihatOpen/22-HihatOpen.wav"
+            velocityMin: 0.7087
+            velocityMax: 0.7717
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/HihatOpen/24-HihatOpen.wav"
+            velocityMin: 0.7087
+            velocityMax: 0.7717
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/HihatOpen/26-HihatOpen.wav"
+            velocityMin: 0.7087
+            velocityMax: 0.7717
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/HihatOpen/28-HihatOpen.wav"
+            velocityMin: 0.7087
+            velocityMax: 0.7717
+            gain: 1.0
+            roundRobinGroup: 4
+          - sampleFile: "samples/HihatOpen/22-HihatOpen.wav"
+            velocityMin: 0.7795
+            velocityMax: 0.8504
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/HihatOpen/24-HihatOpen.wav"
+            velocityMin: 0.7795
+            velocityMax: 0.8504
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/HihatOpen/26-HihatOpen.wav"
+            velocityMin: 0.7795
+            velocityMax: 0.8504
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/HihatOpen/28-HihatOpen.wav"
+            velocityMin: 0.7795
+            velocityMax: 0.8504
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/HihatOpen/29-HihatOpen.wav"
+            velocityMin: 0.7795
+            velocityMax: 0.8504
+            gain: 1.0
+            roundRobinGroup: 4
+          - sampleFile: "samples/HihatOpen/24-HihatOpen.wav"
+            velocityMin: 0.8583
+            velocityMax: 0.9528
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/HihatOpen/26-HihatOpen.wav"
+            velocityMin: 0.8583
+            velocityMax: 0.9528
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/HihatOpen/28-HihatOpen.wav"
+            velocityMin: 0.8583
+            velocityMax: 0.9528
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/HihatOpen/29-HihatOpen.wav"
+            velocityMin: 0.8583
+            velocityMax: 0.9528
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/HihatOpen/30-HihatOpen.wav"
+            velocityMin: 0.8583
+            velocityMax: 0.9528
+            gain: 1.0
+            roundRobinGroup: 4
+          - sampleFile: "samples/HihatOpen/26-HihatOpen.wav"
+            velocityMin: 0.9606
+            velocityMax: 1
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/HihatOpen/28-HihatOpen.wav"
+            velocityMin: 0.9606
+            velocityMax: 1
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/HihatOpen/29-HihatOpen.wav"
+            velocityMin: 0.9606
+            velocityMax: 1
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/HihatOpen/30-HihatOpen.wav"
+            velocityMin: 0.9606
+            velocityMax: 1
+            gain: 1.0
+            roundRobinGroup: 3
+  # ----- Rack Tom 2 (Mid) (MIDI 48) -----
+  - name: "Rack Tom 2 (Mid)"
+    midiNote: 48
+    articulations:
+      - name: "Hit"
+        chokeGroup: -1
+        attackTime: 0.001
+        holdTime: 0
+        decayTime: 0.5
+        sustainLevel: 0
+        releaseTime: 0.2
+        layers:
+          - sampleFile: "samples/Tom2/1-Tom2.wav"
+            velocityMin: 0
+            velocityMax: 0.0866
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Tom2/2-Tom2.wav"
+            velocityMin: 0
+            velocityMax: 0.0866
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Tom2/3-Tom2.wav"
+            velocityMin: 0
+            velocityMax: 0.0866
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Tom2/4-Tom2.wav"
+            velocityMin: 0
+            velocityMax: 0.0866
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/Tom2/2-Tom2.wav"
+            velocityMin: 0.0945
+            velocityMax: 0.1811
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Tom2/3-Tom2.wav"
+            velocityMin: 0.0945
+            velocityMax: 0.1811
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Tom2/4-Tom2.wav"
+            velocityMin: 0.0945
+            velocityMax: 0.1811
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Tom2/5-Tom2.wav"
+            velocityMin: 0.0945
+            velocityMax: 0.1811
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/Tom2/3-Tom2.wav"
+            velocityMin: 0.189
+            velocityMax: 0.2756
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Tom2/4-Tom2.wav"
+            velocityMin: 0.189
+            velocityMax: 0.2756
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Tom2/5-Tom2.wav"
+            velocityMin: 0.189
+            velocityMax: 0.2756
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Tom2/6-Tom2.wav"
+            velocityMin: 0.189
+            velocityMax: 0.2756
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/Tom2/4-Tom2.wav"
+            velocityMin: 0.2835
+            velocityMax: 0.378
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Tom2/5-Tom2.wav"
+            velocityMin: 0.2835
+            velocityMax: 0.378
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Tom2/6-Tom2.wav"
+            velocityMin: 0.2835
+            velocityMax: 0.378
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Tom2/7-Tom2.wav"
+            velocityMin: 0.2835
+            velocityMax: 0.378
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/Tom2/5-Tom2.wav"
+            velocityMin: 0.3858
+            velocityMax: 0.4803
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Tom2/6-Tom2.wav"
+            velocityMin: 0.3858
+            velocityMax: 0.4803
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Tom2/7-Tom2.wav"
+            velocityMin: 0.3858
+            velocityMax: 0.4803
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Tom2/8-Tom2.wav"
+            velocityMin: 0.3858
+            velocityMax: 0.4803
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/Tom2/6-Tom2.wav"
+            velocityMin: 0.4882
+            velocityMax: 0.5827
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Tom2/7-Tom2.wav"
+            velocityMin: 0.4882
+            velocityMax: 0.5827
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Tom2/8-Tom2.wav"
+            velocityMin: 0.4882
+            velocityMax: 0.5827
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Tom2/9-Tom2.wav"
+            velocityMin: 0.4882
+            velocityMax: 0.5827
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/Tom2/7-Tom2.wav"
+            velocityMin: 0.5906
+            velocityMax: 0.685
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Tom2/8-Tom2.wav"
+            velocityMin: 0.5906
+            velocityMax: 0.685
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Tom2/9-Tom2.wav"
+            velocityMin: 0.5906
+            velocityMax: 0.685
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Tom2/10-Tom2.wav"
+            velocityMin: 0.5906
+            velocityMax: 0.685
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/Tom2/8-Tom2.wav"
+            velocityMin: 0.6929
+            velocityMax: 0.7874
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Tom2/9-Tom2.wav"
+            velocityMin: 0.6929
+            velocityMax: 0.7874
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Tom2/10-Tom2.wav"
+            velocityMin: 0.6929
+            velocityMax: 0.7874
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Tom2/11-Tom2.wav"
+            velocityMin: 0.6929
+            velocityMax: 0.7874
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/Tom2/9-Tom2.wav"
+            velocityMin: 0.7953
+            velocityMax: 0.8898
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Tom2/10-Tom2.wav"
+            velocityMin: 0.7953
+            velocityMax: 0.8898
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Tom2/11-Tom2.wav"
+            velocityMin: 0.7953
+            velocityMax: 0.8898
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Tom2/12-Tom2.wav"
+            velocityMin: 0.7953
+            velocityMax: 0.8898
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/Tom2/9-Tom2.wav"
+            velocityMin: 0.8976
+            velocityMax: 0.9528
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Tom2/10-Tom2.wav"
+            velocityMin: 0.8976
+            velocityMax: 0.9528
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Tom2/11-Tom2.wav"
+            velocityMin: 0.8976
+            velocityMax: 0.9528
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Tom2/12-Tom2.wav"
+            velocityMin: 0.8976
+            velocityMax: 0.9528
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/Tom2/13-Tom2.wav"
+            velocityMin: 0.8976
+            velocityMax: 0.9528
+            gain: 1.0
+            roundRobinGroup: 4
+          - sampleFile: "samples/Tom2/10-Tom2.wav"
+            velocityMin: 0.9606
+            velocityMax: 1
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Tom2/11-Tom2.wav"
+            velocityMin: 0.9606
+            velocityMax: 1
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Tom2/12-Tom2.wav"
+            velocityMin: 0.9606
+            velocityMax: 1
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Tom2/13-Tom2.wav"
+            velocityMin: 0.9606
+            velocityMax: 1
+            gain: 1.0
+            roundRobinGroup: 3
+  # ----- Crash (MIDI 49) -----
+  - name: "Crash"
+    midiNote: 49
+    articulations:
+      - name: "Hit"
+        chokeGroup: -1
+        attackTime: 0.001
+        holdTime: 0
+        decayTime: 2
+        sustainLevel: 0.2
+        releaseTime: 1.5
+        layers:
+          - sampleFile: "samples/CrashL/1-CrashL.wav"
+            velocityMin: 0
+            velocityMax: 0.1181
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/CrashL/2-CrashL.wav"
+            velocityMin: 0
+            velocityMax: 0.1181
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/CrashL/3-CrashL.wav"
+            velocityMin: 0
+            velocityMax: 0.1181
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/CrashL/2-CrashL.wav"
+            velocityMin: 0.126
+            velocityMax: 0.2362
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/CrashL/3-CrashL.wav"
+            velocityMin: 0.126
+            velocityMax: 0.2362
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/CrashL/4-CrashL.wav"
+            velocityMin: 0.126
+            velocityMax: 0.2362
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/CrashL/3-CrashL.wav"
+            velocityMin: 0.2441
+            velocityMax: 0.3701
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/CrashL/4-CrashL.wav"
+            velocityMin: 0.2441
+            velocityMax: 0.3701
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/CrashL/5-CrashL.wav"
+            velocityMin: 0.2441
+            velocityMax: 0.3701
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/CrashL/4-CrashL.wav"
+            velocityMin: 0.378
+            velocityMax: 0.5118
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/CrashL/5-CrashL.wav"
+            velocityMin: 0.378
+            velocityMax: 0.5118
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/CrashL/6-CrashL.wav"
+            velocityMin: 0.378
+            velocityMax: 0.5118
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/CrashL/5-CrashL.wav"
+            velocityMin: 0.5197
+            velocityMax: 0.7008
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/CrashL/6-CrashL.wav"
+            velocityMin: 0.5197
+            velocityMax: 0.7008
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/CrashL/7-CrashL.wav"
+            velocityMin: 0.5197
+            velocityMax: 0.7008
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/CrashL/7-CrashL.wav"
+            velocityMin: 0.7087
+            velocityMax: 1
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/CrashL/8-CrashL.wav"
+            velocityMin: 0.7087
+            velocityMax: 1
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/CrashL/9-CrashL.wav"
+            velocityMin: 0.7087
+            velocityMax: 1
+            gain: 1.0
+            roundRobinGroup: 2
+  # ----- Rack Tom 1 (High) (MIDI 50) -----
+  - name: "Rack Tom 1 (High)"
+    midiNote: 50
+    articulations:
+      - name: "Hit"
+        chokeGroup: -1
+        attackTime: 0.001
+        holdTime: 0
+        decayTime: 0.5
+        sustainLevel: 0
+        releaseTime: 0.2
+        layers:
+          - sampleFile: "samples/Tom1/1-Tom1.wav"
+            velocityMin: 0
+            velocityMax: 0.1024
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Tom1/2-Tom1.wav"
+            velocityMin: 0
+            velocityMax: 0.1024
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Tom1/3-Tom1.wav"
+            velocityMin: 0
+            velocityMax: 0.1024
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Tom1/2-Tom1.wav"
+            velocityMin: 0.1102
+            velocityMax: 0.2126
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Tom1/3-Tom1.wav"
+            velocityMin: 0.1102
+            velocityMax: 0.2126
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Tom1/4-Tom1.wav"
+            velocityMin: 0.1102
+            velocityMax: 0.2126
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Tom1/3-Tom1.wav"
+            velocityMin: 0.2205
+            velocityMax: 0.3228
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Tom1/4-Tom1.wav"
+            velocityMin: 0.2205
+            velocityMax: 0.3228
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Tom1/5-Tom1.wav"
+            velocityMin: 0.2205
+            velocityMax: 0.3228
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Tom1/4-Tom1.wav"
+            velocityMin: 0.3307
+            velocityMax: 0.4331
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Tom1/5-Tom1.wav"
+            velocityMin: 0.3307
+            velocityMax: 0.4331
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Tom1/6-Tom1.wav"
+            velocityMin: 0.3307
+            velocityMax: 0.4331
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Tom1/5-Tom1.wav"
+            velocityMin: 0.4409
+            velocityMax: 0.5433
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Tom1/6-Tom1.wav"
+            velocityMin: 0.4409
+            velocityMax: 0.5433
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Tom1/7-Tom1.wav"
+            velocityMin: 0.4409
+            velocityMax: 0.5433
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Tom1/6-Tom1.wav"
+            velocityMin: 0.5512
+            velocityMax: 0.6614
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Tom1/7-Tom1.wav"
+            velocityMin: 0.5512
+            velocityMax: 0.6614
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Tom1/8-Tom1.wav"
+            velocityMin: 0.5512
+            velocityMax: 0.6614
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Tom1/7-Tom1.wav"
+            velocityMin: 0.6693
+            velocityMax: 0.7638
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Tom1/8-Tom1.wav"
+            velocityMin: 0.6693
+            velocityMax: 0.7638
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Tom1/9-Tom1.wav"
+            velocityMin: 0.6693
+            velocityMax: 0.7638
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Tom1/8-Tom1.wav"
+            velocityMin: 0.7717
+            velocityMax: 0.874
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Tom1/9-Tom1.wav"
+            velocityMin: 0.7717
+            velocityMax: 0.874
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Tom1/10-Tom1.wav"
+            velocityMin: 0.7717
+            velocityMax: 0.874
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Tom1/8-Tom1.wav"
+            velocityMin: 0.8819
+            velocityMax: 0.9606
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Tom1/9-Tom1.wav"
+            velocityMin: 0.8819
+            velocityMax: 0.9606
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Tom1/10-Tom1.wav"
+            velocityMin: 0.8819
+            velocityMax: 0.9606
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Tom1/11-Tom1.wav"
+            velocityMin: 0.8819
+            velocityMax: 0.9606
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/Tom1/9-Tom1.wav"
+            velocityMin: 0.9685
+            velocityMax: 1
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Tom1/10-Tom1.wav"
+            velocityMin: 0.9685
+            velocityMax: 1
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Tom1/11-Tom1.wav"
+            velocityMin: 0.9685
+            velocityMax: 1
+            gain: 1.0
+            roundRobinGroup: 2
+  # ----- Ride (MIDI 51) -----
+  - name: "Ride"
+    midiNote: 51
+    articulations:
+      - name: "Hit"
+        chokeGroup: -1
+        attackTime: 0.001
+        holdTime: 0
+        decayTime: 1.5
+        sustainLevel: 0.1
+        releaseTime: 0.8
+        layers:
+          - sampleFile: "samples/RideL/1-RideL.wav"
+            velocityMin: 0
+            velocityMax: 0.1181
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/RideL/2-RideL.wav"
+            velocityMin: 0
+            velocityMax: 0.1181
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/RideL/3-RideL.wav"
+            velocityMin: 0
+            velocityMax: 0.1181
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/RideL/2-RideL.wav"
+            velocityMin: 0.126
+            velocityMax: 0.2441
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/RideL/3-RideL.wav"
+            velocityMin: 0.126
+            velocityMax: 0.2441
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/RideL/4-RideL.wav"
+            velocityMin: 0.126
+            velocityMax: 0.2441
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/RideL/3-RideL.wav"
+            velocityMin: 0.252
+            velocityMax: 0.3701
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/RideL/4-RideL.wav"
+            velocityMin: 0.252
+            velocityMax: 0.3701
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/RideL/5-RideL.wav"
+            velocityMin: 0.252
+            velocityMax: 0.3701
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/RideL/4-RideL.wav"
+            velocityMin: 0.378
+            velocityMax: 0.4961
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/RideL/5-RideL.wav"
+            velocityMin: 0.378
+            velocityMax: 0.4961
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/RideL/6-RideL.wav"
+            velocityMin: 0.378
+            velocityMax: 0.4961
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/RideL/5-RideL.wav"
+            velocityMin: 0.5039
+            velocityMax: 0.622
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/RideL/6-RideL.wav"
+            velocityMin: 0.5039
+            velocityMax: 0.622
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/RideL/7-RideL.wav"
+            velocityMin: 0.5039
+            velocityMax: 0.622
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/RideL/6-RideL.wav"
+            velocityMin: 0.6299
+            velocityMax: 0.748
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/RideL/7-RideL.wav"
+            velocityMin: 0.6299
+            velocityMax: 0.748
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/RideL/8-RideL.wav"
+            velocityMin: 0.6299
+            velocityMax: 0.748
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/RideL/7-RideL.wav"
+            velocityMin: 0.7559
+            velocityMax: 0.9606
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/RideL/8-RideL.wav"
+            velocityMin: 0.7559
+            velocityMax: 0.9606
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/RideL/9-RideL.wav"
+            velocityMin: 0.7559
+            velocityMax: 0.9606
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/RideL/10-RideL.wav"
+            velocityMin: 0.7559
+            velocityMax: 0.9606
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/RideL/8-RideL.wav"
+            velocityMin: 0.9685
+            velocityMax: 1
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/RideL/9-RideL.wav"
+            velocityMin: 0.9685
+            velocityMax: 1
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/RideL/10-RideL.wav"
+            velocityMin: 0.9685
+            velocityMax: 1
+            gain: 1.0
+            roundRobinGroup: 2
+  # ----- China Cymbal (MIDI 52) -----
+  - name: "China Cymbal"
+    midiNote: 52
+    articulations:
+      - name: "Hit"
+        chokeGroup: -1
+        attackTime: 0.001
+        holdTime: 0
+        decayTime: 1.5
+        sustainLevel: 0.15
+        releaseTime: 1
+        layers:
+          - sampleFile: "samples/China/1-China.wav"
+            velocityMin: 0
+            velocityMax: 0.0866
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/China/2-China.wav"
+            velocityMin: 0
+            velocityMax: 0.0866
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/China/3-China.wav"
+            velocityMin: 0
+            velocityMax: 0.0866
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/China/2-China.wav"
+            velocityMin: 0.0945
+            velocityMax: 0.1811
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/China/3-China.wav"
+            velocityMin: 0.0945
+            velocityMax: 0.1811
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/China/4-China.wav"
+            velocityMin: 0.0945
+            velocityMax: 0.1811
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/China/3-China.wav"
+            velocityMin: 0.189
+            velocityMax: 0.2756
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/China/4-China.wav"
+            velocityMin: 0.189
+            velocityMax: 0.2756
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/China/5-China.wav"
+            velocityMin: 0.189
+            velocityMax: 0.2756
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/China/4-China.wav"
+            velocityMin: 0.2835
+            velocityMax: 0.3701
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/China/5-China.wav"
+            velocityMin: 0.2835
+            velocityMax: 0.3701
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/China/6-China.wav"
+            velocityMin: 0.2835
+            velocityMax: 0.3701
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/China/5-China.wav"
+            velocityMin: 0.378
+            velocityMax: 0.4646
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/China/6-China.wav"
+            velocityMin: 0.378
+            velocityMax: 0.4646
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/China/7-China.wav"
+            velocityMin: 0.378
+            velocityMax: 0.4646
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/China/6-China.wav"
+            velocityMin: 0.4724
+            velocityMax: 0.5591
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/China/7-China.wav"
+            velocityMin: 0.4724
+            velocityMax: 0.5591
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/China/8-China.wav"
+            velocityMin: 0.4724
+            velocityMax: 0.5591
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/China/7-China.wav"
+            velocityMin: 0.5669
+            velocityMax: 0.6535
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/China/8-China.wav"
+            velocityMin: 0.5669
+            velocityMax: 0.6535
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/China/9-China.wav"
+            velocityMin: 0.5669
+            velocityMax: 0.6535
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/China/8-China.wav"
+            velocityMin: 0.6614
+            velocityMax: 0.748
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/China/9-China.wav"
+            velocityMin: 0.6614
+            velocityMax: 0.748
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/China/10-China.wav"
+            velocityMin: 0.6614
+            velocityMax: 0.748
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/China/9-China.wav"
+            velocityMin: 0.7559
+            velocityMax: 0.8583
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/China/10-China.wav"
+            velocityMin: 0.7559
+            velocityMax: 0.8583
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/China/11-China.wav"
+            velocityMin: 0.7559
+            velocityMax: 0.8583
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/China/9-China.wav"
+            velocityMin: 0.8661
+            velocityMax: 0.9685
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/China/10-China.wav"
+            velocityMin: 0.8661
+            velocityMax: 0.9685
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/China/11-China.wav"
+            velocityMin: 0.8661
+            velocityMax: 0.9685
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/China/12-China.wav"
+            velocityMin: 0.8661
+            velocityMax: 0.9685
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/China/10-China.wav"
+            velocityMin: 0.9764
+            velocityMax: 1
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/China/11-China.wav"
+            velocityMin: 0.9764
+            velocityMax: 1
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/China/12-China.wav"
+            velocityMin: 0.9764
+            velocityMax: 1
+            gain: 1.0
+            roundRobinGroup: 2
+  # ----- Ride Bell (MIDI 53) -----
+  - name: "Ride Bell"
+    midiNote: 53
+    articulations:
+      - name: "Hit"
+        chokeGroup: -1
+        attackTime: 0.001
+        holdTime: 0
+        decayTime: 1
+        sustainLevel: 0.1
+        releaseTime: 0.6
+        layers:
+          - sampleFile: "samples/RideLBell/1-RideLBell.wav"
+            velocityMin: 0
+            velocityMax: 1
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/RideLBell/2-RideLBell.wav"
+            velocityMin: 0
+            velocityMax: 1
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/RideLBell/3-RideLBell.wav"
+            velocityMin: 0
+            velocityMax: 1
+            gain: 1.0
+            roundRobinGroup: 2
+  # ----- Ride Bell 2 (MIDI 56) -----
+  - name: "Ride Bell 2"
+    midiNote: 56
+    articulations:
+      - name: "Hit"
+        chokeGroup: -1
+        attackTime: 0.001
+        holdTime: 0
+        decayTime: 1
+        sustainLevel: 0.1
+        releaseTime: 0.6
+        layers:
+          - sampleFile: "samples/RideRBell/1-RideRBell.wav"
+            velocityMin: 0
+            velocityMax: 0.1575
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/RideRBell/2-RideRBell.wav"
+            velocityMin: 0
+            velocityMax: 0.1575
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/RideRBell/3-RideRBell.wav"
+            velocityMin: 0
+            velocityMax: 0.1575
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/RideRBell/2-RideRBell.wav"
+            velocityMin: 0.1654
+            velocityMax: 0.3228
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/RideRBell/3-RideRBell.wav"
+            velocityMin: 0.1654
+            velocityMax: 0.3228
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/RideRBell/4-RideRBell.wav"
+            velocityMin: 0.1654
+            velocityMax: 0.3228
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/RideRBell/3-RideRBell.wav"
+            velocityMin: 0.3307
+            velocityMax: 0.5039
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/RideRBell/4-RideRBell.wav"
+            velocityMin: 0.3307
+            velocityMax: 0.5039
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/RideRBell/5-RideRBell.wav"
+            velocityMin: 0.3307
+            velocityMax: 0.5039
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/RideRBell/4-RideRBell.wav"
+            velocityMin: 0.5118
+            velocityMax: 0.7323
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/RideRBell/5-RideRBell.wav"
+            velocityMin: 0.5118
+            velocityMax: 0.7323
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/RideRBell/6-RideRBell.wav"
+            velocityMin: 0.5118
+            velocityMax: 0.7323
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/RideRBell/6-RideRBell.wav"
+            velocityMin: 0.7402
+            velocityMax: 1
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/RideRBell/7-RideRBell.wav"
+            velocityMin: 0.7402
+            velocityMax: 1
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/RideRBell/8-RideRBell.wav"
+            velocityMin: 0.7402
+            velocityMax: 1
+            gain: 1.0
+            roundRobinGroup: 2
+  # ----- Crash 2 (MIDI 57) -----
+  - name: "Crash 2"
+    midiNote: 57
+    articulations:
+      - name: "Hit"
+        chokeGroup: -1
+        attackTime: 0.001
+        holdTime: 0
+        decayTime: 2
+        sustainLevel: 0.2
+        releaseTime: 1.5
+        layers:
+          - sampleFile: "samples/CrashR/1-CrashR.wav"
+            velocityMin: 0
+            velocityMax: 0.0866
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/CrashR/2-CrashR.wav"
+            velocityMin: 0
+            velocityMax: 0.0866
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/CrashR/3-CrashR.wav"
+            velocityMin: 0
+            velocityMax: 0.0866
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/CrashR/2-CrashR.wav"
+            velocityMin: 0.0945
+            velocityMax: 0.1811
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/CrashR/3-CrashR.wav"
+            velocityMin: 0.0945
+            velocityMax: 0.1811
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/CrashR/4-CrashR.wav"
+            velocityMin: 0.0945
+            velocityMax: 0.1811
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/CrashR/3-CrashR.wav"
+            velocityMin: 0.189
+            velocityMax: 0.2756
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/CrashR/4-CrashR.wav"
+            velocityMin: 0.189
+            velocityMax: 0.2756
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/CrashR/5-CrashR.wav"
+            velocityMin: 0.189
+            velocityMax: 0.2756
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/CrashR/4-CrashR.wav"
+            velocityMin: 0.2835
+            velocityMax: 0.3701
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/CrashR/5-CrashR.wav"
+            velocityMin: 0.2835
+            velocityMax: 0.3701
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/CrashR/6-CrashR.wav"
+            velocityMin: 0.2835
+            velocityMax: 0.3701
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/CrashR/5-CrashR.wav"
+            velocityMin: 0.378
+            velocityMax: 0.4646
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/CrashR/6-CrashR.wav"
+            velocityMin: 0.378
+            velocityMax: 0.4646
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/CrashR/7-CrashR.wav"
+            velocityMin: 0.378
+            velocityMax: 0.4646
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/CrashR/6-CrashR.wav"
+            velocityMin: 0.4724
+            velocityMax: 0.5591
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/CrashR/7-CrashR.wav"
+            velocityMin: 0.4724
+            velocityMax: 0.5591
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/CrashR/8-CrashR.wav"
+            velocityMin: 0.4724
+            velocityMax: 0.5591
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/CrashR/7-CrashR.wav"
+            velocityMin: 0.5669
+            velocityMax: 0.6535
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/CrashR/8-CrashR.wav"
+            velocityMin: 0.5669
+            velocityMax: 0.6535
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/CrashR/9-CrashR.wav"
+            velocityMin: 0.5669
+            velocityMax: 0.6535
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/CrashR/8-CrashR.wav"
+            velocityMin: 0.6614
+            velocityMax: 0.748
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/CrashR/9-CrashR.wav"
+            velocityMin: 0.6614
+            velocityMax: 0.748
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/CrashR/10-CrashR.wav"
+            velocityMin: 0.6614
+            velocityMax: 0.748
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/CrashR/9-CrashR.wav"
+            velocityMin: 0.7559
+            velocityMax: 0.8583
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/CrashR/10-CrashR.wav"
+            velocityMin: 0.7559
+            velocityMax: 0.8583
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/CrashR/11-CrashR.wav"
+            velocityMin: 0.7559
+            velocityMax: 0.8583
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/CrashR/9-CrashR.wav"
+            velocityMin: 0.8661
+            velocityMax: 0.9606
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/CrashR/10-CrashR.wav"
+            velocityMin: 0.8661
+            velocityMax: 0.9606
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/CrashR/11-CrashR.wav"
+            velocityMin: 0.8661
+            velocityMax: 0.9606
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/CrashR/12-CrashR.wav"
+            velocityMin: 0.8661
+            velocityMax: 0.9606
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/CrashR/10-CrashR.wav"
+            velocityMin: 0.9685
+            velocityMax: 1
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/CrashR/11-CrashR.wav"
+            velocityMin: 0.9685
+            velocityMax: 1
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/CrashR/12-CrashR.wav"
+            velocityMin: 0.9685
+            velocityMax: 1
+            gain: 1.0
+            roundRobinGroup: 2
+  # ----- Ride 2 (MIDI 59) -----
+  - name: "Ride 2"
+    midiNote: 59
+    articulations:
+      - name: "Hit"
+        chokeGroup: -1
+        attackTime: 0.001
+        holdTime: 0
+        decayTime: 1.5
+        sustainLevel: 0.1
+        releaseTime: 0.8
+        layers:
+          - sampleFile: "samples/RideR/1-RideR.wav"
+            velocityMin: 0
+            velocityMax: 0.1181
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/RideR/2-RideR.wav"
+            velocityMin: 0
+            velocityMax: 0.1181
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/RideR/3-RideR.wav"
+            velocityMin: 0
+            velocityMax: 0.1181
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/RideR/2-RideR.wav"
+            velocityMin: 0.126
+            velocityMax: 0.2441
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/RideR/3-RideR.wav"
+            velocityMin: 0.126
+            velocityMax: 0.2441
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/RideR/4-RideR.wav"
+            velocityMin: 0.126
+            velocityMax: 0.2441
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/RideR/3-RideR.wav"
+            velocityMin: 0.252
+            velocityMax: 0.3701
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/RideR/4-RideR.wav"
+            velocityMin: 0.252
+            velocityMax: 0.3701
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/RideR/5-RideR.wav"
+            velocityMin: 0.252
+            velocityMax: 0.3701
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/RideR/4-RideR.wav"
+            velocityMin: 0.378
+            velocityMax: 0.4961
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/RideR/5-RideR.wav"
+            velocityMin: 0.378
+            velocityMax: 0.4961
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/RideR/6-RideR.wav"
+            velocityMin: 0.378
+            velocityMax: 0.4961
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/RideR/5-RideR.wav"
+            velocityMin: 0.5039
+            velocityMax: 0.622
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/RideR/6-RideR.wav"
+            velocityMin: 0.5039
+            velocityMax: 0.622
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/RideR/7-RideR.wav"
+            velocityMin: 0.5039
+            velocityMax: 0.622
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/RideR/6-RideR.wav"
+            velocityMin: 0.6299
+            velocityMax: 0.748
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/RideR/7-RideR.wav"
+            velocityMin: 0.6299
+            velocityMax: 0.748
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/RideR/8-RideR.wav"
+            velocityMin: 0.6299
+            velocityMax: 0.748
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/RideR/7-RideR.wav"
+            velocityMin: 0.7559
+            velocityMax: 0.9606
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/RideR/8-RideR.wav"
+            velocityMin: 0.7559
+            velocityMax: 0.9606
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/RideR/9-RideR.wav"
+            velocityMin: 0.7559
+            velocityMax: 0.9606
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/RideR/10-RideR.wav"
+            velocityMin: 0.7559
+            velocityMax: 0.9606
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/RideR/8-RideR.wav"
+            velocityMin: 0.9685
+            velocityMax: 1
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/RideR/9-RideR.wav"
+            velocityMin: 0.9685
+            velocityMax: 1
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/RideR/10-RideR.wav"
+            velocityMin: 0.9685
+            velocityMax: 1
+            gain: 1.0
+            roundRobinGroup: 2
