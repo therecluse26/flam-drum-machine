@@ -6,7 +6,6 @@
 #include "DSP/TenBandGraphicEQ.h"
 #include "DSP/SaturationProcessor.h"
 #include "Core/Mixer.h"
-#include "Core/MixerBus.h"
 
 namespace flam {
 
@@ -572,62 +571,138 @@ private:
 };
 
 // ============================================================================
+// L2: Mixer master param write-through test
+// Asserts that every automatable master setter/getter round-trips through the
+// Mixer master state — the same path that updateEngineParameters() now drives.
 
-class MixerBusTest : public juce::UnitTest
+class MixerMasterParamTest : public juce::UnitTest
 {
 public:
-    MixerBusTest() : juce::UnitTest("MixerBus", "Core") {}
+    MixerMasterParamTest() : juce::UnitTest("MixerMasterParam", "Core") {}
 
     void runTest() override
     {
-        testLevelRoundTrip();
-        testPanRoundTrip();
-        testSoloRoundTrip();
-        testMuteRoundTrip();
-        testMasterLevelRoundTrip();
+        testMasterVolume();
+        testMasterEQEnabled();
+        testMasterEQBandGains();
+        testMasterCompressorEnabled();
+        testMasterCompressorThreshold();
+        testMasterCompressorRatio();
+        testMasterCompressorAttack();
+        testMasterCompressorRelease();
+        testMasterCompressorMakeupGain();
     }
 
 private:
-    void testLevelRoundTrip()
+    void testMasterVolume()
     {
-        beginTest("setBusLevel / getBusLevel round-trips");
-        MixerBus bus;
-        bus.setBusLevel(MixerBus::BusType::Close, -6.0f);
-        expectWithinAbsoluteError(bus.getBusLevel(MixerBus::BusType::Close), -6.0f, 1e-4f);
+        beginTest("setMasterVolume / getMasterVolume round-trip");
+        Mixer mixer;
+        mixer.setNumChannels(1, {"Test"});
+        mixer.prepareToPlay(44100.0, 512);
+
+        mixer.setMasterVolume(-6.0f);
+        expectWithinAbsoluteError(mixer.getMasterVolume(), -6.0f, 1e-4f,
+            "Master volume must round-trip");
     }
 
-    void testPanRoundTrip()
+    void testMasterEQEnabled()
     {
-        beginTest("setBusPan / getBusPan round-trips");
-        MixerBus bus;
-        bus.setBusPan(MixerBus::BusType::Room, 0.3f);
-        expectWithinAbsoluteError(bus.getBusPan(MixerBus::BusType::Room), 0.3f, 1e-4f);
+        beginTest("setMasterEQEnabled / isMasterEQEnabled round-trip");
+        Mixer mixer;
+        mixer.setNumChannels(1, {"Test"});
+        mixer.prepareToPlay(44100.0, 512);
+
+        mixer.setMasterEQEnabled(true);
+        expect(mixer.isMasterEQEnabled(), "Master EQ must report enabled after set");
+
+        mixer.setMasterEQEnabled(false);
+        expect(!mixer.isMasterEQEnabled(), "Master EQ must report disabled after clear");
     }
 
-    void testSoloRoundTrip()
+    void testMasterEQBandGains()
     {
-        beginTest("setBusSolo / isBusSoloed round-trips");
-        MixerBus bus;
-        expect(!bus.isBusSoloed(MixerBus::BusType::Overhead), "Default solo = off");
-        bus.setBusSolo(MixerBus::BusType::Overhead, true);
-        expect(bus.isBusSoloed(MixerBus::BusType::Overhead), "Solo should be on after set");
+        beginTest("setMasterEQBandGain / getMasterEQBandGain round-trips for all 10 bands");
+        Mixer mixer;
+        mixer.setNumChannels(1, {"Test"});
+        mixer.prepareToPlay(44100.0, 512);
+
+        for (int i = 0; i < 10; ++i)
+        {
+            const float gain = static_cast<float>(i - 5);
+            mixer.setMasterEQBandGain(i, gain);
+            expectWithinAbsoluteError(mixer.getMasterEQBandGain(i), gain, 1e-4f,
+                "Band " + juce::String(i) + " gain must round-trip");
+        }
     }
 
-    void testMuteRoundTrip()
+    void testMasterCompressorEnabled()
     {
-        beginTest("setBusMute / isBusMuted round-trips");
-        MixerBus bus;
-        expect(!bus.isBusMuted(MixerBus::BusType::Ambient), "Default mute = off");
-        bus.setBusMute(MixerBus::BusType::Ambient, true);
-        expect(bus.isBusMuted(MixerBus::BusType::Ambient), "Mute should be on after set");
+        beginTest("setMasterCompressorEnabled / isMasterCompressorEnabled round-trip");
+        Mixer mixer;
+        mixer.setNumChannels(1, {"Test"});
+        mixer.prepareToPlay(44100.0, 512);
+
+        mixer.setMasterCompressorEnabled(true);
+        expect(mixer.isMasterCompressorEnabled(), "Master compressor must report enabled");
+
+        mixer.setMasterCompressorEnabled(false);
+        expect(!mixer.isMasterCompressorEnabled(), "Master compressor must report disabled");
     }
 
-    void testMasterLevelRoundTrip()
+    void testMasterCompressorThreshold()
     {
-        beginTest("setMasterLevel / getMasterLevel round-trips");
-        MixerBus bus;
-        bus.setMasterLevel(-3.0f);
-        expectWithinAbsoluteError(bus.getMasterLevel(), -3.0f, 1e-4f);
+        beginTest("setMasterCompressorThreshold / getMasterCompressorThreshold round-trip");
+        Mixer mixer;
+        mixer.setNumChannels(1, {"Test"});
+        mixer.prepareToPlay(44100.0, 512);
+
+        mixer.setMasterCompressorThreshold(-18.0f);
+        expectWithinAbsoluteError(mixer.getMasterCompressorThreshold(), -18.0f, 1e-4f);
+    }
+
+    void testMasterCompressorRatio()
+    {
+        beginTest("setMasterCompressorRatio / getMasterCompressorRatio round-trip");
+        Mixer mixer;
+        mixer.setNumChannels(1, {"Test"});
+        mixer.prepareToPlay(44100.0, 512);
+
+        mixer.setMasterCompressorRatio(4.0f);
+        expectWithinAbsoluteError(mixer.getMasterCompressorRatio(), 4.0f, 1e-4f);
+    }
+
+    void testMasterCompressorAttack()
+    {
+        beginTest("setMasterCompressorAttack / getMasterCompressorAttack round-trip");
+        Mixer mixer;
+        mixer.setNumChannels(1, {"Test"});
+        mixer.prepareToPlay(44100.0, 512);
+
+        mixer.setMasterCompressorAttack(10.0f);
+        expectWithinAbsoluteError(mixer.getMasterCompressorAttack(), 10.0f, 1e-4f);
+    }
+
+    void testMasterCompressorRelease()
+    {
+        beginTest("setMasterCompressorRelease / getMasterCompressorRelease round-trip");
+        Mixer mixer;
+        mixer.setNumChannels(1, {"Test"});
+        mixer.prepareToPlay(44100.0, 512);
+
+        mixer.setMasterCompressorRelease(100.0f);
+        expectWithinAbsoluteError(mixer.getMasterCompressorRelease(), 100.0f, 1e-4f);
+    }
+
+    void testMasterCompressorMakeupGain()
+    {
+        beginTest("setMasterCompressorMakeupGain / getMasterCompressorMakeupGain round-trip");
+        Mixer mixer;
+        mixer.setNumChannels(1, {"Test"});
+        mixer.prepareToPlay(44100.0, 512);
+
+        mixer.setMasterCompressorMakeupGain(6.0f);
+        expectWithinAbsoluteError(mixer.getMasterCompressorMakeupGain(), 6.0f, 1e-4f);
     }
 };
 
@@ -639,6 +714,6 @@ static CompressorProcessorTest compressorTest;
 static TenBandGraphicEQTest    eqTest;
 static SaturationProcessorTest satTest;
 static MixerTest               mixerTest;
-static MixerBusTest            mixerBusTest;
+static MixerMasterParamTest    mixerMasterParamTest;
 
 } // namespace flam

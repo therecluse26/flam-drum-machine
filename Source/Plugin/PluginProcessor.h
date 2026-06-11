@@ -50,15 +50,6 @@ public:
 
     Mixer* getMixer() { return perChannelMixer.get(); }
 
-    /**
-     * @brief Enable output buses based on mixer channel count
-     * @param numChannels Number of channels in loaded kit
-     *
-     * Enables buses 1-N for individual channel routing.
-     * Called after kit loads and mixer is configured.
-     */
-    void configureBusesForChannelCount(int numChannels);
-
 private:
     // Helper to create bus properties (called before base class initialization)
     static juce::AudioProcessor::BusesProperties createBusLayout();
@@ -100,7 +91,6 @@ private:
     juce::AudioParameterFloat* compHoldParam{nullptr};
     juce::AudioParameterFloat* compThresholdParam{nullptr};
     juce::AudioParameterFloat* compRatioParam{nullptr};
-    juce::AudioParameterFloat* compLookaheadParam{nullptr};
     juce::AudioParameterFloat* compMakeupGainParam{nullptr};
 
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();

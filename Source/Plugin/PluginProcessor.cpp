@@ -5,16 +5,20 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 #include "../Core/VoiceManager.h"
-#include "../Core/MixerBus.h"
-#include "../DSP/SimpleEQ.h"
-#include "../DSP/SimpleCompressor.h"
 
 namespace flam {
 
 juce::AudioProcessor::BusesProperties FlamAudioProcessor::createBusLayout()
 {
-    // Pre-declare and ENABLE all 17 buses (1 stereo Main Mix + 16 mono individual channels)
-    // All buses must be enabled at construction - disabling/enabling them later causes crashes
+    // Static 17-bus layout: 1 stereo Main Mix + 16 mono individual channels.
+    //
+    // All buses are declared and ENABLED here at construction time because JUCE does not
+    // reliably support changing bus *count* after the processor is constructed. Hosts such as
+    // Logic (AU) and Cubase/Reaper (VST3) query the bus layout during plugin load — before any
+    // kit is selected — and use it to build their internal routing graph. Calling bus->enable()
+    // or bus->enable(false) after that window is host-undefined behaviour and was the source of
+    // observed crashes. Unused buses (kit has fewer than 16 channels) simply emit silence, which
+    // is safe and accepted by all tested hosts.
     return juce::AudioProcessor::BusesProperties()
         .withOutput("Main Mix", juce::AudioChannelSet::stereo(), true)
         .withOutput("Bus 1", juce::AudioChannelSet::mono(), true)
@@ -86,7 +90,6 @@ FlamAudioProcessor::FlamAudioProcessor()
     compHoldParam = dynamic_cast<juce::AudioParameterFloat*>(parameters.getParameter("comp_hold"));
     compThresholdParam = dynamic_cast<juce::AudioParameterFloat*>(parameters.getParameter("comp_threshold"));
     compRatioParam = dynamic_cast<juce::AudioParameterFloat*>(parameters.getParameter("comp_ratio"));
-    compLookaheadParam = dynamic_cast<juce::AudioParameterFloat*>(parameters.getParameter("comp_lookahead"));
     compMakeupGainParam = dynamic_cast<juce::AudioParameterFloat*>(parameters.getParameter("comp_makeup_gain"));
 }
 
@@ -203,23 +206,6 @@ bool FlamAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) cons
 }
 #endif
 
-void FlamAudioProcessor::configureBusesForChannelCount(int numChannels)
-{
-    // Clamp to valid range (we have 16 individual bus slots + 1 Main Mix)
-    numChannels = juce::jlimit(1, 16, numChannels);
-
-    // Enable buses 1 through numChannels (bus 0 is Main Mix, always enabled)
-    for (int busIdx = 1; busIdx <= 16; ++busIdx)
-    {
-        if (auto* bus = getBus(false, busIdx))
-        {
-            if (busIdx <= numChannels)
-                bus->enable();  // Enable buses for channels we have
-            else
-                bus->enable(false);  // Disable unused buses
-        }
-    }
-}
 
 void FlamAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
@@ -439,10 +425,8 @@ juce::AudioProcessorValueTreeState::ParameterLayout FlamAudioProcessor::createPa
         "comp_ratio", "Compressor Ratio",
         juce::NormalisableRange<float>(1.0f, 20.0f, 0.1f, 0.3f),
         4.0f, ":1"));
-    layout.add(std::make_unique<juce::AudioParameterFloat>(
-        "comp_lookahead", "Compressor Lookahead",
-        juce::NormalisableRange<float>(0.0f, 10.0f, 0.1f),
-        0.0f, "ms"));
+    // comp_lookahead was removed (FLA-73): SimpleCompressor::setLookahead() was a no-op stub.
+    // APVTS gracefully ignores this key in pre-FLA-73 saved states (unknown params are skipped).
     layout.add(std::make_unique<juce::AudioParameterFloat>(
         "comp_makeup_gain", "Compressor Makeup Gain",
         juce::NormalisableRange<float>(-20.0f, 20.0f, 0.1f),
@@ -456,58 +440,32 @@ void FlamAudioProcessor::updateEngineParameters()
     if (humanizationParam)
         engine.setHumanizationAmount(humanizationParam->get());
 
-    // Input gain
-    if (inputGainParam)
-        engine.setInputGain(inputGainParam->get());
-
-    // EQ parameters
-    if (auto* eq = engine.getEQ())
-    {
-        if (eqBypassParam) eq->setBypassed(!eqBypassParam->get());  // Invert: enabled=true means bypass=false
-        if (eq31HzParam) eq->setBandGain(0, eq31HzParam->get());
-        if (eq62HzParam) eq->setBandGain(1, eq62HzParam->get());
-        if (eq125HzParam) eq->setBandGain(2, eq125HzParam->get());
-        if (eq250HzParam) eq->setBandGain(3, eq250HzParam->get());
-        if (eq500HzParam) eq->setBandGain(4, eq500HzParam->get());
-        if (eq1kHzParam) eq->setBandGain(5, eq1kHzParam->get());
-        if (eq2kHzParam) eq->setBandGain(6, eq2kHzParam->get());
-        if (eq4kHzParam) eq->setBandGain(7, eq4kHzParam->get());
-        if (eq8kHzParam) eq->setBandGain(8, eq8kHzParam->get());
-        if (eq16kHzParam) eq->setBandGain(9, eq16kHzParam->get());
-    }
-
-    // Compressor parameters
-    if (auto* compressor = engine.getCompressor())
-    {
-        if (compBypassParam) compressor->setBypassed(!compBypassParam->get());  // Invert: enabled=true means bypass=false
-        if (compAttackParam) compressor->setAttack(compAttackParam->get());
-        if (compReleaseParam) compressor->setRelease(compReleaseParam->get());
-        if (compHoldParam) compressor->setHold(compHoldParam->get());
-        if (compThresholdParam) compressor->setThreshold(compThresholdParam->get());
-        if (compRatioParam) compressor->setRatio(compRatioParam->get());
-        if (compLookaheadParam) compressor->setLookahead(compLookaheadParam->get());
-        if (compMakeupGainParam) compressor->setMakeupGain(compMakeupGainParam->get());
-    }
-
-    if (auto* mixerBus = engine.getMixerBus())
+    // Mirror APVTS master params into the audible Mixer master section.
+    // All Mixer setters store into std::atomics — safe to call from the message thread.
+    if (perChannelMixer)
     {
         if (masterVolumeParam)
-            mixerBus->setMasterLevel(masterVolumeParam->get());
+            perChannelMixer->setMasterVolume(masterVolumeParam->get());
 
-        if (closeVolumeParam)
-            mixerBus->setBusLevel(MixerBus::BusType::Close, closeVolumeParam->get());
+        if (eqBypassParam)
+            perChannelMixer->setMasterEQEnabled(eqBypassParam->get());
+        if (eq31HzParam)   perChannelMixer->setMasterEQBandGain(0, eq31HzParam->get());
+        if (eq62HzParam)   perChannelMixer->setMasterEQBandGain(1, eq62HzParam->get());
+        if (eq125HzParam)  perChannelMixer->setMasterEQBandGain(2, eq125HzParam->get());
+        if (eq250HzParam)  perChannelMixer->setMasterEQBandGain(3, eq250HzParam->get());
+        if (eq500HzParam)  perChannelMixer->setMasterEQBandGain(4, eq500HzParam->get());
+        if (eq1kHzParam)   perChannelMixer->setMasterEQBandGain(5, eq1kHzParam->get());
+        if (eq2kHzParam)   perChannelMixer->setMasterEQBandGain(6, eq2kHzParam->get());
+        if (eq4kHzParam)   perChannelMixer->setMasterEQBandGain(7, eq4kHzParam->get());
+        if (eq8kHzParam)   perChannelMixer->setMasterEQBandGain(8, eq8kHzParam->get());
+        if (eq16kHzParam)  perChannelMixer->setMasterEQBandGain(9, eq16kHzParam->get());
 
-        if (overheadVolumeParam)
-            mixerBus->setBusLevel(MixerBus::BusType::Overhead, overheadVolumeParam->get());
-
-        if (roomVolumeParam)
-            mixerBus->setBusLevel(MixerBus::BusType::Room, roomVolumeParam->get());
-
-        if (ambientVolumeParam)
-            mixerBus->setBusLevel(MixerBus::BusType::Ambient, ambientVolumeParam->get());
-
-        if (bleedAmountParam)
-            mixerBus->setBleedAmount(bleedAmountParam->get());
+        if (compBypassParam)     perChannelMixer->setMasterCompressorEnabled(compBypassParam->get());
+        if (compAttackParam)     perChannelMixer->setMasterCompressorAttack(compAttackParam->get());
+        if (compReleaseParam)    perChannelMixer->setMasterCompressorRelease(compReleaseParam->get());
+        if (compThresholdParam)  perChannelMixer->setMasterCompressorThreshold(compThresholdParam->get());
+        if (compRatioParam)      perChannelMixer->setMasterCompressorRatio(compRatioParam->get());
+        if (compMakeupGainParam) perChannelMixer->setMasterCompressorMakeupGain(compMakeupGainParam->get());
     }
 
     if (auto* voiceManager = engine.getVoiceManager())

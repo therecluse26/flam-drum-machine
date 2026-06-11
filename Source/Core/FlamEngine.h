@@ -12,10 +12,7 @@
 namespace flam {
 
 class VoiceManager;
-class MixerBus;
 class FlamKitLoader;
-class SimpleEQ;
-class SimpleCompressor;
 
 class FlamEngine : public juce::AudioProcessorGraph
 {
@@ -55,13 +52,6 @@ public:
     void waitForKitLoaded() const;
 
     VoiceManager* getVoiceManager() const { return voiceManager.get(); }
-    MixerBus* getMixerBus() const { return mixerBus.get(); }
-    SimpleEQ* getEQ() const { return eq.get(); }
-    SimpleCompressor* getCompressor() const { return compressor.get(); }
-
-    // Master input gain control
-    void setInputGain(float gainDB) { inputGain = juce::Decibels::decibelsToGain(gainDB); }
-    float getInputGain() const { return inputGain; }
 
     // Level metering
     float getInputLevel() const { return inputLevel.load(std::memory_order_relaxed); }
@@ -79,14 +69,10 @@ public:
 
 private:
     std::unique_ptr<VoiceManager> voiceManager;
-    std::unique_ptr<MixerBus> mixerBus;
     std::unique_ptr<FlamKitLoader> kitLoader;
-    std::unique_ptr<SimpleEQ> eq;
-    std::unique_ptr<SimpleCompressor> compressor;
 
     std::atomic<float> humanization{0.0f};
     std::atomic<int> latencyCompensation{0};
-    float inputGain{1.0f};
 
     // Level metering (updated from audio thread, read from UI thread)
     std::atomic<float> inputLevel{0.0f};

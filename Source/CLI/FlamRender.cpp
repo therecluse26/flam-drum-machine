@@ -31,6 +31,7 @@
 #include <juce_events/juce_events.h>
 
 #include "Core/FlamEngine.h"
+#include "Core/Mixer.h"
 
 #include <algorithm>
 #include <cstdlib>
@@ -203,6 +204,21 @@ int main(int argc, char* argv[])
     engine.waitForKitLoaded();
     std::cout << "Kit loaded.\n";
 
+    // Construct and configure the Mixer (mirrors PluginProcessor::prepareToPlay)
+    flam::Mixer mixer;
+    {
+        const int numChannels = engine.getRequiredChannelCount();
+        std::vector<juce::String> channelNames;
+        channelNames.reserve(static_cast<size_t>(numChannels));
+        for (int i = 0; i < numChannels; ++i)
+            channelNames.push_back("Channel " + juce::String(i + 1));
+        mixer.setNumChannels(numChannels, channelNames);
+        mixer.prepareToPlay(cfg.sampleRate, cfg.blockSize);
+    }
+    // Pre-allocate mixer output: channels 0-1 = Main Mix stereo, channels 2+ = individual buses
+    const int totalMixerOutChans = 2 + mixer.getNumChannels();
+    juce::AudioBuffer<float> mixerOutputBuffer(totalMixerOutChans, cfg.blockSize);
+
     // Set up 24-bit WAV writer
     const juce::File outFile(cfg.outputPath);
     outFile.deleteFile();
@@ -266,7 +282,19 @@ int main(int argc, char* argv[])
             ++eventIndex;
         }
 
+        // Engine fills internalBuffer (multi-channel); buffer is zeroed by the engine.
         engine.processBlock(buffer, midiBuffer);
+
+        // Route multi-channel engine output through Mixer → stereo Main Mix.
+        // This mirrors PluginProcessor::processBlock so the CLI hears the same audio.
+        const auto& internalBuf = engine.getMultiChannelBuffer();
+        mixerOutputBuffer.setSize(totalMixerOutChans, thisBlock, false, false, true);
+        mixer.process(internalBuf, mixerOutputBuffer, thisBlock);
+
+        // Copy stereo Main Mix (channels 0-1) back to buffer for the WAV writer
+        buffer.copyFrom(0, 0, mixerOutputBuffer, 0, 0, thisBlock);
+        buffer.copyFrom(1, 0, mixerOutputBuffer, 1, 0, thisBlock);
+
         writer->writeFromAudioSampleBuffer(buffer, 0, thisBlock);
     }
 

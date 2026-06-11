@@ -14,6 +14,7 @@
 #include <juce_audio_basics/juce_audio_basics.h>
 
 #include "Core/FlamEngine.h"
+#include "Core/Mixer.h"
 
 // ---------------------------------------------------------------------------
 // Compile-time fixture paths (set by CMakeLists.txt)
@@ -102,6 +103,21 @@ static juce::AudioBuffer<float> renderFixtureKit()
     // Prepare for headless rendering
     engine.prepareToPlay(RENDER_SAMPLE_RATE, RENDER_BLOCK_SIZE);
 
+    // Configure Mixer — mirrors PluginProcessor::prepareToPlay so golden validates the
+    // same signal path the plugin uses.  All settings at default (unity gain, no FX).
+    flam::Mixer mixer;
+    {
+        const int numCh = engine.getRequiredChannelCount();
+        std::vector<juce::String> names;
+        names.reserve(static_cast<size_t>(numCh));
+        for (int i = 0; i < numCh; ++i)
+            names.push_back("Channel " + juce::String(i + 1));
+        mixer.setNumChannels(numCh, names);
+        mixer.prepareToPlay(RENDER_SAMPLE_RATE, RENDER_BLOCK_SIZE);
+    }
+    const int mixerOutChans = 2 + mixer.getNumChannels();
+    juce::AudioBuffer<float> mixerOut(mixerOutChans, RENDER_BLOCK_SIZE);
+
     // Render TOTAL_RENDER_SAMPLES into a stereo output buffer, block by block
     juce::AudioBuffer<float> output(2, TOTAL_RENDER_SAMPLES);
     output.clear();
@@ -129,11 +145,17 @@ static juce::AudioBuffer<float> renderFixtureKit()
             ++nextHitIdx;
         }
 
+        // Engine fills internalBuffer; the legacy stereo `block` is zeroed (FLA-70).
         engine.processBlock(block, midi);
 
-        // Accumulate into the full-length output buffer
+        // Route multi-channel engine output through Mixer → stereo Main Mix.
+        const auto& internalBuf = engine.getMultiChannelBuffer();
+        mixerOut.setSize(mixerOutChans, blockLen, false, false, true);
+        mixer.process(internalBuf, mixerOut, blockLen);
+
+        // Accumulate stereo Main Mix (channels 0-1) into the output buffer
         for (int ch = 0; ch < 2; ++ch)
-            output.copyFrom(ch, blockStart, block, ch, 0, blockLen);
+            output.copyFrom(ch, blockStart, mixerOut, ch, 0, blockLen);
     }
 
     return output;
