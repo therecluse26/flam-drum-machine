@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FlamKit Docs — install, build from source, your first plugin</title>
+<meta name="description" content="Install FlamKit in your DAW, build it from source, and get sound out of it in five minutes.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="nav">
+  <div class="nav-inner">
+    <a class="brand" href="index.html"><span class="dot"></span>FlamKit <small>FREE LAYERED AUDIO MACHINE</small></a>
+    <nav class="nav-links">
+      <a href="download.html">Download</a>
+      <a href="docs.html">Docs</a>
+      <a href="samples.html">Samples</a>
+      <a href="community.html">Community</a>
+      <a href="license.html">License</a>
+      <a href="roadmap.html">Roadmap</a>
+      <a class="cta" href="download.html">Download free</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap prose">
+
+  <div class="page-head">
+    <h1>Documentation</h1>
+    <p>Everything you need to get FlamKit running — whether you just want to make beats or you want to build it yourself.</p>
+  </div>
+
+  <p style="color:var(--muted);">
+    <a href="#install">Install</a> ·
+    <a href="#quickstart">Quick start</a> ·
+    <a href="#build">Build from source</a> ·
+    <a href="#first-plugin">Your first plugin</a>
+  </p>
+
+  <section id="install">
+    <h2>Install</h2>
+    <ol>
+      <li><a href="download.html">Download</a> the build for your OS and plugin format (VST3, AU, AAX, or Standalone).</li>
+      <li>Run the installer, or copy the plugin into your system plugin folder (see the table on the <a href="download.html#install">Download</a> page).</li>
+      <li>Open your DAW and <strong>rescan plugins</strong>. FlamKit appears under <code>FLAM</code> in your instrument list.</li>
+      <li>Add FlamKit to an instrument track, then <a href="samples.html">load a kit</a>.</li>
+    </ol>
+    <div class="note">
+      <p><strong>macOS first launch:</strong> if Gatekeeper blocks the standalone app, right-click it and choose <em>Open</em> once. <strong>Windows:</strong> SmartScreen may warn on first run of the installer — choose <em>More info → Run anyway</em>. Both builds are signed; these prompts are normal for new publishers.</p>
+    </div>
+  </section>
+
+  <section id="quickstart">
+    <h2>Quick start — sound in 5 minutes</h2>
+    <ol>
+      <li>Load FlamKit on an instrument track (or launch the standalone app).</li>
+      <li>Open the kit browser and load a starter kit from the <a href="samples.html">Samples</a> page.</li>
+      <li>Play your MIDI controller, or drag a MIDI clip onto the track. Velocity selects the layer; round-robins keep repeated hits natural.</li>
+      <li><strong>Multi-output:</strong> in your DAW's I/O settings, route each FlamKit output bus (kick close, snare top, overheads, room…) to its own track. Now mix the kit like a real multitrack session.</li>
+      <li>No multi-output host? Use the built-in mixer — per-channel volume, pan, solo and mute — and the stereo Main Mix bus.</li>
+    </ol>
+  </section>
+
+  <section id="build">
+    <h2>Build from source</h2>
+    <p>FlamKit is a standard C++20 / JUCE 8 project driven by CMake. The JUCE template generates every plugin format from one definition.</p>
+    <h3>Prerequisites</h3>
+    <ul>
+      <li><strong>CMake</strong> 3.22+ and a C++20 compiler (Clang, MSVC, or GCC)</li>
+      <li><strong>JUCE 8</strong> (fetched by CMake, or point to a local copy)</li>
+      <li>Platform toolchain: Xcode (macOS), Visual Studio 2022 (Windows), or build-essential (Linux)</li>
+    </ul>
+    <h3>Clone &amp; build</h3>
+    <pre><code>git clone https://github.com/therecluse26/flam-drum-machine.git
+cd flam-drum-machine
+mkdir build &amp;&amp; cd build
+cmake ..
+cmake --build . --config Release</code></pre>
+    <p>Built artifacts land in the <code>build</code> tree under each format's output folder (VST3, AU, AAX, Standalone). Copy them into your plugin folder and rescan.</p>
+    <div class="note">
+      <p>The build steps here mirror the repository <a href="https://github.com/therecluse26/flam-drum-machine/blob/main/README.md">README</a>, which is the single source of truth. If anything drifts, the README wins — please <a href="https://github.com/therecluse26/flam-drum-machine/issues">open an issue</a>.</p>
+    </div>
+  </section>
+
+  <section id="first-plugin">
+    <h2>Your first plugin — ship something in an afternoon</h2>
+    <p>FlamKit is designed to be a readable reference for shipping your own JUCE-based sampler. A good first modification:</p>
+    <ul>
+      <li><strong>Read the architecture:</strong> start with <a href="https://github.com/therecluse26/flam-drum-machine/blob/main/ARCHITECTURE.md">ARCHITECTURE.md</a> — it maps the engine, voice manager, format parser, DSP and plugin entry points.</li>
+      <li><strong>Make one real change:</strong> add a new parameter and wire it through the APVTS to the engine, or load a custom <code>flamkit.yaml</code> kit you authored by hand.</li>
+      <li><strong>Build, load in your DAW, hear the difference.</strong> That round trip — clone to audible change — is the "afternoon" promise.</li>
+      <li><strong>Open a PR</strong> or share it on <a href="community.html">Discord</a>. Contributions are how the project gets better.</li>
+    </ul>
+    <p>Detailed contributor guidance lives in <a href="https://github.com/therecluse26/flam-drum-machine/blob/main/CONTRIBUTING.md">CONTRIBUTING.md</a>.</p>
+  </section>
+
+  <section style="text-align:center;">
+    <h2 style="border:0;">Stuck? Ask the community.</h2>
+    <p class="lead" style="margin:8px auto 22px;">Real people, fast answers — on Discord and GitHub.</p>
+    <a class="btn btn-primary" href="community.html">Get help</a>
+  </section>
+
+</main>
+
+<footer class="site">
+  <div class="wrap foot-inner">
+    <div>FlamKit — Free Layered Audio Machine · GPLv3 · © 2026 FLAM</div>
+    <div class="foot-links">
+      <a href="https://github.com/therecluse26/flam-drum-machine">GitHub</a>
+      <a href="community.html">Community</a>
+      <a href="download.html">Download</a>
+      <a href="license.html">License</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

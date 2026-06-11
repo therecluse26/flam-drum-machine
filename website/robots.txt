@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://therecluse26.github.io/flam-drum-machine/sitemap.xml

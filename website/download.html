@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Download FlamKit — free drum sampler for macOS, Windows, Linux</title>
+<meta name="description" content="Download FlamKit free: VST3, AU, AAX and Standalone builds for macOS, Windows and Linux. Signed, checksum-verified release artifacts.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="nav">
+  <div class="nav-inner">
+    <a class="brand" href="index.html"><span class="dot"></span>FlamKit <small>FREE LAYERED AUDIO MACHINE</small></a>
+    <nav class="nav-links">
+      <a href="download.html">Download</a>
+      <a href="docs.html">Docs</a>
+      <a href="samples.html">Samples</a>
+      <a href="community.html">Community</a>
+      <a href="license.html">License</a>
+      <a href="roadmap.html">Roadmap</a>
+      <a class="cta" href="https://github.com/therecluse26/flam-drum-machine/releases/latest">Releases</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <div class="page-head">
+    <h1>Download FlamKit</h1>
+    <p>Free, GPLv3, no sign-up. Every build is published as a signed, checksum-verified artifact on the official GitHub Releases page.</p>
+  </div>
+
+  <div class="note warn">
+    <p><strong>v1.0 release in progress.</strong> The first public release is being finalized. Every platform build below publishes to <a href="https://github.com/therecluse26/flam-drum-machine/releases/latest">GitHub Releases</a> with its SHA-256 checksum the moment it ships — the buttons already point there, and this page updates automatically. <a href="https://github.com/therecluse26/flam-drum-machine">Watch the repo</a> to be notified at launch.</p>
+  </div>
+
+  <section style="padding-top:24px;">
+    <div class="grid grid-3">
+
+      <div class="card dl-card">
+        <div class="os">🍎 macOS</div>
+        <div class="formats">10.13+ · Intel &amp; Apple Silicon</div>
+        <ul>
+          <li>VST3</li>
+          <li>AU (Logic, GarageBand)</li>
+          <li>AAX (Pro Tools)</li>
+          <li>Standalone app</li>
+        </ul>
+        <a class="btn btn-primary" href="https://github.com/therecluse26/flam-drum-machine/releases/latest">Get for macOS</a>
+        <p style="margin-top:12px;font-size:.82rem;">Notarized &amp; Gatekeeper-signed. First launch: right-click → Open if prompted.</p>
+      </div>
+
+      <div class="card dl-card">
+        <div class="os">🪟 Windows</div>
+        <div class="formats">Windows 10 / 11 · 64-bit</div>
+        <ul>
+          <li>VST3</li>
+          <li>AAX (Pro Tools)</li>
+          <li>Standalone app</li>
+        </ul>
+        <a class="btn btn-primary" href="https://github.com/therecluse26/flam-drum-machine/releases/latest">Get for Windows</a>
+        <p style="margin-top:12px;font-size:.82rem;">Code-signed installer. SmartScreen may prompt on first run.</p>
+      </div>
+
+      <div class="card dl-card">
+        <div class="os">🐧 Linux</div>
+        <div class="formats">PipeWire / ALSA · x86-64</div>
+        <ul>
+          <li>VST3</li>
+          <li>Standalone app</li>
+          <li>.tar.gz archive</li>
+        </ul>
+        <a class="btn btn-primary" href="https://github.com/therecluse26/flam-drum-machine/releases/latest">Get for Linux</a>
+        <p style="margin-top:12px;font-size:.82rem;">Tested on Ubuntu/Fedora. Build-from-source also fully supported.</p>
+      </div>
+
+    </div>
+
+    <p style="text-align:center;color:var(--muted);margin-top:26px;">
+      Looking for an older version or the changelog? See
+      <a href="https://github.com/therecluse26/flam-drum-machine/releases">all releases on GitHub</a>.
+    </p>
+  </section>
+
+  <section>
+    <h2>Verify your download</h2>
+    <p class="lead">Every release ships a <code>SHA256SUMS</code> file. Confirming the checksum guarantees the file you downloaded is bit-for-bit the one we published.</p>
+
+    <div class="faq">
+      <details>
+        <summary>macOS / Linux</summary>
+        <div class="answer">
+          <pre><code># compare against the published SHA256SUMS
+shasum -a 256 FlamKit-1.0.0-macOS.zip
+# → the hash must match the value in SHA256SUMS</code></pre>
+        </div>
+      </details>
+      <details>
+        <summary>Windows (PowerShell)</summary>
+        <div class="answer">
+          <pre><code>Get-FileHash .\FlamKit-1.0.0-Windows.zip -Algorithm SHA256
+# compare the Hash column to the published SHA256SUMS</code></pre>
+        </div>
+      </details>
+    </div>
+  </section>
+
+  <section>
+    <h2>Where do plugins install?</h2>
+    <p class="lead">After installing, rescan plugins in your DAW. FlamKit appears under <b>FLAM</b> / instruments.</p>
+    <table>
+      <tr><th>OS</th><th>VST3</th><th>AU</th></tr>
+      <tr><td><b>macOS</b></td><td><code>/Library/Audio/Plug-Ins/VST3</code></td><td><code>/Library/Audio/Plug-Ins/Components</code></td></tr>
+      <tr><td><b>Windows</b></td><td><code>C:\Program Files\Common Files\VST3</code></td><td>—</td></tr>
+      <tr><td><b>Linux</b></td><td><code>~/.vst3</code></td><td>—</td></tr>
+    </table>
+    <p style="color:var(--muted);">Trouble loading? See the <a href="docs.html#install">install &amp; troubleshooting guide</a>.</p>
+  </section>
+
+  <section style="text-align:center;">
+    <h2>Then grab a kit.</h2>
+    <p class="lead" style="margin:8px auto 22px;">FlamKit needs at least one kit to make sound. Start with the free CC0 starter kits.</p>
+    <a class="btn btn-primary" href="samples.html">Browse free kits</a>
+  </section>
+
+</main>
+
+<footer class="site">
+  <div class="wrap foot-inner">
+    <div>FlamKit — Free Layered Audio Machine · GPLv3 · © 2026 FLAM</div>
+    <div class="foot-links">
+      <a href="https://github.com/therecluse26/flam-drum-machine">GitHub</a>
+      <a href="community.html">Community</a>
+      <a href="docs.html">Docs</a>
+      <a href="license.html">License</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
