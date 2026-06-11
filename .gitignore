@@ -46,7 +46,10 @@ JuceLibraryCode/
 *.flac
 *.mp3
 *.ogg
-!Resources/Kits/*/samples/*.wav  # Allow example kit samples if needed
+# NOTE: kit sample binaries (*.wav etc., ignored above) are intentionally NOT
+# committed — they are large and distributed separately (see the distributed
+# repository model in CLAUDE.md and Resources/Kits/LICENSES.md). Only kit
+# METADATA (flamkit.yaml, LICENSE.txt, README.md, cover art) is tracked in git.
 
 # OS specific
 .DS_Store
@@ -148,4 +151,7 @@ pluginval_*
 /Program Files/VstPlugins/
 /Program Files/Steinberg/VST3/
 
-Resources/Kits/**/*
+# Kit metadata IS tracked (see note in the Audio files section above). Only the
+# audio sample binaries under Resources/Kits are ignored, via the *.wav/*.flac/
+# etc. rules above — do NOT blanket-ignore Resources/Kits or kit YAML/licensing
+# falls out of version control.

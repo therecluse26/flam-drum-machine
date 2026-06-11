@@ -1,0 +1,155 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<instrument version="2.0" name="Ride_shank">
+ <samples>
+  <sample name="Ride_shank-1" power="0.00599189">
+   <audiofile channel="AmbL" file="samples/1-Ride_shank.wav" filechannel="1"/>
+   <audiofile channel="AmbR" file="samples/1-Ride_shank.wav" filechannel="2"/>
+   <audiofile channel="Hihat" file="samples/1-Ride_shank.wav" filechannel="3"/>
+   <audiofile channel="Kdrum_back" file="samples/1-Ride_shank.wav" filechannel="4"/>
+   <audiofile channel="Kdrum_front" file="samples/1-Ride_shank.wav" filechannel="5"/>
+   <audiofile channel="OHL" file="samples/1-Ride_shank.wav" filechannel="6"/>
+   <audiofile channel="OHR" file="samples/1-Ride_shank.wav" filechannel="7"/>
+   <audiofile channel="Ride" file="samples/1-Ride_shank.wav" filechannel="8"/>
+   <audiofile channel="Snare_bottom" file="samples/1-Ride_shank.wav" filechannel="9"/>
+   <audiofile channel="Snare_top" file="samples/1-Ride_shank.wav" filechannel="10"/>
+   <audiofile channel="Tom1" file="samples/1-Ride_shank.wav" filechannel="11"/>
+   <audiofile channel="Tom2" file="samples/1-Ride_shank.wav" filechannel="12"/>
+   <audiofile channel="Tom3" file="samples/1-Ride_shank.wav" filechannel="13"/>
+  </sample>
+  <sample name="Ride_shank-2" power="0.0781655">
+   <audiofile channel="AmbL" file="samples/2-Ride_shank.wav" filechannel="1"/>
+   <audiofile channel="AmbR" file="samples/2-Ride_shank.wav" filechannel="2"/>
+   <audiofile channel="Hihat" file="samples/2-Ride_shank.wav" filechannel="3"/>
+   <audiofile channel="Kdrum_back" file="samples/2-Ride_shank.wav" filechannel="4"/>
+   <audiofile channel="Kdrum_front" file="samples/2-Ride_shank.wav" filechannel="5"/>
+   <audiofile channel="OHL" file="samples/2-Ride_shank.wav" filechannel="6"/>
+   <audiofile channel="OHR" file="samples/2-Ride_shank.wav" filechannel="7"/>
+   <audiofile channel="Ride" file="samples/2-Ride_shank.wav" filechannel="8"/>
+   <audiofile channel="Snare_bottom" file="samples/2-Ride_shank.wav" filechannel="9"/>
+   <audiofile channel="Snare_top" file="samples/2-Ride_shank.wav" filechannel="10"/>
+   <audiofile channel="Tom1" file="samples/2-Ride_shank.wav" filechannel="11"/>
+   <audiofile channel="Tom2" file="samples/2-Ride_shank.wav" filechannel="12"/>
+   <audiofile channel="Tom3" file="samples/2-Ride_shank.wav" filechannel="13"/>
+  </sample>
+  <sample name="Ride_shank-3" power="0.274999">
+   <audiofile channel="AmbL" file="samples/3-Ride_shank.wav" filechannel="1"/>
+   <audiofile channel="AmbR" file="samples/3-Ride_shank.wav" filechannel="2"/>
+   <audiofile channel="Hihat" file="samples/3-Ride_shank.wav" filechannel="3"/>
+   <audiofile channel="Kdrum_back" file="samples/3-Ride_shank.wav" filechannel="4"/>
+   <audiofile channel="Kdrum_front" file="samples/3-Ride_shank.wav" filechannel="5"/>
+   <audiofile channel="OHL" file="samples/3-Ride_shank.wav" filechannel="6"/>
+   <audiofile channel="OHR" file="samples/3-Ride_shank.wav" filechannel="7"/>
+   <audiofile channel="Ride" file="samples/3-Ride_shank.wav" filechannel="8"/>
+   <audiofile channel="Snare_bottom" file="samples/3-Ride_shank.wav" filechannel="9"/>
+   <audiofile channel="Snare_top" file="samples/3-Ride_shank.wav" filechannel="10"/>
+   <audiofile channel="Tom1" file="samples/3-Ride_shank.wav" filechannel="11"/>
+   <audiofile channel="Tom2" file="samples/3-Ride_shank.wav" filechannel="12"/>
+   <audiofile channel="Tom3" file="samples/3-Ride_shank.wav" filechannel="13"/>
+  </sample>
+  <sample name="Ride_shank-4" power="0.67588">
+   <audiofile channel="AmbL" file="samples/4-Ride_shank.wav" filechannel="1"/>
+   <audiofile channel="AmbR" file="samples/4-Ride_shank.wav" filechannel="2"/>
+   <audiofile channel="Hihat" file="samples/4-Ride_shank.wav" filechannel="3"/>
+   <audiofile channel="Kdrum_back" file="samples/4-Ride_shank.wav" filechannel="4"/>
+   <audiofile channel="Kdrum_front" file="samples/4-Ride_shank.wav" filechannel="5"/>
+   <audiofile channel="OHL" file="samples/4-Ride_shank.wav" filechannel="6"/>
+   <audiofile channel="OHR" file="samples/4-Ride_shank.wav" filechannel="7"/>
+   <audiofile channel="Ride" file="samples/4-Ride_shank.wav" filechannel="8"/>
+   <audiofile channel="Snare_bottom" file="samples/4-Ride_shank.wav" filechannel="9"/>
+   <audiofile channel="Snare_top" file="samples/4-Ride_shank.wav" filechannel="10"/>
+   <audiofile channel="Tom1" file="samples/4-Ride_shank.wav" filechannel="11"/>
+   <audiofile channel="Tom2" file="samples/4-Ride_shank.wav" filechannel="12"/>
+   <audiofile channel="Tom3" file="samples/4-Ride_shank.wav" filechannel="13"/>
+  </sample>
+  <sample name="Ride_shank-5" power="1.19055">
+   <audiofile channel="AmbL" file="samples/5-Ride_shank.wav" filechannel="1"/>
+   <audiofile channel="AmbR" file="samples/5-Ride_shank.wav" filechannel="2"/>
+   <audiofile channel="Hihat" file="samples/5-Ride_shank.wav" filechannel="3"/>
+   <audiofile channel="Kdrum_back" file="samples/5-Ride_shank.wav" filechannel="4"/>
+   <audiofile channel="Kdrum_front" file="samples/5-Ride_shank.wav" filechannel="5"/>
+   <audiofile channel="OHL" file="samples/5-Ride_shank.wav" filechannel="6"/>
+   <audiofile channel="OHR" file="samples/5-Ride_shank.wav" filechannel="7"/>
+   <audiofile channel="Ride" file="samples/5-Ride_shank.wav" filechannel="8"/>
+   <audiofile channel="Snare_bottom" file="samples/5-Ride_shank.wav" filechannel="9"/>
+   <audiofile channel="Snare_top" file="samples/5-Ride_shank.wav" filechannel="10"/>
+   <audiofile channel="Tom1" file="samples/5-Ride_shank.wav" filechannel="11"/>
+   <audiofile channel="Tom2" file="samples/5-Ride_shank.wav" filechannel="12"/>
+   <audiofile channel="Tom3" file="samples/5-Ride_shank.wav" filechannel="13"/>
+  </sample>
+  <sample name="Ride_shank-6" power="1.89543">
+   <audiofile channel="AmbL" file="samples/6-Ride_shank.wav" filechannel="1"/>
+   <audiofile channel="AmbR" file="samples/6-Ride_shank.wav" filechannel="2"/>
+   <audiofile channel="Hihat" file="samples/6-Ride_shank.wav" filechannel="3"/>
+   <audiofile channel="Kdrum_back" file="samples/6-Ride_shank.wav" filechannel="4"/>
+   <audiofile channel="Kdrum_front" file="samples/6-Ride_shank.wav" filechannel="5"/>
+   <audiofile channel="OHL" file="samples/6-Ride_shank.wav" filechannel="6"/>
+   <audiofile channel="OHR" file="samples/6-Ride_shank.wav" filechannel="7"/>
+   <audiofile channel="Ride" file="samples/6-Ride_shank.wav" filechannel="8"/>
+   <audiofile channel="Snare_bottom" file="samples/6-Ride_shank.wav" filechannel="9"/>
+   <audiofile channel="Snare_top" file="samples/6-Ride_shank.wav" filechannel="10"/>
+   <audiofile channel="Tom1" file="samples/6-Ride_shank.wav" filechannel="11"/>
+   <audiofile channel="Tom2" file="samples/6-Ride_shank.wav" filechannel="12"/>
+   <audiofile channel="Tom3" file="samples/6-Ride_shank.wav" filechannel="13"/>
+  </sample>
+  <sample name="Ride_shank-7" power="2.67873">
+   <audiofile channel="AmbL" file="samples/7-Ride_shank.wav" filechannel="1"/>
+   <audiofile channel="AmbR" file="samples/7-Ride_shank.wav" filechannel="2"/>
+   <audiofile channel="Hihat" file="samples/7-Ride_shank.wav" filechannel="3"/>
+   <audiofile channel="Kdrum_back" file="samples/7-Ride_shank.wav" filechannel="4"/>
+   <audiofile channel="Kdrum_front" file="samples/7-Ride_shank.wav" filechannel="5"/>
+   <audiofile channel="OHL" file="samples/7-Ride_shank.wav" filechannel="6"/>
+   <audiofile channel="OHR" file="samples/7-Ride_shank.wav" filechannel="7"/>
+   <audiofile channel="Ride" file="samples/7-Ride_shank.wav" filechannel="8"/>
+   <audiofile channel="Snare_bottom" file="samples/7-Ride_shank.wav" filechannel="9"/>
+   <audiofile channel="Snare_top" file="samples/7-Ride_shank.wav" filechannel="10"/>
+   <audiofile channel="Tom1" file="samples/7-Ride_shank.wav" filechannel="11"/>
+   <audiofile channel="Tom2" file="samples/7-Ride_shank.wav" filechannel="12"/>
+   <audiofile channel="Tom3" file="samples/7-Ride_shank.wav" filechannel="13"/>
+  </sample>
+  <sample name="Ride_shank-8" power="3.37151">
+   <audiofile channel="AmbL" file="samples/8-Ride_shank.wav" filechannel="1"/>
+   <audiofile channel="AmbR" file="samples/8-Ride_shank.wav" filechannel="2"/>
+   <audiofile channel="Hihat" file="samples/8-Ride_shank.wav" filechannel="3"/>
+   <audiofile channel="Kdrum_back" file="samples/8-Ride_shank.wav" filechannel="4"/>
+   <audiofile channel="Kdrum_front" file="samples/8-Ride_shank.wav" filechannel="5"/>
+   <audiofile channel="OHL" file="samples/8-Ride_shank.wav" filechannel="6"/>
+   <audiofile channel="OHR" file="samples/8-Ride_shank.wav" filechannel="7"/>
+   <audiofile channel="Ride" file="samples/8-Ride_shank.wav" filechannel="8"/>
+   <audiofile channel="Snare_bottom" file="samples/8-Ride_shank.wav" filechannel="9"/>
+   <audiofile channel="Snare_top" file="samples/8-Ride_shank.wav" filechannel="10"/>
+   <audiofile channel="Tom1" file="samples/8-Ride_shank.wav" filechannel="11"/>
+   <audiofile channel="Tom2" file="samples/8-Ride_shank.wav" filechannel="12"/>
+   <audiofile channel="Tom3" file="samples/8-Ride_shank.wav" filechannel="13"/>
+  </sample>
+  <sample name="Ride_shank-9" power="4.18706">
+   <audiofile channel="AmbL" file="samples/9-Ride_shank.wav" filechannel="1"/>
+   <audiofile channel="AmbR" file="samples/9-Ride_shank.wav" filechannel="2"/>
+   <audiofile channel="Hihat" file="samples/9-Ride_shank.wav" filechannel="3"/>
+   <audiofile channel="Kdrum_back" file="samples/9-Ride_shank.wav" filechannel="4"/>
+   <audiofile channel="Kdrum_front" file="samples/9-Ride_shank.wav" filechannel="5"/>
+   <audiofile channel="OHL" file="samples/9-Ride_shank.wav" filechannel="6"/>
+   <audiofile channel="OHR" file="samples/9-Ride_shank.wav" filechannel="7"/>
+   <audiofile channel="Ride" file="samples/9-Ride_shank.wav" filechannel="8"/>
+   <audiofile channel="Snare_bottom" file="samples/9-Ride_shank.wav" filechannel="9"/>
+   <audiofile channel="Snare_top" file="samples/9-Ride_shank.wav" filechannel="10"/>
+   <audiofile channel="Tom1" file="samples/9-Ride_shank.wav" filechannel="11"/>
+   <audiofile channel="Tom2" file="samples/9-Ride_shank.wav" filechannel="12"/>
+   <audiofile channel="Tom3" file="samples/9-Ride_shank.wav" filechannel="13"/>
+  </sample>
+  <sample name="Ride_shank-10" power="5.3743">
+   <audiofile channel="AmbL" file="samples/10-Ride_shank.wav" filechannel="1"/>
+   <audiofile channel="AmbR" file="samples/10-Ride_shank.wav" filechannel="2"/>
+   <audiofile channel="Hihat" file="samples/10-Ride_shank.wav" filechannel="3"/>
+   <audiofile channel="Kdrum_back" file="samples/10-Ride_shank.wav" filechannel="4"/>
+   <audiofile channel="Kdrum_front" file="samples/10-Ride_shank.wav" filechannel="5"/>
+   <audiofile channel="OHL" file="samples/10-Ride_shank.wav" filechannel="6"/>
+   <audiofile channel="OHR" file="samples/10-Ride_shank.wav" filechannel="7"/>
+   <audiofile channel="Ride" file="samples/10-Ride_shank.wav" filechannel="8"/>
+   <audiofile channel="Snare_bottom" file="samples/10-Ride_shank.wav" filechannel="9"/>
+   <audiofile channel="Snare_top" file="samples/10-Ride_shank.wav" filechannel="10"/>
+   <audiofile channel="Tom1" file="samples/10-Ride_shank.wav" filechannel="11"/>
+   <audiofile channel="Tom2" file="samples/10-Ride_shank.wav" filechannel="12"/>
+   <audiofile channel="Tom3" file="samples/10-Ride_shank.wav" filechannel="13"/>
+  </sample>
+ </samples>
+</instrument>

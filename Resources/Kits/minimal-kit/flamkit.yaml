@@ -1,0 +1,518 @@
+# FLAM Kit - Example Rock/Pop Kit
+# Based on General MIDI Drum Map
+
+name: "Minimal Kit"
+author: "FLAM Project"
+version: "1.0.0"
+description: "Multi-sampled drum kit with round-robin layers"
+coverImage: "cover.png"
+tags: ["rock", "pop", "studio"]
+
+# Channel definitions (stereo samples)
+channels:
+  - name: "Left"
+  - name: "Right"
+
+# Global kit settings
+settings:
+  masterGain: 1.0
+  maxPolyphony: 64
+  useRoundRobin: true
+  defaultHumanization: 0.1
+
+# Drum pieces mapped to General MIDI standard
+pieces:
+  # ===== KICK DRUM (MIDI Note 36) =====
+  - name: "Kick"
+    midiNote: 36  # C1
+    articulations:
+      - name: "Hit"
+        chokeGroup: -1
+        attackTime: 0.001
+        holdTime: 0.0
+        decayTime: 0.5
+        sustainLevel: 0.0
+        releaseTime: 0.1
+        layers:
+          - sampleFile: "samples/Kick/RD_K_1.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Kick/RD_K_2.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Kick/RD_K_3.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Kick/RD_K_4.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/Kick/RD_K_5.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 1.0
+            roundRobinGroup: 4
+          - sampleFile: "samples/Kick/RD_K_6.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 1.0
+            roundRobinGroup: 5
+          - sampleFile: "samples/Kick/RD_K_7.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 1.0
+            roundRobinGroup: 6
+          - sampleFile: "samples/Kick/RD_K_8.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 1.0
+            roundRobinGroup: 7
+          - sampleFile: "samples/Kick/RD_K_9.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 1.0
+            roundRobinGroup: 8
+          - sampleFile: "samples/Kick/RD_K_10.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 1.0
+            roundRobinGroup: 9
+
+  # ===== SNARE (MIDI Note 38) =====
+  - name: "Snare"
+    midiNote: 38  # D1
+    articulations:
+      - name: "Center Hit"
+        chokeGroup: -1
+        attackTime: 0.001
+        holdTime: 0.0
+        decayTime: 0.3
+        sustainLevel: 0.0
+        releaseTime: 0.15
+        layers:
+          - sampleFile: "samples/Snare/RD_S_1.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Snare/RD_S_2.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Snare/RD_S_3.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Snare/RD_S_4.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/Snare/RD_S_5.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 1.0
+            roundRobinGroup: 4
+          - sampleFile: "samples/Snare/RD_S_6.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 1.0
+            roundRobinGroup: 5
+          - sampleFile: "samples/Snare/RD_S_7.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 1.0
+            roundRobinGroup: 6
+          - sampleFile: "samples/Snare/RD_S_8.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 1.0
+            roundRobinGroup: 7
+          - sampleFile: "samples/Snare/RD_S_9.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 1.0
+            roundRobinGroup: 8
+          - sampleFile: "samples/Snare/RD_S_10.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 1.0
+            roundRobinGroup: 9
+          - sampleFile: "samples/Snare/RD_S_11.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 1.0
+            roundRobinGroup: 10
+          - sampleFile: "samples/Snare/RD_S_12.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 1.0
+            roundRobinGroup: 11
+          - sampleFile: "samples/Snare/RD_S_13.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 1.0
+            roundRobinGroup: 12
+          - sampleFile: "samples/Snare/RD_S_14.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 1.0
+            roundRobinGroup: 13
+          - sampleFile: "samples/Snare/RD_S_15.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 1.0
+            roundRobinGroup: 14
+          - sampleFile: "samples/Snare/RD_S_16.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 1.0
+            roundRobinGroup: 15
+
+
+  # ===== FLOOR TOM (MIDI Note 41) =====
+  - name: "Floor Tom"
+    midiNote: 41  # F1
+    articulations:
+      - name: "Center"
+        chokeGroup: -1
+        attackTime: 0.001
+        holdTime: 0.0
+        decayTime: 0.6
+        sustainLevel: 0.0
+        releaseTime: 0.3
+        layers:
+          - sampleFile: "samples/Toms/Floor Tom/RD_T_FT_1.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Toms/Floor Tom/RD_T_FT_2.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Toms/Floor Tom/RD_T_FT_3.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Toms/Floor Tom/RD_T_FT_4.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/Toms/Floor Tom/RD_T_FT_5.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 1.0
+            roundRobinGroup: 4
+          - sampleFile: "samples/Toms/Floor Tom/RD_T_FT_6.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 1.0
+            roundRobinGroup: 5
+          - sampleFile: "samples/Toms/Floor Tom/RD_T_FT_7.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 1.0
+            roundRobinGroup: 6
+          - sampleFile: "samples/Toms/Floor Tom/RD_T_FT_8.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 1.0
+            roundRobinGroup: 7
+
+  # ===== CLOSED HI-HAT (MIDI Note 42) =====
+  - name: "Hi-Hat Closed"
+    midiNote: 42  # F#1
+    articulations:
+      - name: "Closed"
+        chokeGroup: 0  # Choke group for hi-hats
+        attackTime: 0.001
+        holdTime: 0.0
+        decayTime: 0.1
+        sustainLevel: 0.0
+        releaseTime: 0.05
+        layers:
+          - sampleFile: "samples/Cymbals/Hi Hat/RD_C_HH_1.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 0.8
+            roundRobinGroup: 0
+          - sampleFile: "samples/Cymbals/Hi Hat/RD_C_HH_2.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 0.8
+            roundRobinGroup: 1
+          - sampleFile: "samples/Cymbals/Hi Hat/RD_C_HH_3.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 0.8
+            roundRobinGroup: 2
+          - sampleFile: "samples/Cymbals/Hi Hat/RD_C_HH_4.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 0.8
+            roundRobinGroup: 3
+          - sampleFile: "samples/Cymbals/Hi Hat/RD_C_HH_5.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 0.8
+            roundRobinGroup: 4
+          - sampleFile: "samples/Cymbals/Hi Hat/RD_C_HH_6.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 0.8
+            roundRobinGroup: 5
+          - sampleFile: "samples/Cymbals/Hi Hat/RD_C_HH_7.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 0.8
+            roundRobinGroup: 6
+          - sampleFile: "samples/Cymbals/Hi Hat/RD_C_HH_8.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 0.8
+            roundRobinGroup: 7
+          - sampleFile: "samples/Cymbals/Hi Hat/RD_C_HH_9.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 0.8
+            roundRobinGroup: 8
+          - sampleFile: "samples/Cymbals/Hi Hat/RD_C_HH_10.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 0.8
+            roundRobinGroup: 9
+          - sampleFile: "samples/Cymbals/Hi Hat/RD_C_HH_11.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 0.8
+            roundRobinGroup: 10
+          - sampleFile: "samples/Cymbals/Hi Hat/RD_C_HH_12.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 0.8
+            roundRobinGroup: 11
+          - sampleFile: "samples/Cymbals/Hi Hat/RD_C_HH_13.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 0.8
+            roundRobinGroup: 12
+          - sampleFile: "samples/Cymbals/Hi Hat/RD_C_HH_14.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 0.8
+            roundRobinGroup: 13
+          - sampleFile: "samples/Cymbals/Hi Hat/RD_C_HH_15.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 0.8
+            roundRobinGroup: 14
+
+  # ===== MID TOM (MIDI Note 45) =====
+  - name: "Mid Tom"
+    midiNote: 45  # A1
+    articulations:
+      - name: "Center"
+        chokeGroup: -1
+        attackTime: 0.001
+        holdTime: 0.0
+        decayTime: 0.5
+        sustainLevel: 0.0
+        releaseTime: 0.2
+        layers:
+          - sampleFile: "samples/Toms/Mid Tom/RD_T_MT_1.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Toms/Mid Tom/RD_T_MT_2.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Toms/Mid Tom/RD_T_MT_3.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Toms/Mid Tom/RD_T_MT_4.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/Toms/Mid Tom/RD_T_MT_5.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 1.0
+            roundRobinGroup: 4
+          - sampleFile: "samples/Toms/Mid Tom/RD_T_MT_6.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 1.0
+            roundRobinGroup: 5
+          - sampleFile: "samples/Toms/Mid Tom/RD_T_MT_7.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 1.0
+            roundRobinGroup: 6
+          - sampleFile: "samples/Toms/Mid Tom/RD_T_MT_8.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 1.0
+            roundRobinGroup: 7
+          - sampleFile: "samples/Toms/Mid Tom/RD_T_MT_9.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 1.0
+            roundRobinGroup: 8
+          - sampleFile: "samples/Toms/Mid Tom/RD_T_MT_10.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 1.0
+            roundRobinGroup: 9
+
+  # ===== OPEN HI-HAT (MIDI Note 46) =====
+  - name: "Hi-Hat Open"
+    midiNote: 46  # A#1
+    articulations:
+      - name: "Open"
+        chokeGroup: 0  # Same choke group as closed hi-hat
+        attackTime: 0.001
+        holdTime: 0.0
+        decayTime: 1.0
+        sustainLevel: 0.3
+        releaseTime: 0.5
+        layers:
+          - sampleFile: "samples/Cymbals/Hi Hat/RD_C_HH_1.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 0.9
+            roundRobinGroup: 0
+
+  # ===== HIGH TOM (MIDI Note 48) =====
+  - name: "High Tom"
+    midiNote: 48  # C2
+    articulations:
+      - name: "Center"
+        chokeGroup: -1
+        attackTime: 0.001
+        holdTime: 0.0
+        decayTime: 0.4
+        sustainLevel: 0.0
+        releaseTime: 0.2
+        layers:
+          - sampleFile: "samples/Toms/High Tom/RD_T_HT_1.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 1.0
+            roundRobinGroup: 0
+          - sampleFile: "samples/Toms/High Tom/RD_T_HT_2.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 1.0
+            roundRobinGroup: 1
+          - sampleFile: "samples/Toms/High Tom/RD_T_HT_3.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 1.0
+            roundRobinGroup: 2
+          - sampleFile: "samples/Toms/High Tom/RD_T_HT_4.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 1.0
+            roundRobinGroup: 3
+          - sampleFile: "samples/Toms/High Tom/RD_T_HT_5.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 1.0
+            roundRobinGroup: 4
+          - sampleFile: "samples/Toms/High Tom/RD_T_HT_6.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 1.0
+            roundRobinGroup: 5
+          - sampleFile: "samples/Toms/High Tom/RD_T_HT_7.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 1.0
+            roundRobinGroup: 6
+          - sampleFile: "samples/Toms/High Tom/RD_T_HT_8.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 1.0
+            roundRobinGroup: 7
+          - sampleFile: "samples/Toms/High Tom/RD_T_HT_9.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 1.0
+            roundRobinGroup: 8
+
+  # ===== CRASH CYMBAL (MIDI Note 49) =====
+  - name: "Crash Cymbal"
+    midiNote: 49  # C#2
+    articulations:
+      - name: "Hit"
+        chokeGroup: -1
+        attackTime: 0.001
+        holdTime: 0.0
+        decayTime: 2.0
+        sustainLevel: 0.2
+        releaseTime: 1.5
+        layers:
+          - sampleFile: "samples/Cymbals/Crash/RD_C_C_1.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 0.95
+            roundRobinGroup: 0
+          - sampleFile: "samples/Cymbals/Crash/RD_C_C_2.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 0.95
+            roundRobinGroup: 1
+          - sampleFile: "samples/Cymbals/Crash/RD_C_C_3.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 0.95
+            roundRobinGroup: 2
+          - sampleFile: "samples/Cymbals/Crash/RD_C_C_4.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 0.95
+            roundRobinGroup: 3
+          - sampleFile: "samples/Cymbals/Crash/RD_C_C_5.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 0.95
+            roundRobinGroup: 4
+          - sampleFile: "samples/Cymbals/Crash/RD_C_C_6.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 0.95
+            roundRobinGroup: 5
+          - sampleFile: "samples/Cymbals/Crash/RD_C_C_7.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 0.95
+            roundRobinGroup: 6
+          - sampleFile: "samples/Cymbals/Crash/RD_C_C_8.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 0.95
+            roundRobinGroup: 7
+          - sampleFile: "samples/Cymbals/Crash/RD_C_C_9.wav"
+            velocityMin: 0.0
+            velocityMax: 1.0
+            gain: 0.95
+            roundRobinGroup: 8

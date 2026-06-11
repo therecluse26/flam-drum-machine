@@ -1,0 +1,39 @@
+DRSKit — License & Attribution
+==============================
+
+Kit:        DRSKit, version 2.1 (released August 2018)
+Source:     DrumGizmo project
+            Project:  https://drumgizmo.org/
+            Kits:     https://drumgizmo.org/kits/
+Creators:   The DrumGizmo team, in collaboration with DRSDrums / Jes Eiler
+            (http://www.drsdrums.dk). Kit and microphone setup, and sampling,
+            by Deva & Lars Muldjord. Edited and prepared by Lars Muldjord.
+
+LICENSE: Creative Commons Attribution 4.0 International (CC-BY 4.0)
+         https://creativecommons.org/licenses/by/4.0/
+
+You are free to:
+  - Share — copy and redistribute the material in any medium or format
+  - Adapt — remix, transform, and build upon the material
+  for any purpose, even commercially.
+
+Under the following terms:
+  - Attribution — You must give appropriate credit, provide a link to the
+    license, and indicate if changes were made. You may do so in any reasonable
+    manner, but not in any way that suggests the licensor endorses you or your use.
+
+REQUIRED ATTRIBUTION (display this credit when shipping or using this kit):
+
+    "DRSKit by the DrumGizmo project (https://drumgizmo.org/),
+     licensed under CC-BY 4.0 (https://creativecommons.org/licenses/by/4.0/)."
+
+MODIFICATIONS MADE BY FLAM:
+  - Repackaged from the original DrumGizmo XML kit format into FlamKit's
+    `flamkit.yaml` format for use in the FlamKit drum engine.
+  - Audio sample files (WAV) are unmodified from the original DrumGizmo release.
+
+NOTES:
+  - This license permits commercial use and redistribution bundled with FlamKit.
+  - There are NO Non-Commercial (NC) or No-Derivatives (ND) restrictions.
+  - Original kit README with full mic/channel documentation: see README.md in
+    this directory.

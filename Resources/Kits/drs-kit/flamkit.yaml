@@ -1,0 +1,1257 @@
+name: "DRSKit"
+author: "DrumGizmo project & DRSDrums (Jes Eiler); recorded by Deva & Lars Muldjord"
+description: >-
+  Multi-sampled acoustic drum kit (13-channel multi-mic) with extensive velocity
+  layers and articulations. From jazz to rock. Source: DrumGizmo DRSKit v2.1.
+  Licensed CC-BY 4.0 — see LICENSE.txt. © DrumGizmo project (drumgizmo.org).
+version: "1.0"
+sampleRate: 44100
+bitDepth: 32  # IEEE Float
+tags: ["acoustic", "rock", "jazz", "multi-channel"]
+
+# ========================================
+# LICENSE / PROVENANCE (CC-BY 4.0 — attribution REQUIRED)
+# ========================================
+# Kit:          DRSKit v2.1 (August 2018)
+# Source:       DrumGizmo project — https://drumgizmo.org/  (kit: https://drumgizmo.org/kits/)
+# Creators:     DrumGizmo team in collaboration with DRSDrums / Jes Eiler (http://www.drsdrums.dk)
+#               Kit/mic setup & sampling by Deva & Lars Muldjord; edited by Lars Muldjord.
+# License:      Creative Commons Attribution 4.0 International (CC-BY 4.0)
+#               https://creativecommons.org/licenses/by/4.0/
+# Modifications: Repackaged from DrumGizmo XML into flamkit.yaml. Audio samples unmodified.
+# Attribution string (must be displayed to end users — see FLA child issue for UI work):
+#   "DRSKit by the DrumGizmo project (drumgizmo.org), CC-BY 4.0."
+# Redistribution: PERMITTED with attribution. Commercial use PERMITTED. No NC/ND restrictions.
+
+# ========================================
+# MICROPHONE CHANNEL DEFINITIONS
+# ========================================
+# CRITICAL: These channel names and indices define the mixer layout in FlamKit.
+# All WAV files in this kit MUST have exactly 13 channels matching this configuration.
+# The order here (index 0-12) corresponds directly to the channel order in the WAV files.
+#
+# Channel Naming Convention:
+#   - Close mics: Individual drum piece microphones for isolated sound
+#   - Overhead (OH): Stereo pair capturing cymbals and overall kit sound
+#   - Room: Stereo pair capturing ambient/room sound for natural depth
+#   - Ambient: Additional room capture for extended reverb/space
+#
+# Usage in FlamKit:
+#   - Each channel becomes a labeled strip in the Per-Channel Mixer
+#   - Users can route each channel to Main Mix or individual DAW output buses
+#   - Enables professional multi-mic mixing workflow
+channels:
+  - name: "Kick In"        # Close mic inside kick drum (beater attack)
+    index: 0
+  - name: "Kick Out"       # Close mic outside kick drum (resonance/body)
+    index: 1
+  - name: "Snare Top"      # Close mic on snare drum batter head
+    index: 2
+  - name: "Snare Btm"      # Close mic under snare (snare wire response)
+    index: 3
+  - name: "HH Close"       # Close mic on hi-hat
+    index: 4
+  - name: "Tom 1"          # Close mic on high tom
+    index: 5
+  - name: "Tom 2"          # Close mic on mid tom
+    index: 6
+  - name: "Tom 3"          # Close mic on floor tom
+    index: 7
+  - name: "Ride"           # Close mic on ride cymbal
+    index: 8
+  - name: "OH-L"           # Overhead left (stereo pair - captures cymbals)
+    index: 9
+  - name: "OH-R"           # Overhead right (stereo pair)
+    index: 10
+  - name: "Room-L"         # Room mic left (stereo pair - ambient/natural reverb)
+    index: 11
+  - name: "Room-R"         # Room mic right (stereo pair)
+    index: 12
+
+settings:
+  maxPolyphony: 64
+  useRoundRobin: true
+
+pieces:
+  # ===== KICK DRUM =====
+  - name: "Kick"
+    midiNote: 36  # C1
+    articulations:
+      - name: "Main"
+        chokeGroup: -1
+        attackTime: 0.0
+        holdTime: 0.0
+        decayTime: 0.5
+        sustainLevel: 0.0
+        releaseTime: 0.2
+        layers:
+          - sampleFile: "Kdrum_with_contact/samples/1-Kdrum_with_contact.wav"
+            velocityMin: 0.0
+            velocityMax: 0.036
+          - sampleFile: "Kdrum_with_contact/samples/2-Kdrum_with_contact.wav"
+            velocityMin: 0.036
+            velocityMax: 0.071
+          - sampleFile: "Kdrum_with_contact/samples/3-Kdrum_with_contact.wav"
+            velocityMin: 0.071
+            velocityMax: 0.107
+          - sampleFile: "Kdrum_with_contact/samples/4-Kdrum_with_contact.wav"
+            velocityMin: 0.107
+            velocityMax: 0.143
+          - sampleFile: "Kdrum_with_contact/samples/5-Kdrum_with_contact.wav"
+            velocityMin: 0.143
+            velocityMax: 0.179
+          - sampleFile: "Kdrum_with_contact/samples/6-Kdrum_with_contact.wav"
+            velocityMin: 0.179
+            velocityMax: 0.214
+          - sampleFile: "Kdrum_with_contact/samples/7-Kdrum_with_contact.wav"
+            velocityMin: 0.214
+            velocityMax: 0.25
+          - sampleFile: "Kdrum_with_contact/samples/8-Kdrum_with_contact.wav"
+            velocityMin: 0.25
+            velocityMax: 0.286
+          - sampleFile: "Kdrum_with_contact/samples/9-Kdrum_with_contact.wav"
+            velocityMin: 0.286
+            velocityMax: 0.321
+          - sampleFile: "Kdrum_with_contact/samples/10-Kdrum_with_contact.wav"
+            velocityMin: 0.321
+            velocityMax: 0.357
+          - sampleFile: "Kdrum_with_contact/samples/11-Kdrum_with_contact.wav"
+            velocityMin: 0.357
+            velocityMax: 0.393
+          - sampleFile: "Kdrum_with_contact/samples/12-Kdrum_with_contact.wav"
+            velocityMin: 0.393
+            velocityMax: 0.429
+          - sampleFile: "Kdrum_with_contact/samples/13-Kdrum_with_contact.wav"
+            velocityMin: 0.429
+            velocityMax: 0.464
+          - sampleFile: "Kdrum_with_contact/samples/14-Kdrum_with_contact.wav"
+            velocityMin: 0.464
+            velocityMax: 0.5
+          - sampleFile: "Kdrum_with_contact/samples/15-Kdrum_with_contact.wav"
+            velocityMin: 0.5
+            velocityMax: 0.536
+          - sampleFile: "Kdrum_with_contact/samples/16-Kdrum_with_contact.wav"
+            velocityMin: 0.536
+            velocityMax: 0.571
+          - sampleFile: "Kdrum_with_contact/samples/17-Kdrum_with_contact.wav"
+            velocityMin: 0.571
+            velocityMax: 0.607
+          - sampleFile: "Kdrum_with_contact/samples/18-Kdrum_with_contact.wav"
+            velocityMin: 0.607
+            velocityMax: 0.643
+          - sampleFile: "Kdrum_with_contact/samples/19-Kdrum_with_contact.wav"
+            velocityMin: 0.643
+            velocityMax: 0.679
+          - sampleFile: "Kdrum_with_contact/samples/20-Kdrum_with_contact.wav"
+            velocityMin: 0.679
+            velocityMax: 0.714
+          - sampleFile: "Kdrum_with_contact/samples/21-Kdrum_with_contact.wav"
+            velocityMin: 0.714
+            velocityMax: 0.75
+          - sampleFile: "Kdrum_with_contact/samples/22-Kdrum_with_contact.wav"
+            velocityMin: 0.75
+            velocityMax: 0.786
+          - sampleFile: "Kdrum_with_contact/samples/23-Kdrum_with_contact.wav"
+            velocityMin: 0.786
+            velocityMax: 0.821
+          - sampleFile: "Kdrum_with_contact/samples/24-Kdrum_with_contact.wav"
+            velocityMin: 0.821
+            velocityMax: 0.857
+          - sampleFile: "Kdrum_with_contact/samples/25-Kdrum_with_contact.wav"
+            velocityMin: 0.857
+            velocityMax: 0.893
+          - sampleFile: "Kdrum_with_contact/samples/26-Kdrum_with_contact.wav"
+            velocityMin: 0.893
+            velocityMax: 0.929
+          - sampleFile: "Kdrum_with_contact/samples/27-Kdrum_with_contact.wav"
+            velocityMin: 0.929
+            velocityMax: 0.964
+          - sampleFile: "Kdrum_with_contact/samples/28-Kdrum_with_contact.wav"
+            velocityMin: 0.964
+            velocityMax: 1.0
+
+  # ===== SNARE =====
+  - name: "Snare"
+    midiNote: 38  # D1
+    articulations:
+      - name: "Main"
+        chokeGroup: -1
+        attackTime: 0.0
+        holdTime: 0.0
+        decayTime: 0.4
+        sustainLevel: 0.0
+        releaseTime: 0.15
+        layers:
+          - sampleFile: "Snare/samples/1-Snare.wav"
+            velocityMin: 0.0
+            velocityMax: 0.034
+          - sampleFile: "Snare/samples/2-Snare.wav"
+            velocityMin: 0.034
+            velocityMax: 0.069
+          - sampleFile: "Snare/samples/3-Snare.wav"
+            velocityMin: 0.069
+            velocityMax: 0.103
+          - sampleFile: "Snare/samples/4-Snare.wav"
+            velocityMin: 0.103
+            velocityMax: 0.138
+          - sampleFile: "Snare/samples/5-Snare.wav"
+            velocityMin: 0.138
+            velocityMax: 0.172
+          - sampleFile: "Snare/samples/6-Snare.wav"
+            velocityMin: 0.172
+            velocityMax: 0.207
+          - sampleFile: "Snare/samples/7-Snare.wav"
+            velocityMin: 0.207
+            velocityMax: 0.241
+          - sampleFile: "Snare/samples/8-Snare.wav"
+            velocityMin: 0.241
+            velocityMax: 0.276
+          - sampleFile: "Snare/samples/9-Snare.wav"
+            velocityMin: 0.276
+            velocityMax: 0.310
+          - sampleFile: "Snare/samples/10-Snare.wav"
+            velocityMin: 0.310
+            velocityMax: 0.345
+          - sampleFile: "Snare/samples/11-Snare.wav"
+            velocityMin: 0.345
+            velocityMax: 0.379
+          - sampleFile: "Snare/samples/12-Snare.wav"
+            velocityMin: 0.379
+            velocityMax: 0.414
+          - sampleFile: "Snare/samples/13-Snare.wav"
+            velocityMin: 0.414
+            velocityMax: 0.448
+          - sampleFile: "Snare/samples/14-Snare.wav"
+            velocityMin: 0.448
+            velocityMax: 0.483
+          - sampleFile: "Snare/samples/15-Snare.wav"
+            velocityMin: 0.483
+            velocityMax: 0.517
+          - sampleFile: "Snare/samples/16-Snare.wav"
+            velocityMin: 0.517
+            velocityMax: 0.552
+          - sampleFile: "Snare/samples/17-Snare.wav"
+            velocityMin: 0.552
+            velocityMax: 0.586
+          - sampleFile: "Snare/samples/18-Snare.wav"
+            velocityMin: 0.586
+            velocityMax: 0.621
+          - sampleFile: "Snare/samples/19-Snare.wav"
+            velocityMin: 0.621
+            velocityMax: 0.655
+          - sampleFile: "Snare/samples/20-Snare.wav"
+            velocityMin: 0.655
+            velocityMax: 0.690
+          - sampleFile: "Snare/samples/21-Snare.wav"
+            velocityMin: 0.690
+            velocityMax: 0.724
+          - sampleFile: "Snare/samples/22-Snare.wav"
+            velocityMin: 0.724
+            velocityMax: 0.759
+          - sampleFile: "Snare/samples/23-Snare.wav"
+            velocityMin: 0.759
+            velocityMax: 0.793
+          - sampleFile: "Snare/samples/24-Snare.wav"
+            velocityMin: 0.793
+            velocityMax: 0.828
+          - sampleFile: "Snare/samples/25-Snare.wav"
+            velocityMin: 0.828
+            velocityMax: 0.862
+          - sampleFile: "Snare/samples/26-Snare.wav"
+            velocityMin: 0.862
+            velocityMax: 0.897
+          - sampleFile: "Snare/samples/27-Snare.wav"
+            velocityMin: 0.897
+            velocityMax: 0.931
+          - sampleFile: "Snare/samples/28-Snare.wav"
+            velocityMin: 0.931
+            velocityMax: 0.966
+          - sampleFile: "Snare/samples/29-Snare.wav"
+            velocityMin: 0.966
+            velocityMax: 1.0
+
+  # ===== SNARE RIM =====
+  - name: "Snare Rim"
+    midiNote: 37  # C#1
+    articulations:
+      - name: "Main"
+        chokeGroup: -1
+        attackTime: 0.0
+        holdTime: 0.0
+        decayTime: 0.2
+        sustainLevel: 0.0
+        releaseTime: 0.1
+        layers:
+          - sampleFile: "Snare_rim/samples/1-Snare_rim.wav"
+            velocityMin: 0.0
+            velocityMax: 0.125
+          - sampleFile: "Snare_rim/samples/2-Snare_rim.wav"
+            velocityMin: 0.125
+            velocityMax: 0.25
+          - sampleFile: "Snare_rim/samples/3-Snare_rim.wav"
+            velocityMin: 0.25
+            velocityMax: 0.375
+          - sampleFile: "Snare_rim/samples/4-Snare_rim.wav"
+            velocityMin: 0.375
+            velocityMax: 0.5
+          - sampleFile: "Snare_rim/samples/5-Snare_rim.wav"
+            velocityMin: 0.5
+            velocityMax: 0.625
+          - sampleFile: "Snare_rim/samples/6-Snare_rim.wav"
+            velocityMin: 0.625
+            velocityMax: 0.75
+          - sampleFile: "Snare_rim/samples/7-Snare_rim.wav"
+            velocityMin: 0.75
+            velocityMax: 0.875
+          - sampleFile: "Snare_rim/samples/8-Snare_rim.wav"
+            velocityMin: 0.875
+            velocityMax: 1.0
+
+  # ===== SNARE WHISKER =====
+  - name: "Snare Whisker"
+    midiNote: 39  # D#1
+    articulations:
+      - name: "Main"
+        chokeGroup: -1
+        attackTime: 0.0
+        holdTime: 0.0
+        decayTime: 0.3
+        sustainLevel: 0.0
+        releaseTime: 0.12
+        layers:
+          - sampleFile: "Snare_whisker/samples/1-Snare_whisker.wav"
+            velocityMin: 0.0
+            velocityMax: 0.167
+          - sampleFile: "Snare_whisker/samples/2-Snare_whisker.wav"
+            velocityMin: 0.167
+            velocityMax: 0.333
+          - sampleFile: "Snare_whisker/samples/3-Snare_whisker.wav"
+            velocityMin: 0.333
+            velocityMax: 0.5
+          - sampleFile: "Snare_whisker/samples/4-Snare_whisker.wav"
+            velocityMin: 0.5
+            velocityMax: 0.667
+          - sampleFile: "Snare_whisker/samples/5-Snare_whisker.wav"
+            velocityMin: 0.667
+            velocityMax: 0.833
+          - sampleFile: "Snare_whisker/samples/6-Snare_whisker.wav"
+            velocityMin: 0.833
+            velocityMax: 1.0
+
+  # ===== TOM 1 (High Tom) =====
+  - name: "Tom 1"
+    midiNote: 48  # C2
+    articulations:
+      - name: "Main"
+        chokeGroup: -1
+        attackTime: 0.0
+        holdTime: 0.0
+        decayTime: 0.6
+        sustainLevel: 0.0
+        releaseTime: 0.2
+        layers:
+          - sampleFile: "Tom1/samples/1-Tom1.wav"
+            velocityMin: 0.0
+            velocityMax: 0.037
+          - sampleFile: "Tom1/samples/2-Tom1.wav"
+            velocityMin: 0.037
+            velocityMax: 0.074
+          - sampleFile: "Tom1/samples/3-Tom1.wav"
+            velocityMin: 0.074
+            velocityMax: 0.111
+          - sampleFile: "Tom1/samples/4-Tom1.wav"
+            velocityMin: 0.111
+            velocityMax: 0.148
+          - sampleFile: "Tom1/samples/5-Tom1.wav"
+            velocityMin: 0.148
+            velocityMax: 0.185
+          - sampleFile: "Tom1/samples/6-Tom1.wav"
+            velocityMin: 0.185
+            velocityMax: 0.222
+          - sampleFile: "Tom1/samples/7-Tom1.wav"
+            velocityMin: 0.222
+            velocityMax: 0.259
+          - sampleFile: "Tom1/samples/8-Tom1.wav"
+            velocityMin: 0.259
+            velocityMax: 0.296
+          - sampleFile: "Tom1/samples/9-Tom1.wav"
+            velocityMin: 0.296
+            velocityMax: 0.333
+          - sampleFile: "Tom1/samples/10-Tom1.wav"
+            velocityMin: 0.333
+            velocityMax: 0.370
+          - sampleFile: "Tom1/samples/11-Tom1.wav"
+            velocityMin: 0.370
+            velocityMax: 0.407
+          - sampleFile: "Tom1/samples/12-Tom1.wav"
+            velocityMin: 0.407
+            velocityMax: 0.444
+          - sampleFile: "Tom1/samples/13-Tom1.wav"
+            velocityMin: 0.444
+            velocityMax: 0.481
+          - sampleFile: "Tom1/samples/14-Tom1.wav"
+            velocityMin: 0.481
+            velocityMax: 0.519
+          - sampleFile: "Tom1/samples/15-Tom1.wav"
+            velocityMin: 0.519
+            velocityMax: 0.556
+          - sampleFile: "Tom1/samples/16-Tom1.wav"
+            velocityMin: 0.556
+            velocityMax: 0.593
+          - sampleFile: "Tom1/samples/17-Tom1.wav"
+            velocityMin: 0.593
+            velocityMax: 0.630
+          - sampleFile: "Tom1/samples/18-Tom1.wav"
+            velocityMin: 0.630
+            velocityMax: 0.667
+          - sampleFile: "Tom1/samples/19-Tom1.wav"
+            velocityMin: 0.667
+            velocityMax: 0.704
+          - sampleFile: "Tom1/samples/20-Tom1.wav"
+            velocityMin: 0.704
+            velocityMax: 0.741
+          - sampleFile: "Tom1/samples/21-Tom1.wav"
+            velocityMin: 0.741
+            velocityMax: 0.778
+          - sampleFile: "Tom1/samples/22-Tom1.wav"
+            velocityMin: 0.778
+            velocityMax: 0.815
+          - sampleFile: "Tom1/samples/23-Tom1.wav"
+            velocityMin: 0.815
+            velocityMax: 0.852
+          - sampleFile: "Tom1/samples/24-Tom1.wav"
+            velocityMin: 0.852
+            velocityMax: 0.889
+          - sampleFile: "Tom1/samples/25-Tom1.wav"
+            velocityMin: 0.889
+            velocityMax: 0.926
+          - sampleFile: "Tom1/samples/26-Tom1.wav"
+            velocityMin: 0.926
+            velocityMax: 0.963
+          - sampleFile: "Tom1/samples/27-Tom1.wav"
+            velocityMin: 0.963
+            velocityMax: 1.0
+
+  # ===== TOM 1 WHISKER =====
+  - name: "Tom 1 Whisker"
+    midiNote: 50  # D2
+    articulations:
+      - name: "Main"
+        chokeGroup: -1
+        attackTime: 0.0
+        holdTime: 0.0
+        decayTime: 0.5
+        sustainLevel: 0.0
+        releaseTime: 0.18
+        layers:
+          - sampleFile: "Tom1_whisker/samples/1-Tom1_whisker.wav"
+            velocityMin: 0.0
+            velocityMax: 0.25
+          - sampleFile: "Tom1_whisker/samples/2-Tom1_whisker.wav"
+            velocityMin: 0.25
+            velocityMax: 0.5
+          - sampleFile: "Tom1_whisker/samples/3-Tom1_whisker.wav"
+            velocityMin: 0.5
+            velocityMax: 0.75
+          - sampleFile: "Tom1_whisker/samples/4-Tom1_whisker.wav"
+            velocityMin: 0.75
+            velocityMax: 1.0
+
+  # ===== TOM 2 (Mid Tom) =====
+  - name: "Tom 2"
+    midiNote: 47  # B1
+    articulations:
+      - name: "Main"
+        chokeGroup: -1
+        attackTime: 0.0
+        holdTime: 0.0
+        decayTime: 0.65
+        sustainLevel: 0.0
+        releaseTime: 0.22
+        layers:
+          - sampleFile: "Tom2/samples/1-Tom2.wav"
+            velocityMin: 0.0
+            velocityMax: 0.038
+          - sampleFile: "Tom2/samples/2-Tom2.wav"
+            velocityMin: 0.038
+            velocityMax: 0.077
+          - sampleFile: "Tom2/samples/3-Tom2.wav"
+            velocityMin: 0.077
+            velocityMax: 0.115
+          - sampleFile: "Tom2/samples/4-Tom2.wav"
+            velocityMin: 0.115
+            velocityMax: 0.154
+          - sampleFile: "Tom2/samples/5-Tom2.wav"
+            velocityMin: 0.154
+            velocityMax: 0.192
+          - sampleFile: "Tom2/samples/6-Tom2.wav"
+            velocityMin: 0.192
+            velocityMax: 0.231
+          - sampleFile: "Tom2/samples/7-Tom2.wav"
+            velocityMin: 0.231
+            velocityMax: 0.269
+          - sampleFile: "Tom2/samples/8-Tom2.wav"
+            velocityMin: 0.269
+            velocityMax: 0.308
+          - sampleFile: "Tom2/samples/9-Tom2.wav"
+            velocityMin: 0.308
+            velocityMax: 0.346
+          - sampleFile: "Tom2/samples/10-Tom2.wav"
+            velocityMin: 0.346
+            velocityMax: 0.385
+          - sampleFile: "Tom2/samples/11-Tom2.wav"
+            velocityMin: 0.385
+            velocityMax: 0.423
+          - sampleFile: "Tom2/samples/12-Tom2.wav"
+            velocityMin: 0.423
+            velocityMax: 0.462
+          - sampleFile: "Tom2/samples/13-Tom2.wav"
+            velocityMin: 0.462
+            velocityMax: 0.5
+          - sampleFile: "Tom2/samples/14-Tom2.wav"
+            velocityMin: 0.5
+            velocityMax: 0.538
+          - sampleFile: "Tom2/samples/15-Tom2.wav"
+            velocityMin: 0.538
+            velocityMax: 0.577
+          - sampleFile: "Tom2/samples/16-Tom2.wav"
+            velocityMin: 0.577
+            velocityMax: 0.615
+          - sampleFile: "Tom2/samples/17-Tom2.wav"
+            velocityMin: 0.615
+            velocityMax: 0.654
+          - sampleFile: "Tom2/samples/18-Tom2.wav"
+            velocityMin: 0.654
+            velocityMax: 0.692
+          - sampleFile: "Tom2/samples/19-Tom2.wav"
+            velocityMin: 0.692
+            velocityMax: 0.731
+          - sampleFile: "Tom2/samples/20-Tom2.wav"
+            velocityMin: 0.731
+            velocityMax: 0.769
+          - sampleFile: "Tom2/samples/21-Tom2.wav"
+            velocityMin: 0.769
+            velocityMax: 0.808
+          - sampleFile: "Tom2/samples/22-Tom2.wav"
+            velocityMin: 0.808
+            velocityMax: 0.846
+          - sampleFile: "Tom2/samples/23-Tom2.wav"
+            velocityMin: 0.846
+            velocityMax: 0.885
+          - sampleFile: "Tom2/samples/24-Tom2.wav"
+            velocityMin: 0.885
+            velocityMax: 0.923
+          - sampleFile: "Tom2/samples/25-Tom2.wav"
+            velocityMin: 0.923
+            velocityMax: 0.962
+          - sampleFile: "Tom2/samples/26-Tom2.wav"
+            velocityMin: 0.962
+            velocityMax: 1.0
+
+  # ===== TOM 2 WHISKER =====
+  - name: "Tom 2 Whisker"
+    midiNote: 49  # C#2
+    articulations:
+      - name: "Main"
+        chokeGroup: -1
+        attackTime: 0.0
+        holdTime: 0.0
+        decayTime: 0.55
+        sustainLevel: 0.0
+        releaseTime: 0.2
+        layers:
+          - sampleFile: "Tom2_whisker/samples/1-Tom2_whisker.wav"
+            velocityMin: 0.0
+            velocityMax: 0.2
+          - sampleFile: "Tom2_whisker/samples/2-Tom2_whisker.wav"
+            velocityMin: 0.2
+            velocityMax: 0.4
+          - sampleFile: "Tom2_whisker/samples/3-Tom2_whisker.wav"
+            velocityMin: 0.4
+            velocityMax: 0.6
+          - sampleFile: "Tom2_whisker/samples/4-Tom2_whisker.wav"
+            velocityMin: 0.6
+            velocityMax: 0.8
+          - sampleFile: "Tom2_whisker/samples/5-Tom2_whisker.wav"
+            velocityMin: 0.8
+            velocityMax: 1.0
+
+  # ===== TOM 3 (Floor Tom) =====
+  - name: "Tom 3"
+    midiNote: 43  # G1
+    articulations:
+      - name: "Main"
+        chokeGroup: -1
+        attackTime: 0.0
+        holdTime: 0.0
+        decayTime: 0.8
+        sustainLevel: 0.0
+        releaseTime: 0.3
+        layers:
+          - sampleFile: "Tom3/samples/1-Tom3.wav"
+            velocityMin: 0.0
+            velocityMax: 0.056
+          - sampleFile: "Tom3/samples/2-Tom3.wav"
+            velocityMin: 0.056
+            velocityMax: 0.111
+          - sampleFile: "Tom3/samples/3-Tom3.wav"
+            velocityMin: 0.111
+            velocityMax: 0.167
+          - sampleFile: "Tom3/samples/4-Tom3.wav"
+            velocityMin: 0.167
+            velocityMax: 0.222
+          - sampleFile: "Tom3/samples/5-Tom3.wav"
+            velocityMin: 0.222
+            velocityMax: 0.278
+          - sampleFile: "Tom3/samples/6-Tom3.wav"
+            velocityMin: 0.278
+            velocityMax: 0.333
+          - sampleFile: "Tom3/samples/7-Tom3.wav"
+            velocityMin: 0.333
+            velocityMax: 0.389
+          - sampleFile: "Tom3/samples/8-Tom3.wav"
+            velocityMin: 0.389
+            velocityMax: 0.444
+          - sampleFile: "Tom3/samples/9-Tom3.wav"
+            velocityMin: 0.444
+            velocityMax: 0.5
+          - sampleFile: "Tom3/samples/10-Tom3.wav"
+            velocityMin: 0.5
+            velocityMax: 0.556
+          - sampleFile: "Tom3/samples/11-Tom3.wav"
+            velocityMin: 0.556
+            velocityMax: 0.611
+          - sampleFile: "Tom3/samples/12-Tom3.wav"
+            velocityMin: 0.611
+            velocityMax: 0.667
+          - sampleFile: "Tom3/samples/13-Tom3.wav"
+            velocityMin: 0.667
+            velocityMax: 0.722
+          - sampleFile: "Tom3/samples/14-Tom3.wav"
+            velocityMin: 0.722
+            velocityMax: 0.778
+          - sampleFile: "Tom3/samples/15-Tom3.wav"
+            velocityMin: 0.778
+            velocityMax: 0.833
+          - sampleFile: "Tom3/samples/16-Tom3.wav"
+            velocityMin: 0.833
+            velocityMax: 0.889
+          - sampleFile: "Tom3/samples/17-Tom3.wav"
+            velocityMin: 0.889
+            velocityMax: 0.944
+          - sampleFile: "Tom3/samples/18-Tom3.wav"
+            velocityMin: 0.944
+            velocityMax: 1.0
+
+  # ===== TOM 3 WHISKER =====
+  - name: "Tom 3 Whisker"
+    midiNote: 45  # A1
+    articulations:
+      - name: "Main"
+        chokeGroup: -1
+        attackTime: 0.0
+        holdTime: 0.0
+        decayTime: 0.7
+        sustainLevel: 0.0
+        releaseTime: 0.25
+        layers:
+          - sampleFile: "Tom3_whisker/samples/1-Tom3_whisker.wav"
+            velocityMin: 0.0
+            velocityMax: 0.2
+          - sampleFile: "Tom3_whisker/samples/2-Tom3_whisker.wav"
+            velocityMin: 0.2
+            velocityMax: 0.4
+          - sampleFile: "Tom3_whisker/samples/3-Tom3_whisker.wav"
+            velocityMin: 0.4
+            velocityMax: 0.6
+          - sampleFile: "Tom3_whisker/samples/4-Tom3_whisker.wav"
+            velocityMin: 0.6
+            velocityMax: 0.8
+          - sampleFile: "Tom3_whisker/samples/5-Tom3_whisker.wav"
+            velocityMin: 0.8
+            velocityMax: 1.0
+
+  # ===== HI-HAT CLOSED =====
+  - name: "Hi-Hat Closed"
+    midiNote: 42  # F#1
+    articulations:
+      - name: "Main"
+        chokeGroup: 0
+        attackTime: 0.0
+        holdTime: 0.0
+        decayTime: 0.1
+        sustainLevel: 0.0
+        releaseTime: 0.05
+        layers:
+          - sampleFile: "Hihat_closed/samples/1-Hihat_closed.wav"
+            velocityMin: 0.0
+            velocityMax: 0.042
+          - sampleFile: "Hihat_closed/samples/2-Hihat_closed.wav"
+            velocityMin: 0.042
+            velocityMax: 0.083
+          - sampleFile: "Hihat_closed/samples/3-Hihat_closed.wav"
+            velocityMin: 0.083
+            velocityMax: 0.125
+          - sampleFile: "Hihat_closed/samples/4-Hihat_closed.wav"
+            velocityMin: 0.125
+            velocityMax: 0.167
+          - sampleFile: "Hihat_closed/samples/5-Hihat_closed.wav"
+            velocityMin: 0.167
+            velocityMax: 0.208
+          - sampleFile: "Hihat_closed/samples/6-Hihat_closed.wav"
+            velocityMin: 0.208
+            velocityMax: 0.25
+          - sampleFile: "Hihat_closed/samples/7-Hihat_closed.wav"
+            velocityMin: 0.25
+            velocityMax: 0.292
+          - sampleFile: "Hihat_closed/samples/8-Hihat_closed.wav"
+            velocityMin: 0.292
+            velocityMax: 0.333
+          - sampleFile: "Hihat_closed/samples/9-Hihat_closed.wav"
+            velocityMin: 0.333
+            velocityMax: 0.375
+          - sampleFile: "Hihat_closed/samples/10-Hihat_closed.wav"
+            velocityMin: 0.375
+            velocityMax: 0.417
+          - sampleFile: "Hihat_closed/samples/11-Hihat_closed.wav"
+            velocityMin: 0.417
+            velocityMax: 0.458
+          - sampleFile: "Hihat_closed/samples/12-Hihat_closed.wav"
+            velocityMin: 0.458
+            velocityMax: 0.5
+          - sampleFile: "Hihat_closed/samples/13-Hihat_closed.wav"
+            velocityMin: 0.5
+            velocityMax: 0.542
+          - sampleFile: "Hihat_closed/samples/14-Hihat_closed.wav"
+            velocityMin: 0.542
+            velocityMax: 0.583
+          - sampleFile: "Hihat_closed/samples/15-Hihat_closed.wav"
+            velocityMin: 0.583
+            velocityMax: 0.625
+          - sampleFile: "Hihat_closed/samples/16-Hihat_closed.wav"
+            velocityMin: 0.625
+            velocityMax: 0.667
+          - sampleFile: "Hihat_closed/samples/17-Hihat_closed.wav"
+            velocityMin: 0.667
+            velocityMax: 0.708
+          - sampleFile: "Hihat_closed/samples/18-Hihat_closed.wav"
+            velocityMin: 0.708
+            velocityMax: 0.75
+          - sampleFile: "Hihat_closed/samples/19-Hihat_closed.wav"
+            velocityMin: 0.75
+            velocityMax: 0.792
+          - sampleFile: "Hihat_closed/samples/20-Hihat_closed.wav"
+            velocityMin: 0.792
+            velocityMax: 0.833
+          - sampleFile: "Hihat_closed/samples/21-Hihat_closed.wav"
+            velocityMin: 0.833
+            velocityMax: 0.875
+          - sampleFile: "Hihat_closed/samples/22-Hihat_closed.wav"
+            velocityMin: 0.875
+            velocityMax: 0.917
+          - sampleFile: "Hihat_closed/samples/23-Hihat_closed.wav"
+            velocityMin: 0.917
+            velocityMax: 0.958
+          - sampleFile: "Hihat_closed/samples/24-Hihat_closed.wav"
+            velocityMin: 0.958
+            velocityMax: 1.0
+
+  # ===== HI-HAT CLOSED SHANK =====
+  - name: "Hi-Hat Closed Shank"
+    midiNote: 54  # F#2
+    articulations:
+      - name: "Main"
+        chokeGroup: 0
+        attackTime: 0.0
+        holdTime: 0.0
+        decayTime: 0.15
+        sustainLevel: 0.0
+        releaseTime: 0.08
+        layers:
+          - sampleFile: "Hihat_closed_shank/samples/1-Hihat_closed_shank.wav"
+            velocityMin: 0.0
+            velocityMax: 0.167
+          - sampleFile: "Hihat_closed_shank/samples/2-Hihat_closed_shank.wav"
+            velocityMin: 0.167
+            velocityMax: 0.333
+          - sampleFile: "Hihat_closed_shank/samples/3-Hihat_closed_shank.wav"
+            velocityMin: 0.333
+            velocityMax: 0.5
+          - sampleFile: "Hihat_closed_shank/samples/4-Hihat_closed_shank.wav"
+            velocityMin: 0.5
+            velocityMax: 0.667
+          - sampleFile: "Hihat_closed_shank/samples/5-Hihat_closed_shank.wav"
+            velocityMin: 0.667
+            velocityMax: 0.833
+          - sampleFile: "Hihat_closed_shank/samples/6-Hihat_closed_shank.wav"
+            velocityMin: 0.833
+            velocityMax: 1.0
+
+  # ===== HI-HAT CLOSED WHISKER =====
+  - name: "Hi-Hat Closed Whisker"
+    midiNote: 55  # G2
+    articulations:
+      - name: "Main"
+        chokeGroup: 0
+        attackTime: 0.0
+        holdTime: 0.0
+        decayTime: 0.12
+        sustainLevel: 0.0
+        releaseTime: 0.06
+        layers:
+          - sampleFile: "Hihat_closed_whisker/samples/1-Hihat_closed_whisker.wav"
+            velocityMin: 0.0
+            velocityMax: 0.2
+          - sampleFile: "Hihat_closed_whisker/samples/2-Hihat_closed_whisker.wav"
+            velocityMin: 0.2
+            velocityMax: 0.4
+          - sampleFile: "Hihat_closed_whisker/samples/3-Hihat_closed_whisker.wav"
+            velocityMin: 0.4
+            velocityMax: 0.6
+          - sampleFile: "Hihat_closed_whisker/samples/4-Hihat_closed_whisker.wav"
+            velocityMin: 0.6
+            velocityMax: 0.8
+          - sampleFile: "Hihat_closed_whisker/samples/5-Hihat_closed_whisker.wav"
+            velocityMin: 0.8
+            velocityMax: 1.0
+
+  # ===== HI-HAT OPEN =====
+  - name: "Hi-Hat Open"
+    midiNote: 46  # A#1
+    articulations:
+      - name: "Main"
+        chokeGroup: 0
+        attackTime: 0.0
+        holdTime: 0.0
+        decayTime: 1.2
+        sustainLevel: 0.0
+        releaseTime: 0.4
+        layers:
+          - sampleFile: "Hihat_open/samples/1-Hihat_open.wav"
+            velocityMin: 0.0
+            velocityMax: 0.056
+          - sampleFile: "Hihat_open/samples/2-Hihat_open.wav"
+            velocityMin: 0.056
+            velocityMax: 0.111
+          - sampleFile: "Hihat_open/samples/3-Hihat_open.wav"
+            velocityMin: 0.111
+            velocityMax: 0.167
+          - sampleFile: "Hihat_open/samples/4-Hihat_open.wav"
+            velocityMin: 0.167
+            velocityMax: 0.222
+          - sampleFile: "Hihat_open/samples/5-Hihat_open.wav"
+            velocityMin: 0.222
+            velocityMax: 0.278
+          - sampleFile: "Hihat_open/samples/6-Hihat_open.wav"
+            velocityMin: 0.278
+            velocityMax: 0.333
+          - sampleFile: "Hihat_open/samples/7-Hihat_open.wav"
+            velocityMin: 0.333
+            velocityMax: 0.389
+          - sampleFile: "Hihat_open/samples/8-Hihat_open.wav"
+            velocityMin: 0.389
+            velocityMax: 0.444
+          - sampleFile: "Hihat_open/samples/9-Hihat_open.wav"
+            velocityMin: 0.444
+            velocityMax: 0.5
+          - sampleFile: "Hihat_open/samples/10-Hihat_open.wav"
+            velocityMin: 0.5
+            velocityMax: 0.556
+          - sampleFile: "Hihat_open/samples/11-Hihat_open.wav"
+            velocityMin: 0.556
+            velocityMax: 0.611
+          - sampleFile: "Hihat_open/samples/12-Hihat_open.wav"
+            velocityMin: 0.611
+            velocityMax: 0.667
+          - sampleFile: "Hihat_open/samples/13-Hihat_open.wav"
+            velocityMin: 0.667
+            velocityMax: 0.722
+          - sampleFile: "Hihat_open/samples/14-Hihat_open.wav"
+            velocityMin: 0.722
+            velocityMax: 0.778
+          - sampleFile: "Hihat_open/samples/15-Hihat_open.wav"
+            velocityMin: 0.778
+            velocityMax: 0.833
+          - sampleFile: "Hihat_open/samples/16-Hihat_open.wav"
+            velocityMin: 0.833
+            velocityMax: 0.889
+          - sampleFile: "Hihat_open/samples/17-Hihat_open.wav"
+            velocityMin: 0.889
+            velocityMax: 0.944
+          - sampleFile: "Hihat_open/samples/18-Hihat_open.wav"
+            velocityMin: 0.944
+            velocityMax: 1.0
+
+  # ===== HI-HAT OPEN WHISKER =====
+  - name: "Hi-Hat Open Whisker"
+    midiNote: 56  # G#2
+    articulations:
+      - name: "Main"
+        chokeGroup: 0
+        attackTime: 0.0
+        holdTime: 0.0
+        decayTime: 1.0
+        sustainLevel: 0.0
+        releaseTime: 0.35
+        layers:
+          - sampleFile: "Hihat_open_whisker/samples/1-Hihat_open_whisker.wav"
+            velocityMin: 0.0
+            velocityMax: 0.25
+          - sampleFile: "Hihat_open_whisker/samples/2-Hihat_open_whisker.wav"
+            velocityMin: 0.25
+            velocityMax: 0.5
+          - sampleFile: "Hihat_open_whisker/samples/3-Hihat_open_whisker.wav"
+            velocityMin: 0.5
+            velocityMax: 0.75
+          - sampleFile: "Hihat_open_whisker/samples/4-Hihat_open_whisker.wav"
+            velocityMin: 0.75
+            velocityMax: 1.0
+
+  # ===== HI-HAT SEMI OPEN =====
+  - name: "Hi-Hat Semi Open"
+    midiNote: 44  # G#1
+    articulations:
+      - name: "Main"
+        chokeGroup: 0
+        attackTime: 0.0
+        holdTime: 0.0
+        decayTime: 0.6
+        sustainLevel: 0.0
+        releaseTime: 0.2
+        layers:
+          - sampleFile: "Hihat_semi_open/samples/1-Hihat_semi_open.wav"
+            velocityMin: 0.0
+            velocityMax: 0.125
+          - sampleFile: "Hihat_semi_open/samples/2-Hihat_semi_open.wav"
+            velocityMin: 0.125
+            velocityMax: 0.25
+          - sampleFile: "Hihat_semi_open/samples/3-Hihat_semi_open.wav"
+            velocityMin: 0.25
+            velocityMax: 0.375
+          - sampleFile: "Hihat_semi_open/samples/4-Hihat_semi_open.wav"
+            velocityMin: 0.375
+            velocityMax: 0.5
+          - sampleFile: "Hihat_semi_open/samples/5-Hihat_semi_open.wav"
+            velocityMin: 0.5
+            velocityMax: 0.625
+          - sampleFile: "Hihat_semi_open/samples/6-Hihat_semi_open.wav"
+            velocityMin: 0.625
+            velocityMax: 0.75
+          - sampleFile: "Hihat_semi_open/samples/7-Hihat_semi_open.wav"
+            velocityMin: 0.75
+            velocityMax: 0.875
+          - sampleFile: "Hihat_semi_open/samples/8-Hihat_semi_open.wav"
+            velocityMin: 0.875
+            velocityMax: 1.0
+
+  # ===== HI-HAT FOOT =====
+  - name: "Hi-Hat Foot"
+    midiNote: 44  # G#1 (alternate)
+    articulations:
+      - name: "Main"
+        chokeGroup: 0
+        attackTime: 0.0
+        holdTime: 0.0
+        decayTime: 0.3
+        sustainLevel: 0.0
+        releaseTime: 0.1
+        layers:
+          - sampleFile: "Hihat_foot/samples/1-Hihat_foot.wav"
+            velocityMin: 0.0
+            velocityMax: 0.2
+          - sampleFile: "Hihat_foot/samples/2-Hihat_foot.wav"
+            velocityMin: 0.2
+            velocityMax: 0.4
+          - sampleFile: "Hihat_foot/samples/3-Hihat_foot.wav"
+            velocityMin: 0.4
+            velocityMax: 0.6
+          - sampleFile: "Hihat_foot/samples/4-Hihat_foot.wav"
+            velocityMin: 0.6
+            velocityMax: 0.8
+          - sampleFile: "Hihat_foot/samples/5-Hihat_foot.wav"
+            velocityMin: 0.8
+            velocityMax: 1.0
+
+  # ===== RIDE TIP =====
+  - name: "Ride Tip"
+    midiNote: 51  # D#2
+    articulations:
+      - name: "Main"
+        chokeGroup: -1
+        attackTime: 0.0
+        holdTime: 0.0
+        decayTime: 2.5
+        sustainLevel: 0.0
+        releaseTime: 1.0
+        layers:
+          - sampleFile: "Ride_tip/samples/1-Ride_tip.wav"
+            velocityMin: 0.0
+            velocityMax: 0.125
+          - sampleFile: "Ride_tip/samples/2-Ride_tip.wav"
+            velocityMin: 0.125
+            velocityMax: 0.25
+          - sampleFile: "Ride_tip/samples/3-Ride_tip.wav"
+            velocityMin: 0.25
+            velocityMax: 0.375
+          - sampleFile: "Ride_tip/samples/4-Ride_tip.wav"
+            velocityMin: 0.375
+            velocityMax: 0.5
+          - sampleFile: "Ride_tip/samples/5-Ride_tip.wav"
+            velocityMin: 0.5
+            velocityMax: 0.625
+          - sampleFile: "Ride_tip/samples/6-Ride_tip.wav"
+            velocityMin: 0.625
+            velocityMax: 0.75
+          - sampleFile: "Ride_tip/samples/7-Ride_tip.wav"
+            velocityMin: 0.75
+            velocityMax: 0.875
+          - sampleFile: "Ride_tip/samples/8-Ride_tip.wav"
+            velocityMin: 0.875
+            velocityMax: 1.0
+
+  # ===== RIDE SHANK =====
+  - name: "Ride Shank"
+    midiNote: 52  # E2
+    articulations:
+      - name: "Main"
+        chokeGroup: -1
+        attackTime: 0.0
+        holdTime: 0.0
+        decayTime: 2.2
+        sustainLevel: 0.0
+        releaseTime: 0.9
+        layers:
+          - sampleFile: "Ride_shank/samples/1-Ride_shank.wav"
+            velocityMin: 0.0
+            velocityMax: 0.111
+          - sampleFile: "Ride_shank/samples/2-Ride_shank.wav"
+            velocityMin: 0.111
+            velocityMax: 0.222
+          - sampleFile: "Ride_shank/samples/3-Ride_shank.wav"
+            velocityMin: 0.222
+            velocityMax: 0.333
+          - sampleFile: "Ride_shank/samples/4-Ride_shank.wav"
+            velocityMin: 0.333
+            velocityMax: 0.444
+          - sampleFile: "Ride_shank/samples/5-Ride_shank.wav"
+            velocityMin: 0.444
+            velocityMax: 0.556
+          - sampleFile: "Ride_shank/samples/6-Ride_shank.wav"
+            velocityMin: 0.556
+            velocityMax: 0.667
+          - sampleFile: "Ride_shank/samples/7-Ride_shank.wav"
+            velocityMin: 0.667
+            velocityMax: 0.778
+          - sampleFile: "Ride_shank/samples/8-Ride_shank.wav"
+            velocityMin: 0.778
+            velocityMax: 0.889
+          - sampleFile: "Ride_shank/samples/9-Ride_shank.wav"
+            velocityMin: 0.889
+            velocityMax: 1.0
+
+  # ===== RIDE WHISKER =====
+  - name: "Ride Whisker"
+    midiNote: 53  # F2
+    articulations:
+      - name: "Main"
+        chokeGroup: -1
+        attackTime: 0.0
+        holdTime: 0.0
+        decayTime: 2.0
+        sustainLevel: 0.0
+        releaseTime: 0.8
+        layers:
+          - sampleFile: "Ride_whisker/samples/1-Ride_whisker.wav"
+            velocityMin: 0.0
+            velocityMax: 0.167
+          - sampleFile: "Ride_whisker/samples/2-Ride_whisker.wav"
+            velocityMin: 0.167
+            velocityMax: 0.333
+          - sampleFile: "Ride_whisker/samples/3-Ride_whisker.wav"
+            velocityMin: 0.333
+            velocityMax: 0.5
+          - sampleFile: "Ride_whisker/samples/4-Ride_whisker.wav"
+            velocityMin: 0.5
+            velocityMax: 0.667
+          - sampleFile: "Ride_whisker/samples/5-Ride_whisker.wav"
+            velocityMin: 0.667
+            velocityMax: 0.833
+          - sampleFile: "Ride_whisker/samples/6-Ride_whisker.wav"
+            velocityMin: 0.833
+            velocityMax: 1.0
+
+  # ===== RIDE BELL TIP =====
+  - name: "Ride Bell Tip"
+    midiNote: 59  # B2
+    articulations:
+      - name: "Main"
+        chokeGroup: -1
+        attackTime: 0.0
+        holdTime: 0.0
+        decayTime: 3.0
+        sustainLevel: 0.0
+        releaseTime: 1.2
+        layers:
+          - sampleFile: "Ride_tip_bell/samples/1-Ride_tip_bell.wav"
+            velocityMin: 0.0
+            velocityMax: 0.167
+          - sampleFile: "Ride_tip_bell/samples/2-Ride_tip_bell.wav"
+            velocityMin: 0.167
+            velocityMax: 0.333
+          - sampleFile: "Ride_tip_bell/samples/3-Ride_tip_bell.wav"
+            velocityMin: 0.333
+            velocityMax: 0.5
+          - sampleFile: "Ride_tip_bell/samples/4-Ride_tip_bell.wav"
+            velocityMin: 0.5
+            velocityMax: 0.667
+          - sampleFile: "Ride_tip_bell/samples/5-Ride_tip_bell.wav"
+            velocityMin: 0.667
+            velocityMax: 0.833
+          - sampleFile: "Ride_tip_bell/samples/6-Ride_tip_bell.wav"
+            velocityMin: 0.833
+            velocityMax: 1.0
+
+  # ===== RIDE BELL SHANK =====
+  - name: "Ride Bell Shank"
+    midiNote: 60  # C3
+    articulations:
+      - name: "Main"
+        chokeGroup: -1
+        attackTime: 0.0
+        holdTime: 0.0
+        decayTime: 3.2
+        sustainLevel: 0.0
+        releaseTime: 1.3
+        layers:
+          - sampleFile: "Ride_shank_bell/samples/1-Ride_shank_bell.wav"
+            velocityMin: 0.0
+            velocityMax: 0.1
+          - sampleFile: "Ride_shank_bell/samples/2-Ride_shank_bell.wav"
+            velocityMin: 0.1
+            velocityMax: 0.2
+          - sampleFile: "Ride_shank_bell/samples/3-Ride_shank_bell.wav"
+            velocityMin: 0.2
+            velocityMax: 0.3
+          - sampleFile: "Ride_shank_bell/samples/4-Ride_shank_bell.wav"
+            velocityMin: 0.3
+            velocityMax: 0.4
+          - sampleFile: "Ride_shank_bell/samples/5-Ride_shank_bell.wav"
+            velocityMin: 0.4
+            velocityMax: 0.5
+          - sampleFile: "Ride_shank_bell/samples/6-Ride_shank_bell.wav"
+            velocityMin: 0.5
+            velocityMax: 0.6
+          - sampleFile: "Ride_shank_bell/samples/7-Ride_shank_bell.wav"
+            velocityMin: 0.6
+            velocityMax: 0.7
+          - sampleFile: "Ride_shank_bell/samples/8-Ride_shank_bell.wav"
+            velocityMin: 0.7
+            velocityMax: 0.8
+          - sampleFile: "Ride_shank_bell/samples/9-Ride_shank_bell.wav"
+            velocityMin: 0.8
+            velocityMax: 0.9
+          - sampleFile: "Ride_shank_bell/samples/10-Ride_shank_bell.wav"
+            velocityMin: 0.9
+            velocityMax: 1.0
+
+  # ===== CRASH TIP (Left) =====
+  - name: "Crash Tip"
+    midiNote: 49  # C#2
+    articulations:
+      - name: "Main"
+        chokeGroup: 1
+        attackTime: 0.0
+        holdTime: 0.0
+        decayTime: 3.5
+        sustainLevel: 0.0
+        releaseTime: 1.5
+        layers:
+          - sampleFile: "Crash_left_tip/samples/1-Crash_left_tip.wav"
+            velocityMin: 0.0
+            velocityMax: 0.143
+          - sampleFile: "Crash_left_tip/samples/2-Crash_left_tip.wav"
+            velocityMin: 0.143
+            velocityMax: 0.286
+          - sampleFile: "Crash_left_tip/samples/3-Crash_left_tip.wav"
+            velocityMin: 0.286
+            velocityMax: 0.429
+          - sampleFile: "Crash_left_tip/samples/4-Crash_left_tip.wav"
+            velocityMin: 0.429
+            velocityMax: 0.571
+          - sampleFile: "Crash_left_tip/samples/5-Crash_left_tip.wav"
+            velocityMin: 0.571
+            velocityMax: 0.714
+          - sampleFile: "Crash_left_tip/samples/6-Crash_left_tip.wav"
+            velocityMin: 0.714
+            velocityMax: 0.857
+          - sampleFile: "Crash_left_tip/samples/7-Crash_left_tip.wav"
+            velocityMin: 0.857
+            velocityMax: 1.0
+
+  # ===== CRASH SHANK =====
+  - name: "Crash Shank"
+    midiNote: 57  # A2
+    articulations:
+      - name: "Main"
+        chokeGroup: 1
+        attackTime: 0.0
+        holdTime: 0.0
+        decayTime: 3.2
+        sustainLevel: 0.0
+        releaseTime: 1.4
+        layers:
+          - sampleFile: "Crash_left_shank/samples/1-Crash_left_shank.wav"
+            velocityMin: 0.0
+            velocityMax: 0.125
+          - sampleFile: "Crash_left_shank/samples/2-Crash_left_shank.wav"
+            velocityMin: 0.125
+            velocityMax: 0.25
+          - sampleFile: "Crash_left_shank/samples/3-Crash_left_shank.wav"
+            velocityMin: 0.25
+            velocityMax: 0.375
+          - sampleFile: "Crash_left_shank/samples/4-Crash_left_shank.wav"
+            velocityMin: 0.375
+            velocityMax: 0.5
+          - sampleFile: "Crash_left_shank/samples/5-Crash_left_shank.wav"
+            velocityMin: 0.5
+            velocityMax: 0.625
+          - sampleFile: "Crash_left_shank/samples/6-Crash_left_shank.wav"
+            velocityMin: 0.625
+            velocityMax: 0.75
+          - sampleFile: "Crash_left_shank/samples/7-Crash_left_shank.wav"
+            velocityMin: 0.75
+            velocityMax: 0.875
+          - sampleFile: "Crash_left_shank/samples/8-Crash_left_shank.wav"
+            velocityMin: 0.875
+            velocityMax: 1.0
+
+  # ===== CRASH WHISKER =====
+  - name: "Crash Whisker"
+    midiNote: 58  # A#2
+    articulations:
+      - name: "Main"
+        chokeGroup: 1
+        attackTime: 0.0
+        holdTime: 0.0
+        decayTime: 3.0
+        sustainLevel: 0.0
+        releaseTime: 1.3
+        layers:
+          - sampleFile: "Crash_left_whisker/samples/1-Crash_left_whisker.wav"
+            velocityMin: 0.0
+            velocityMax: 0.167
+          - sampleFile: "Crash_left_whisker/samples/2-Crash_left_whisker.wav"
+            velocityMin: 0.167
+            velocityMax: 0.333
+          - sampleFile: "Crash_left_whisker/samples/3-Crash_left_whisker.wav"
+            velocityMin: 0.333
+            velocityMax: 0.5
+          - sampleFile: "Crash_left_whisker/samples/4-Crash_left_whisker.wav"
+            velocityMin: 0.5
+            velocityMax: 0.667
+          - sampleFile: "Crash_left_whisker/samples/5-Crash_left_whisker.wav"
+            velocityMin: 0.667
+            velocityMax: 0.833
+          - sampleFile: "Crash_left_whisker/samples/6-Crash_left_whisker.wav"
+            velocityMin: 0.833
+            velocityMax: 1.0
