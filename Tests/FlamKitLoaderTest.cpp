@@ -4,9 +4,12 @@
 namespace flam {
 
 // ============================================================================
-// JSON fixture helpers
+// YAML fixture helpers
+//
+// FLA-80 dropped JSON kit support; all test fixtures now use the flamkit.yaml
+// (YAML) format that is the sole supported format in v1.0.
 
-static juce::String makeKitJson(
+static juce::String makeKitYaml(
     const juce::String& name = "Test Kit",
     const juce::String& author = "Test Author",
     int midiNote = 36,
@@ -14,57 +17,58 @@ static juce::String makeKitJson(
     int numLayers = 1,
     int numChannels = 0)
 {
-    juce::String layers;
-    for (int i = 0; i < numLayers; ++i)
-    {
-        if (i > 0) layers += ",";
-        const float vMin = (float)i / numLayers;
-        const float vMax = (float)(i + 1) / numLayers;
-        layers += "{\"velocityMin\":" + juce::String(vMin, 4)
-               + ",\"velocityMax\":" + juce::String(vMax, 4)
-               + ",\"gain\":1.0"
-               + ",\"roundRobinGroup\":" + juce::String(i + 1)
-               + "}";
-    }
+    juce::String yaml;
+    yaml << "name: \"" << name << "\"\n";
+    yaml << "author: \"" << author << "\"\n";
+    yaml << "version: \"1.0\"\n";
+    yaml << "description: \"Unit test fixture\"\n";
 
-    juce::String channelsStr;
     if (numChannels > 0)
     {
-        channelsStr = ",\"channels\":[";
+        yaml << "channels:\n";
         for (int c = 0; c < numChannels; ++c)
-        {
-            if (c > 0) channelsStr += ",";
-            channelsStr += "{\"name\":\"Ch" + juce::String(c + 1) + "\"}";
-        }
-        channelsStr += "]";
+            yaml << "  - name: \"Ch" << juce::String(c + 1) << "\"\n";
     }
 
-    return "{"
-           "\"name\":\"" + name + "\","
-           "\"author\":\"" + author + "\","
-           "\"version\":\"1.0\","
-           "\"description\":\"Unit test fixture\""
-           + channelsStr +
-           ",\"settings\":{\"masterGain\":1.0,\"maxPolyphony\":64,"
-           "\"useRoundRobin\":true,\"defaultHumanization\":0.0},"
-           "\"pieces\":[{\"name\":\"Kick\",\"midiNote\":" + juce::String(midiNote) + ","
-           "\"articulations\":[{\"name\":\"Center\","
-           "\"chokeGroup\":" + juce::String(chokeGroup) + ","
-           "\"layers\":[" + layers + "]}]}]}";
+    yaml << "settings:\n";
+    yaml << "  masterGain: 1.0\n";
+    yaml << "  maxPolyphony: 64\n";
+    yaml << "  useRoundRobin: true\n";
+    yaml << "  defaultHumanization: 0.0\n";
+
+    yaml << "pieces:\n";
+    yaml << "  - name: \"Kick\"\n";
+    yaml << "    midiNote: " << juce::String(midiNote) << "\n";
+    yaml << "    articulations:\n";
+    yaml << "      - name: \"Center\"\n";
+    yaml << "        chokeGroup: " << juce::String(chokeGroup) << "\n";
+    yaml << "        layers:\n";
+
+    for (int i = 0; i < numLayers; ++i)
+    {
+        const float vMin = (float)i / numLayers;
+        const float vMax = (float)(i + 1) / numLayers;
+        yaml << "          - velocityMin: " << juce::String(vMin, 4) << "\n";
+        yaml << "            velocityMax: " << juce::String(vMax, 4) << "\n";
+        yaml << "            gain: 1.0\n";
+        yaml << "            roundRobinGroup: " << juce::String(i + 1) << "\n";
+    }
+
+    return yaml;
 }
 
-// RAII wrapper for a temp .json file.
+// RAII wrapper for a temp .yaml file.
 // juce::TemporaryFile is non-copyable and non-movable, so it must be
 // constructed in-place — this struct is never returned by value.
-struct JsonFixture
+struct YamlFixture
 {
     juce::TemporaryFile file;
-    explicit JsonFixture(const juce::String& content) : file(".json")
+    explicit YamlFixture(const juce::String& content) : file(".yaml")
     {
         file.getFile().replaceWithText(content);
     }
     juce::File get() const { return file.getFile(); }
-    JUCE_DECLARE_NON_COPYABLE (JsonFixture)
+    JUCE_DECLARE_NON_COPYABLE (YamlFixture)
 };
 
 // ============================================================================
@@ -79,7 +83,7 @@ public:
         testMissingFile();
         testUnsupportedExtension();
         testEmptyFile();
-        testMalformedJson();
+        testMalformedYaml();
         testMissingNameFails();
         testNoPiecesFails();
         testEmptyArticulationFails();
@@ -101,7 +105,7 @@ private:
     {
         beginTest("Missing file -> nullptr + error message");
         FlamKitLoader loader;
-        auto kit = loader.loadKit(juce::File("/nonexistent/path/to/kit.json"));
+        auto kit = loader.loadKit(juce::File("/nonexistent/path/to/kit.yaml"));
         expect(kit == nullptr, "Should fail for non-existent file");
         expect(!loader.getLastError().isEmpty(), "Should set error message");
     }
@@ -109,7 +113,7 @@ private:
     void testUnsupportedExtension()
     {
         beginTest("Unsupported extension -> nullptr + error");
-        JsonFixture f(makeKitJson());
+        YamlFixture f(makeKitYaml());
         juce::File badFile = f.get().getSiblingFile("kit.xml");
         f.get().copyFileTo(badFile);
 
@@ -123,35 +127,44 @@ private:
     void testEmptyFile()
     {
         beginTest("Empty file -> nullptr");
-        juce::TemporaryFile tmp(".json");
+        juce::TemporaryFile tmp(".yaml");
         tmp.getFile().replaceWithText("");
         FlamKitLoader loader;
         auto kit = loader.loadKit(tmp.getFile());
         expect(kit == nullptr);
     }
 
-    void testMalformedJson()
+    void testMalformedYaml()
     {
-        beginTest("Malformed JSON -> nullptr");
-        juce::TemporaryFile tmp(".json");
-        tmp.getFile().replaceWithText("{ this is definitely not valid json }}}");
+        beginTest("Malformed YAML -> nullptr");
+        juce::TemporaryFile tmp(".yaml");
+        // YAML that triggers a parse exception (unbalanced brackets / invalid flow)
+        tmp.getFile().replaceWithText("name: [unclosed\npieces: }{invalid");
         FlamKitLoader loader;
         auto kit = loader.loadKit(tmp.getFile());
-        expect(kit == nullptr, "Should reject malformed JSON");
+        expect(kit == nullptr, "Should reject malformed YAML");
     }
 
     void testMissingNameFails()
     {
         beginTest("Kit without name -> validateKit fails");
-        juce::TemporaryFile tmp(".json");
+        juce::TemporaryFile tmp(".yaml");
         tmp.getFile().replaceWithText(
-            "{\"name\":\"\",\"author\":\"A\",\"version\":\"1\",\"description\":\"\","
-            "\"settings\":{\"masterGain\":1.0,\"maxPolyphony\":64,"
-            "\"useRoundRobin\":true,\"defaultHumanization\":0.0},"
-            "\"pieces\":[{\"name\":\"Kick\",\"midiNote\":36,"
-            "\"articulations\":[{\"name\":\"A\",\"chokeGroup\":-1,"
-            "\"layers\":[{\"velocityMin\":0,\"velocityMax\":1,"
-            "\"gain\":1,\"roundRobinGroup\":0}]}]}]}"
+            "name: \"\"\n"
+            "author: \"A\"\n"
+            "version: \"1\"\n"
+            "description: \"\"\n"
+            "pieces:\n"
+            "  - name: \"Kick\"\n"
+            "    midiNote: 36\n"
+            "    articulations:\n"
+            "      - name: \"A\"\n"
+            "        chokeGroup: -1\n"
+            "        layers:\n"
+            "          - velocityMin: 0.0\n"
+            "            velocityMax: 1.0\n"
+            "            gain: 1.0\n"
+            "            roundRobinGroup: 0\n"
         );
         FlamKitLoader loader;
         auto kit = loader.loadKit(tmp.getFile());
@@ -161,12 +174,13 @@ private:
     void testNoPiecesFails()
     {
         beginTest("Kit with no pieces -> validateKit fails");
-        juce::TemporaryFile tmp(".json");
+        juce::TemporaryFile tmp(".yaml");
         tmp.getFile().replaceWithText(
-            "{\"name\":\"Kit\",\"author\":\"A\",\"version\":\"1\",\"description\":\"\","
-            "\"settings\":{\"masterGain\":1.0,\"maxPolyphony\":64,"
-            "\"useRoundRobin\":true,\"defaultHumanization\":0.0},"
-            "\"pieces\":[]}"
+            "name: \"Kit\"\n"
+            "author: \"A\"\n"
+            "version: \"1\"\n"
+            "description: \"\"\n"
+            "pieces: []\n"
         );
         FlamKitLoader loader;
         auto kit = loader.loadKit(tmp.getFile());
@@ -176,14 +190,19 @@ private:
     void testEmptyArticulationFails()
     {
         beginTest("Articulation with no layers -> validateKit fails");
-        juce::TemporaryFile tmp(".json");
+        juce::TemporaryFile tmp(".yaml");
         tmp.getFile().replaceWithText(
-            "{\"name\":\"Kit\",\"author\":\"A\",\"version\":\"1\",\"description\":\"\","
-            "\"settings\":{\"masterGain\":1.0,\"maxPolyphony\":64,"
-            "\"useRoundRobin\":true,\"defaultHumanization\":0.0},"
-            "\"pieces\":[{\"name\":\"Kick\",\"midiNote\":36,"
-            "\"articulations\":[{\"name\":\"A\",\"chokeGroup\":-1,"
-            "\"layers\":[]}]}]}"
+            "name: \"Kit\"\n"
+            "author: \"A\"\n"
+            "version: \"1\"\n"
+            "description: \"\"\n"
+            "pieces:\n"
+            "  - name: \"Kick\"\n"
+            "    midiNote: 36\n"
+            "    articulations:\n"
+            "      - name: \"A\"\n"
+            "        chokeGroup: -1\n"
+            "        layers: []\n"
         );
         FlamKitLoader loader;
         auto kit = loader.loadKit(tmp.getFile());
@@ -196,8 +215,8 @@ private:
 
     void testValidMinimalKit()
     {
-        beginTest("Valid JSON kit parses successfully");
-        JsonFixture f(makeKitJson());
+        beginTest("Valid YAML kit parses successfully");
+        YamlFixture f(makeKitYaml());
         FlamKitLoader loader;
         auto kit = loader.loadKit(f.get());
         expect(kit != nullptr, "Minimal valid kit should parse");
@@ -213,7 +232,7 @@ private:
     void testMidiNoteMapping()
     {
         beginTest("MIDI note parsed correctly");
-        JsonFixture f(makeKitJson("Kit", "A", 42));
+        YamlFixture f(makeKitYaml("Kit", "A", 42));
         FlamKitLoader loader;
         auto kit = loader.loadKit(f.get());
         expect(kit != nullptr);
@@ -224,7 +243,7 @@ private:
     void testVelocityRanges()
     {
         beginTest("Velocity ranges parsed: 3 layers cover [0,1]");
-        JsonFixture f(makeKitJson("Kit", "A", 36, -1, 3));
+        YamlFixture f(makeKitYaml("Kit", "A", 36, -1, 3));
         FlamKitLoader loader;
         auto kit = loader.loadKit(f.get());
         expect(kit != nullptr);
@@ -244,7 +263,7 @@ private:
     void testChokeGroupParsed()
     {
         beginTest("chokeGroup field parsed correctly");
-        JsonFixture f(makeKitJson("Kit", "A", 36, 0));
+        YamlFixture f(makeKitYaml("Kit", "A", 36, 0));
         FlamKitLoader loader;
         auto kit = loader.loadKit(f.get());
         expect(kit != nullptr);
@@ -255,7 +274,7 @@ private:
     void testRoundRobinGroups()
     {
         beginTest("Round-robin group indices parsed per layer");
-        JsonFixture f(makeKitJson("Kit", "A", 36, -1, 3));
+        YamlFixture f(makeKitYaml("Kit", "A", 36, -1, 3));
         FlamKitLoader loader;
         auto kit = loader.loadKit(f.get());
         expect(kit != nullptr);
@@ -269,8 +288,8 @@ private:
 
     void testChannelNamesDetection()
     {
-        beginTest("Channel names parsed from JSON channels array");
-        JsonFixture f(makeKitJson("Kit", "A", 36, -1, 1, 3));
+        beginTest("Channel names parsed from YAML channels array");
+        YamlFixture f(makeKitYaml("Kit", "A", 36, -1, 1, 3));
         FlamKitLoader loader;
         auto kit = loader.loadKit(f.get());
         expect(kit != nullptr);
@@ -285,7 +304,7 @@ private:
     void testKitSettings()
     {
         beginTest("GlobalSettings parsed correctly");
-        JsonFixture f(makeKitJson());
+        YamlFixture f(makeKitYaml());
         FlamKitLoader loader;
         auto kit = loader.loadKit(f.get());
         expect(kit != nullptr);

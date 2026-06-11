@@ -68,7 +68,8 @@ jobs:
             libxinerama-dev libxrandr-dev libxrender-dev \
             libfreetype6-dev libfontconfig1-dev \
             libgl1-mesa-dev libglu1-mesa-dev \
-            libpipewire-0.3-dev
+            libpipewire-0.3-dev \
+            libyaml-cpp-dev
 
       - name: Get version
         id: ver
