@@ -69,83 +69,67 @@ public:
         g.setColour(juce::Colours::darkgrey);
         g.drawRoundedRectangle(bounds, 2.0f, 1.0f);
 
-        auto meterBounds = bounds.reduced(2.0f);
-
-        // Convert to dB for display
-        const float levelDb = juce::Decibels::gainToDecibels(displayLevel);
-
-        // Map dB to meter height (-60 dB to +6 dB range)
-        const float normalizedLevel = juce::jmap(levelDb, -60.0f, 6.0f, 0.0f, 1.0f);
-        const float meterHeight = meterBounds.getHeight() * juce::jlimit(0.0f, 1.0f, normalizedLevel);
-
-        // Draw meter bar with color gradient
-        if (meterHeight > 0.0f)
-        {
-            auto meterRect = meterBounds.removeFromBottom(meterHeight);
-
-            // Color zones:
-            // Green: -∞ to -12 dB
-            // Yellow: -12 dB to -3 dB
-            // Red: -3 dB to 0 dB (and above)
-
-            const float greenThreshold = juce::jmap(-12.0f, -60.0f, 6.0f, 0.0f, 1.0f);
-            const float yellowThreshold = juce::jmap(-3.0f, -60.0f, 6.0f, 0.0f, 1.0f);
-
-            if (normalizedLevel < greenThreshold)
-            {
-                // All green
-                g.setColour(juce::Colours::green);
-                g.fillRect(meterRect);
-            }
-            else if (normalizedLevel < yellowThreshold)
-            {
-                // Green + yellow
-                float greenHeight = meterBounds.getHeight() * greenThreshold;
-                auto greenRect = meterRect.removeFromBottom(greenHeight);
-
-                g.setColour(juce::Colours::green);
-                g.fillRect(greenRect);
-
-                g.setColour(juce::Colours::yellow);
-                g.fillRect(meterRect);
-            }
-            else
-            {
-                // Green + yellow + red
-                float greenHeight = meterBounds.getHeight() * greenThreshold;
-                float yellowHeight = meterBounds.getHeight() * (yellowThreshold - greenThreshold);
-
-                auto greenRect = meterRect;
-                greenRect.removeFromTop(meterRect.getHeight() - greenHeight);
-
-                auto yellowRect = meterRect;
-                yellowRect.removeFromTop(meterRect.getHeight() - greenHeight - yellowHeight);
-                yellowRect.removeFromBottom(greenHeight);
-
-                auto redRect = meterRect;
-                redRect.removeFromBottom(greenHeight + yellowHeight);
-
-                g.setColour(juce::Colours::green);
-                g.fillRect(greenRect);
-
-                g.setColour(juce::Colours::yellow);
-                g.fillRect(yellowRect);
-
-                g.setColour(juce::Colours::red);
-                g.fillRect(redRect);
-            }
-        }
-
-        // Clip indicator at top
+        // Clip indicator overlays the top of the component
         if (displayClipped)
         {
+            auto clipArea = bounds;
             g.setColour(juce::Colours::red);
-            g.fillRect(bounds.removeFromTop(4.0f));
-
-            // Draw "CLIP" text
+            g.fillRect(clipArea.removeFromTop(4.0f));
             g.setFont(8.0f);
             g.setColour(juce::Colours::white);
-            g.drawText("CLIP", bounds.removeFromTop(10.0f), juce::Justification::centred);
+            g.drawText("CLIP", clipArea.removeFromTop(10.0f), juce::Justification::centred);
+        }
+
+        const auto meterArea = bounds.reduced(2.0f);
+        const float fullHeight = meterArea.getHeight();
+
+        if (displayLevel <= 0.0f || fullHeight <= 0.0f)
+            return;
+
+        // Convert to dB and map to a normalised [0,1] position in the meter.
+        const float levelDb = juce::Decibels::gainToDecibels(displayLevel);
+        const float normalizedLevel = juce::jlimit(0.0f, 1.0f,
+            juce::jmap(levelDb, -60.0f, 6.0f, 0.0f, 1.0f));
+        const float meterHeight = fullHeight * normalizedLevel;
+
+        if (meterHeight <= 0.0f)
+            return;
+
+        // Zone thresholds (normalised):  Green → Yellow at -12 dB,  Yellow → Red at -3 dB
+        const float greenThreshold  = juce::jmap(-12.0f, -60.0f, 6.0f, 0.0f, 1.0f);
+        const float yellowThreshold = juce::jmap( -3.0f, -60.0f, 6.0f, 0.0f, 1.0f);
+
+        // Absolute pixel heights of each colour zone (measured from the bottom)
+        const float greenZoneH  = fullHeight * greenThreshold;
+        const float yellowZoneH = fullHeight * (yellowThreshold - greenThreshold);
+
+        // Y-coordinate of the top of the filled bar
+        const float barTop     = meterArea.getBottom() - meterHeight;
+        const float greenTop   = meterArea.getBottom() - greenZoneH;
+        const float yellowTop  = greenTop - yellowZoneH;
+
+        if (normalizedLevel <= greenThreshold)
+        {
+            g.setColour(juce::Colours::green);
+            g.fillRect(meterArea.withTop(barTop));
+        }
+        else if (normalizedLevel <= yellowThreshold)
+        {
+            // Yellow section (top of bar) then green section (bottom of bar)
+            g.setColour(juce::Colours::yellow);
+            g.fillRect(meterArea.withTop(barTop).withBottom(greenTop));
+            g.setColour(juce::Colours::green);
+            g.fillRect(meterArea.withTop(greenTop));
+        }
+        else
+        {
+            // Red (top) → Yellow (middle) → Green (bottom)
+            g.setColour(juce::Colours::red);
+            g.fillRect(meterArea.withTop(barTop).withBottom(yellowTop));
+            g.setColour(juce::Colours::yellow);
+            g.fillRect(meterArea.withTop(yellowTop).withBottom(greenTop));
+            g.setColour(juce::Colours::green);
+            g.fillRect(meterArea.withTop(greenTop));
         }
     }
 

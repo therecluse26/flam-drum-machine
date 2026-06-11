@@ -77,21 +77,40 @@ public:
             addAndMakeVisible(viewport.get());
         }
 
+        // Connect container every time — fixes the initial render path where the
+        // constructor calls updateChannelStrips() before the viewport exists.
+        if (channelStripsContainer != nullptr)
+            viewport->setViewedComponent(channelStripsContainer.get(), false);
+
         viewport->setBounds(bounds);
 
         // Layout channel strips in content component
         if (channelStripsContainer != nullptr)
         {
-            const int stripWidth = 100;
             const int numChannels = channelStrips.size();
-            const int totalWidth = numChannels * stripWidth;
+            if (numChannels == 0)
+                return;
 
-            channelStripsContainer->setSize(totalWidth, bounds.getHeight());
+            const int viewportWidth = bounds.getWidth();
+
+            // Scale strip width to fill available space, bounded between min and max.
+            // With many channels the viewport will scroll; with few channels the strips
+            // grow to fill the view and are centred as a group.
+            constexpr int kMinStripWidth = 80;
+            constexpr int kMaxStripWidth = 140;
+            const int stripWidth = juce::jlimit(kMinStripWidth, kMaxStripWidth,
+                                                viewportWidth / numChannels);
+            const int totalStripsWidth = numChannels * stripWidth;
+
+            // Container is at least as wide as the viewport so the background
+            // is always filled; wider when there are many channels (enables scroll).
+            const int containerWidth = juce::jmax(totalStripsWidth, viewportWidth);
+            const int startX = (containerWidth - totalStripsWidth) / 2;
+
+            channelStripsContainer->setSize(containerWidth, bounds.getHeight());
 
             for (int i = 0; i < numChannels; ++i)
-            {
-                channelStrips[i]->setBounds(i * stripWidth, 0, stripWidth, bounds.getHeight());
-            }
+                channelStrips[i]->setBounds(startX + i * stripWidth, 0, stripWidth, bounds.getHeight());
         }
     }
 
