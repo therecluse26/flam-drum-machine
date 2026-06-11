@@ -109,7 +109,7 @@ public:
 private:
     juce::String lastError;
     
-    std::unique_ptr<DrumKit> parseYamlKit(const juce::String& content);
+    std::unique_ptr<DrumKit> parseYamlKit(const juce::String& content, const juce::File& kitFile);
     std::unique_ptr<DrumKit> parseJsonKit(const juce::String& content);
     
     juce::String serializeKitToYaml(const DrumKit& kit);

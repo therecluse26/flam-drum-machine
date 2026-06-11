@@ -35,7 +35,7 @@ std::unique_ptr<DrumKit> FlamKitLoader::loadKit(const juce::File& kitFile)
     if (extension == ".yaml" || extension == ".yml")
     {
 #ifdef FLAM_YAML_SUPPORT
-        kit = parseYamlKit(content);
+        kit = parseYamlKit(content, kitFile);
 #else
         lastError = "YAML support not available. Build with yaml-cpp library to enable YAML parsing.\n"
                     "On NixOS: run 'nix-shell' before building to include yaml-cpp dependency.";
@@ -58,54 +58,9 @@ std::unique_ptr<DrumKit> FlamKitLoader::loadKit(const juce::File& kitFile)
         return nullptr;
     }
 
-    // Resolve relative file paths (samples and cover image)
-    const auto kitDirectory = kitFile.getParentDirectory();
-
-    // Resolve cover image path
-    if (kit->coverImageFile != juce::File())
-    {
-        auto pathString = kit->coverImageFile.getFullPathName();
-        if (!juce::File::isAbsolutePath(pathString))
-        {
-            kit->coverImageFile = kitDirectory.getChildFile(pathString);
-        }
-        else
-        {
-            auto cwdPrefix = juce::File::getCurrentWorkingDirectory().getFullPathName() + "/";
-            if (pathString.startsWith(cwdPrefix))
-            {
-                auto relativePart = pathString.substring(cwdPrefix.length());
-                kit->coverImageFile = kitDirectory.getChildFile(relativePart);
-            }
-        }
-    }
-
-    // Resolve sample file paths
-    for (auto& piece : kit->pieces)
-    {
-        for (auto& articulation : piece.articulations)
-        {
-            for (auto& layer : articulation.layers)
-            {
-                auto pathString = layer.sampleFile.getFullPathName();
-
-                if (!juce::File::isAbsolutePath(pathString))
-                {
-                    layer.sampleFile = kitDirectory.getChildFile(pathString);
-                }
-                else
-                {
-                    // Check if it looks like it was incorrectly resolved from CWD
-                    auto cwdPrefix = juce::File::getCurrentWorkingDirectory().getFullPathName() + "/";
-                    if (pathString.startsWith(cwdPrefix))
-                    {
-                        auto relativePart = pathString.substring(cwdPrefix.length());
-                        layer.sampleFile = kitDirectory.getChildFile(relativePart);
-                    }
-                }
-            }
-        }
-    }
+    // Relative sample/cover paths are resolved against the kit file during
+    // parsing (see parseYamlKit + resolveRelativePath), so they are already
+    // absolute here. No post-pass needed.
 
     if (kit && validateKit(*kit))
     {
@@ -161,7 +116,7 @@ bool FlamKitLoader::saveKit(const DrumKit& kit, const juce::File& kitFile)
     return true;
 }
 
-std::unique_ptr<DrumKit> FlamKitLoader::parseYamlKit(const juce::String& content)
+std::unique_ptr<DrumKit> FlamKitLoader::parseYamlKit(const juce::String& content, const juce::File& kitFile)
 {
 #ifdef FLAM_YAML_SUPPORT
     auto kit = std::make_unique<DrumKit>();
@@ -180,7 +135,7 @@ std::unique_ptr<DrumKit> FlamKitLoader::parseYamlKit(const juce::String& content
         if (root["description"])
             kit->description = root["description"].as<std::string>();
         if (root["coverImage"])
-            kit->coverImageFile = juce::File(root["coverImage"].as<std::string>());
+            kit->coverImageFile = resolveRelativePath(kitFile, juce::String(root["coverImage"].as<std::string>()));
         if (root["tags"] && root["tags"].IsSequence())
         {
             for (const auto& tagNode : root["tags"])
@@ -254,8 +209,10 @@ std::unique_ptr<DrumKit> FlamKitLoader::parseYamlKit(const juce::String& content
                             {
                                 SampleLayer layer;
 
-                                // DON'T create juce::File yet - store as empty and resolve later
-                                // We'll store the path string temporarily elsewhere
+                                // Resolve the sample path against the kit file's
+                                // directory immediately. resolveRelativePath never
+                                // builds a juce::File from a bare relative string, so
+                                // it won't trip JUCE's absolute-path assertion.
                                 std::string sampleFilePath;
                                 if (layerNode["sampleFile"])
                                     sampleFilePath = layerNode["sampleFile"].as<std::string>();
@@ -271,9 +228,9 @@ std::unique_ptr<DrumKit> FlamKitLoader::parseYamlKit(const juce::String& content
 
                                 art.layers.push_back(layer);
 
-                                // Store the path string in the layer we just added
+                                // Store the resolved (absolute) file in the layer we just added
                                 if (!sampleFilePath.empty())
-                                    art.layers.back().sampleFile = juce::File(sampleFilePath);
+                                    art.layers.back().sampleFile = resolveRelativePath(kitFile, juce::String(sampleFilePath));
                             }
                         }
 

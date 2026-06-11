@@ -4,24 +4,39 @@
         test-pluginval test-sanitize test-all standalone
 
 # ---------------------------------------------------------------------------
-# Platform indirection
+# Platform indirection (auto-detected)
 #
-#   NixOS (default): every recipe runs inside `nix-shell --run "<cmd>"`, which
-#   provides JUCE's system deps (ALSA, X11, FreeType, ...).
+# Every recipe is written as  $(RUN) "<cmd>"  — a single quoted command string.
+# RUN is chosen automatically so the same `make` works everywhere:
 #
-#   Other platforms (Ubuntu/macOS) where the deps are already on PATH: run the
-#   commands directly by overriding RUN, e.g.
-#       make test     RUN='sh -c'
-#       make run      RUN='sh -c'
+#   1. Already inside a nix-shell  -> run directly (JUCE deps already on PATH).
+#   2. nix-shell present on PATH   -> wrap in `nix-shell --run`, which provides
+#                                     JUCE's system deps (ALSA, X11, FreeType,
+#                                     fontconfig, ...). This is the NixOS path.
+#   3. Neither (Ubuntu/macOS/CI)   -> run directly; deps are expected on PATH.
 #
-# Both `nix-shell --run` and `sh -c` take a single quoted command string, so
-# every recipe below is written as  $(RUN) "…".
+# Escape hatch: override explicitly when the detection guesses wrong, e.g. on a
+# non-Nix box that happens to have Nix installed:
+#       make build  RUN='sh -c'
+#
+# Both `nix-shell --run` and `sh -c` accept one quoted string, so the recipes
+# below are identical regardless of which is selected.
 # ---------------------------------------------------------------------------
-RUN       ?= nix-shell --run
-BUILD_DIR ?= build
+ifdef IN_NIX_SHELL
+  RUN ?= sh -c
+else ifneq ($(shell command -v nix-shell 2>/dev/null),)
+  RUN ?= nix-shell --run
+else
+  RUN ?= sh -c
+endif
 
-# Built test binaries (note the case: L1 lives under Tests/, Catch2 under tests/)
-TESTS_BIN  = $(BUILD_DIR)/tests/flam-tests_artefacts/flam-tests
+BUILD_DIR ?= build
+CONFIG    ?= Debug
+
+# Built test binaries. JUCE nests artefacts under a $(CONFIG) subdir, e.g.
+#   tests/flam-tests_artefacts/Debug/flam-tests
+# (note the case: L1 lives under Tests/, Catch2 under tests/).
+TESTS_BIN  = $(BUILD_DIR)/tests/flam-tests_artefacts/$(CONFIG)/flam-tests
 
 # Default target
 all: build
@@ -34,7 +49,7 @@ all: build
 # don't re-invoke CMake every time; CMake self-reconfigures when CMakeLists.txt
 # changes, so correctness is preserved without the per-call cost.
 $(BUILD_DIR)/CMakeCache.txt:
-	$(RUN) "cmake -B $(BUILD_DIR) -S . -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON"
+	$(RUN) "cmake -B $(BUILD_DIR) -S . -DCMAKE_BUILD_TYPE=$(CONFIG) -DBUILD_TESTING=ON"
 
 configure: $(BUILD_DIR)/CMakeCache.txt
 
@@ -75,7 +90,7 @@ golden-update: configure
 # L3: pluginval host-contract on the built VST3. Reconfigures with the
 # pluginval option enabled (downloads pluginval on first run).
 test-pluginval:
-	$(RUN) "cmake -B $(BUILD_DIR) -S . -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON -DFLAM_PLUGINVAL=ON"
+	$(RUN) "cmake -B $(BUILD_DIR) -S . -DCMAKE_BUILD_TYPE=$(CONFIG) -DBUILD_TESTING=ON -DFLAM_PLUGINVAL=ON"
 	$(RUN) "cmake --build $(BUILD_DIR) --parallel"
 	$(RUN) "ctest --test-dir $(BUILD_DIR) -R FLAM_L3_PluginvalHostContract --output-on-failure"
 
@@ -102,7 +117,7 @@ standalone: configure
 # use an Xvfb session, e.g.
 #   Xvfb :99 & DISPLAY=:99 make run
 run: standalone
-	$(RUN) "$(BUILD_DIR)/FLAM_artefacts/Standalone/FLAM"
+	$(RUN) "$(BUILD_DIR)/FLAM_artefacts/$(CONFIG)/Standalone/FLAM"
 
 # ---------------------------------------------------------------------------
 # Housekeeping / back-compat
@@ -126,8 +141,9 @@ nix-install install:
 help:
 	@echo "FLAM Makefile targets"
 	@echo ""
-	@echo "  Default (Nix): recipes run inside 'nix-shell --run'."
-	@echo "  Non-Nix: append RUN='sh -c', e.g.  make test RUN='sh -c'"
+	@echo "  Environment is auto-detected: inside a nix-shell or on a non-Nix box,"
+	@echo "  recipes run directly; on NixOS they wrap in 'nix-shell --run'."
+	@echo "  Override only if detection guesses wrong:  make test RUN='sh -c'"
 	@echo ""
 	@echo "  Build:"
 	@echo "    make configure        Configure build/ with tests enabled (Debug)"
