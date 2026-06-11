@@ -32,7 +32,7 @@ public:
 
     struct StreamRequest
     {
-        const SampleLayer* layer{nullptr};
+        juce::File sampleFile;  // Copy of the file path — avoids dangling ptr if kit reloads
         int voiceId{-1};
         int streamId{0};  // Unique ID for this stream instance
         double startPosition{0.0};  // Where to start streaming (in samples)

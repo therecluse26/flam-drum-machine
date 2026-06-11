@@ -56,7 +56,7 @@ int SampleStreamingManager::requestStream(const SampleLayer* layer, int voiceId,
     if (size1 > 0)
     {
         auto& request = requestQueue[start1];
-        request.layer = layer;
+        request.sampleFile = layer->sampleFile;  // copy path — never hold a raw SampleLayer ptr
         request.voiceId = voiceId;
         request.streamId = streamId;
         request.startPosition = startPosition;
@@ -134,12 +134,12 @@ void SampleStreamingManager::run()
 
 void SampleStreamingManager::processStreamRequest(const StreamRequest& request)
 {
-    if (!request.layer || !request.layer->sampleFile.existsAsFile())
+    if (!request.sampleFile.existsAsFile())
         return;
 
     // Create reader for this sample
     std::unique_ptr<juce::AudioFormatReader> reader(
-        formatManager.createReaderFor(request.layer->sampleFile));
+        formatManager.createReaderFor(request.sampleFile));
 
     if (!reader)
         return;
@@ -177,7 +177,7 @@ void SampleStreamingManager::processStreamRequest(const StreamRequest& request)
         auto data = std::make_unique<StreamedData>();
         data->voiceId = request.voiceId;
         data->streamId = request.streamId;  // Copy stream ID for verification
-        data->layer = request.layer;  // Include layer so voice can verify it matches
+        data->layer = nullptr;  // was raw SampleLayer* — not used by consumer; avoid dangling ptr
         data->buffer = buffer;
         data->startPosition = static_cast<double>(currentPosition);
         data->isComplete = (currentPosition + chunkSize >= totalSamples);
