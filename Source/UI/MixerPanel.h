@@ -5,6 +5,7 @@
 #pragma once
 
 #include <juce_gui_basics/juce_gui_basics.h>
+#include "FlamLookAndFeel.h"
 #include "ChannelStripComponent.h"
 #include "MasterChannelStripComponent.h"
 #include "../Core/Mixer.h"
@@ -45,13 +46,20 @@ public:
 
     void paint(juce::Graphics& g) override
     {
-        // Background
-        g.fillAll(juce::Colour(0xff1a1a1a));
+        g.fillAll(juce::Colour(FlamColors::Surface));
 
-        // Title at top
-        g.setColour(juce::Colours::white);
-        g.setFont(juce::Font(18.0f, juce::Font::bold));
-        g.drawText("Mixer", getLocalBounds().removeFromTop(40), juce::Justification::centred);
+        // Section header
+        auto headerBounds = getLocalBounds().removeFromTop(40).toFloat();
+        g.setColour(juce::Colour(FlamColors::Surface).brighter(0.05f));
+        g.fillRect(headerBounds);
+
+        g.setColour(juce::Colour(FlamColors::BorderSubtle));
+        g.fillRect(headerBounds.removeFromBottom(1.0f));
+
+        g.setColour(juce::Colour(FlamColors::TextSecondary));
+        g.setFont(juce::Font(11.0f, juce::Font::bold));
+        g.drawText("MIXER", getLocalBounds().removeFromTop(40),
+                   juce::Justification::centred);
     }
 
     void resized() override
@@ -77,21 +85,40 @@ public:
             addAndMakeVisible(viewport.get());
         }
 
+        // Connect container every time — fixes the initial render path where the
+        // constructor calls updateChannelStrips() before the viewport exists.
+        if (channelStripsContainer != nullptr)
+            viewport->setViewedComponent(channelStripsContainer.get(), false);
+
         viewport->setBounds(bounds);
 
         // Layout channel strips in content component
         if (channelStripsContainer != nullptr)
         {
-            const int stripWidth = 100;
             const int numChannels = channelStrips.size();
-            const int totalWidth = numChannels * stripWidth;
+            if (numChannels == 0)
+                return;
 
-            channelStripsContainer->setSize(totalWidth, bounds.getHeight());
+            const int viewportWidth = bounds.getWidth();
+
+            // Scale strip width to fill available space, bounded between min and max.
+            // With many channels the viewport will scroll; with few channels the strips
+            // grow to fill the view and are centred as a group.
+            constexpr int kMinStripWidth = 80;
+            constexpr int kMaxStripWidth = 140;
+            const int stripWidth = juce::jlimit(kMinStripWidth, kMaxStripWidth,
+                                                viewportWidth / numChannels);
+            const int totalStripsWidth = numChannels * stripWidth;
+
+            // Container is at least as wide as the viewport so the background
+            // is always filled; wider when there are many channels (enables scroll).
+            const int containerWidth = juce::jmax(totalStripsWidth, viewportWidth);
+            const int startX = (containerWidth - totalStripsWidth) / 2;
+
+            channelStripsContainer->setSize(containerWidth, bounds.getHeight());
 
             for (int i = 0; i < numChannels; ++i)
-            {
-                channelStrips[i]->setBounds(i * stripWidth, 0, stripWidth, bounds.getHeight());
-            }
+                channelStrips[i]->setBounds(startX + i * stripWidth, 0, stripWidth, bounds.getHeight());
         }
     }
 

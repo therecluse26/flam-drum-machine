@@ -5,6 +5,7 @@
 #pragma once
 
 #include <juce_gui_basics/juce_gui_basics.h>
+#include "FlamLookAndFeel.h"
 
 namespace flam {
 
@@ -102,7 +103,7 @@ public:
         // Label at top
         if (label.isNotEmpty())
         {
-            g.setColour(juce::Colours::white);
+            g.setColour(juce::Colour(FlamColors::TextSecondary));
             g.setFont(10.0f);
             auto labelBounds = bounds.removeFromTop(14.0f);
             g.drawText(label, labelBounds, juce::Justification::centred);
@@ -111,7 +112,7 @@ public:
         // Value display at bottom
         if (showValue)
         {
-            g.setColour(juce::Colours::white);
+            g.setColour(juce::Colour(FlamColors::TextSecondary));
             g.setFont(9.0f);
 
             juce::String valueText;
@@ -142,11 +143,13 @@ public:
         const float radius = diameter * 0.5f;
 
         // Draw knob body
-        g.setColour(isMouseOver || isDragging ? juce::Colour(0xff3a3a3a) : juce::Colour(0xff2a2a2a));
+        g.setColour(isMouseOver || isDragging ? juce::Colour(FlamColors::Interactive)
+                                              : juce::Colour(FlamColors::Elevated));
         g.fillEllipse(centerX - radius, centerY - radius, diameter, diameter);
 
         // Draw knob border
-        g.setColour(juce::Colours::grey);
+        g.setColour(juce::Colour(isMouseOver || isDragging ? FlamColors::BorderActive
+                                                           : FlamColors::BorderSubtle));
         g.drawEllipse(centerX - radius, centerY - radius, diameter, diameter, 1.5f);
 
         // Draw arc track showing range
@@ -176,7 +179,7 @@ public:
         juce::Path backgroundArc;
         backgroundArc.addCentredArc(centerX, centerY, arcRadius, arcRadius, arcRotation,
                                     rotationStart, rotationEnd, true);
-        g.setColour(juce::Colour(0xff1a1a1a));
+        g.setColour(juce::Colour(FlamColors::Background));
         g.strokePath(backgroundArc, juce::PathStrokeType(3.0f));
 
         // Value arc (filled portion from center outward)
@@ -205,12 +208,12 @@ public:
                 valueArc.addCentredArc(centerX, centerY, arcRadius, arcRadius, arcRotation,
                                        valueRotation, centerRotation, true);
             }
-            g.setColour(juce::Colour(0xff4a9eff));
+            g.setColour(juce::Colour(FlamColors::AccentBlue));
             g.strokePath(valueArc, juce::PathStrokeType(3.0f));
         }
 
         // Center dot indicator
-        g.setColour(juce::Colours::white.withAlpha(0.3f));
+        g.setColour(juce::Colour(FlamColors::TextSecondary).withAlpha(0.4f));
         g.fillEllipse(centerX - 2.0f, centerY - 2.0f, 4.0f, 4.0f);
 
         // Draw pointer line from center to edge
@@ -218,13 +221,12 @@ public:
         const float pointerEndX = centerX + std::cos(valueRotation) * pointerLength;
         const float pointerEndY = centerY + std::sin(valueRotation) * pointerLength;
 
-        g.setColour(juce::Colours::white);
+        g.setColour(juce::Colour(FlamColors::TextPrimary));
         g.drawLine(centerX, centerY, pointerEndX, pointerEndY, 2.0f);
 
         // Draw center detent marker if 0 is in range
         if (minimum <= 0.0 && maximum >= 0.0)
         {
-            // Reuse centerRotation calculated above for the detent position
             const float detentInnerRadius = radius + 2.0f;
             const float detentOuterRadius = radius + 6.0f;
             const float detentStartX = centerX + std::cos(centerRotation) * detentInnerRadius;
@@ -232,7 +234,7 @@ public:
             const float detentEndX = centerX + std::cos(centerRotation) * detentOuterRadius;
             const float detentEndY = centerY + std::sin(centerRotation) * detentOuterRadius;
 
-            g.setColour(juce::Colours::white.withAlpha(0.5f));
+            g.setColour(juce::Colour(FlamColors::TextPrimary).withAlpha(0.5f));
             g.drawLine(detentStartX, detentStartY, detentEndX, detentEndY, 2.0f);
         }
     }

@@ -1,0 +1,519 @@
+name: Release
+
+# Triggered by version tags (v1.0.0, v1.2.3, etc.) or manually.
+# Builds all platform artifacts, optionally signs them, and publishes a
+# GitHub Release with attached binaries and SHA256SUMS.
+#
+# Required GitHub secrets for signed builds:
+#   macOS:
+#     MACOS_CERTIFICATE          — base64-encoded Developer ID Application .p12
+#     MACOS_CERTIFICATE_PASSWORD — password for the .p12
+#     MACOS_SIGNING_IDENTITY     — e.g. "Developer ID Application: FLAM (XXXXXXXXXX)"
+#     APPLE_ID                   — Apple ID email for notarytool
+#     APPLE_ID_PASSWORD          — app-specific password (not Apple ID password)
+#     APPLE_TEAM_ID              — 10-char Apple Developer Team ID
+#   Windows:
+#     WINDOWS_CERTIFICATE        — base64-encoded .pfx code-signing certificate
+#     WINDOWS_CERTIFICATE_PASSWORD — password for the .pfx
+#
+# If any signing secret is absent the job still runs and produces unsigned artifacts.
+# Unsigned macOS builds require the user to right-click → Open on first launch.
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (e.g. v1.0.0) — used in artifact filenames'
+        required: true
+        default: 'v1.0.0'
+      draft:
+        description: 'Publish as draft release?'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+env:
+  JUCE_TAG: "8.0.4"
+
+# ============================================================================
+#  Linux x86_64 — VST3 + Standalone
+# ============================================================================
+jobs:
+  linux:
+    name: "Linux x86_64"
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cache JUCE
+        uses: actions/cache@v4
+        with:
+          path: JUCE
+          key: juce-${{ env.JUCE_TAG }}-linux-release
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            cmake ninja-build pkg-config \
+            libasound2-dev \
+            libx11-dev libxcomposite-dev libxcursor-dev libxext-dev \
+            libxinerama-dev libxrandr-dev libxrender-dev \
+            libfreetype6-dev libfontconfig1-dev \
+            libgl1-mesa-dev libglu1-mesa-dev \
+            libpipewire-0.3-dev \
+            libyaml-cpp-dev
+
+      - name: Get version
+        id: ver
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Configure
+        run: |
+          cmake -B build -S . -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_TESTING=OFF \
+            -DFLAM_PLUGINVAL=OFF
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Verify artifacts
+        run: |
+          echo "=== FLAM artefact tree ==="
+          find build/FLAM_artefacts/Release -maxdepth 3 | sort
+          [ -d build/FLAM_artefacts/Release/VST3/FLAM.vst3 ] || \
+            { echo "ERROR: VST3 bundle not found"; exit 1; }
+
+      - name: Package
+        run: |
+          TAG="${{ steps.ver.outputs.tag }}"
+          mkdir -p dist
+
+          # VST3 bundle (directory) → tar.gz
+          tar -czf "dist/FLAM-${TAG}-linux-x86_64-VST3.tar.gz" \
+            -C build/FLAM_artefacts/Release/VST3 FLAM.vst3
+
+          # Standalone binary (ELF)
+          STANDALONE="build/FLAM_artefacts/Release/Standalone/FLAM"
+          if [ -f "$STANDALONE" ]; then
+            tar -czf "dist/FLAM-${TAG}-linux-x86_64-Standalone.tar.gz" \
+              -C build/FLAM_artefacts/Release/Standalone FLAM
+          else
+            echo "Note: Standalone binary not found at $STANDALONE — skipping"
+            find build/FLAM_artefacts/Release -name "FLAM" -not -path "*/VST3/*" | head -5
+          fi
+
+          echo "--- dist contents ---"
+          ls -lh dist/
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-x86_64
+          path: dist/
+          if-no-files-found: error
+
+# ============================================================================
+#  macOS Universal (arm64 + x86_64) — VST3 + AU + Standalone
+#  Code-signed and notarized when Apple secrets are present.
+# ============================================================================
+  macos:
+    name: "macOS Universal (arm64+x86_64)"
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cache JUCE
+        uses: actions/cache@v4
+        with:
+          path: JUCE
+          key: juce-${{ env.JUCE_TAG }}-macos-release
+
+      - name: Get version
+        id: ver
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Configure (Universal Release)
+        run: |
+          cmake -B build -S . -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            "-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64" \
+            -DBUILD_TESTING=OFF \
+            -DFLAM_PLUGINVAL=OFF
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Verify artifacts
+        run: |
+          echo "=== FLAM artefact tree ==="
+          find build/FLAM_artefacts/Release -maxdepth 3 | sort
+          [ -d build/FLAM_artefacts/Release/VST3/FLAM.vst3 ] || \
+            { echo "ERROR: VST3 bundle not found"; exit 1; }
+
+      # ── Signing ──────────────────────────────────────────────────────────
+      - name: Import signing certificate
+        if: ${{ env.MACOS_CERTIFICATE != '' }}
+        env:
+          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+        run: |
+          echo "$MACOS_CERTIFICATE" | base64 --decode > certificate.p12
+
+          # Ephemeral keychain — never touches the user's login keychain.
+          security create-keychain -p "ci-keychain-pw" flam-build.keychain
+          security default-keychain -s flam-build.keychain
+          security unlock-keychain -p "ci-keychain-pw" flam-build.keychain
+          security set-keychain-settings -lut 7200 flam-build.keychain
+
+          security import certificate.p12 \
+            -k flam-build.keychain \
+            -P "$MACOS_CERTIFICATE_PASSWORD" \
+            -T /usr/bin/codesign
+          security set-key-partition-list \
+            -S apple-tool:,apple:,codesign: \
+            -s -k "ci-keychain-pw" flam-build.keychain
+
+          rm -f certificate.p12
+
+      - name: Sign plugin bundles
+        if: ${{ env.MACOS_SIGNING_IDENTITY != '' }}
+        env:
+          MACOS_SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
+        run: |
+          sign_bundle() {
+            local path="$1"
+            if [ -e "$path" ]; then
+              echo "Signing: $path"
+              codesign --force --deep \
+                --sign "$MACOS_SIGNING_IDENTITY" \
+                --options runtime \
+                --timestamp \
+                "$path"
+            else
+              echo "Skipping (not found): $path"
+            fi
+          }
+          ARTS="build/FLAM_artefacts/Release"
+          sign_bundle "$ARTS/VST3/FLAM.vst3"
+          sign_bundle "$ARTS/AU/FLAM.component"
+          sign_bundle "$ARTS/Standalone/FLAM.app"
+
+      # ── Notarization (Standalone .app only — plugins rely on online check) ─
+      - name: Notarize Standalone
+        if: ${{ env.APPLE_ID != '' && env.MACOS_SIGNING_IDENTITY != '' }}
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          MACOS_SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
+        run: |
+          APP="build/FLAM_artefacts/Release/Standalone/FLAM.app"
+          if [ ! -d "$APP" ]; then
+            echo "Standalone .app not found — skipping notarization"
+            exit 0
+          fi
+          # Zip the .app for submission (notarytool requires a zip/pkg/dmg)
+          ditto -c -k --keepParent "$APP" /tmp/FLAM-standalone-notarize.zip
+
+          xcrun notarytool submit /tmp/FLAM-standalone-notarize.zip \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_ID_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --wait
+
+          xcrun stapler staple "$APP"
+          rm -f /tmp/FLAM-standalone-notarize.zip
+
+      # ── Notarize plugins (VST3 + AU) via zip submission ──────────────────
+      - name: Notarize plugins
+        if: ${{ env.APPLE_ID != '' && env.MACOS_SIGNING_IDENTITY != '' }}
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          ARTS="build/FLAM_artefacts/Release"
+          notarize_bundle() {
+            local path="$1"
+            if [ ! -e "$path" ]; then return; fi
+            local tmpzip="/tmp/notarize-$(basename $path).zip"
+            ditto -c -k --keepParent "$path" "$tmpzip"
+            xcrun notarytool submit "$tmpzip" \
+              --apple-id "$APPLE_ID" \
+              --password "$APPLE_ID_PASSWORD" \
+              --team-id "$APPLE_TEAM_ID" \
+              --wait
+            rm -f "$tmpzip"
+          }
+          notarize_bundle "$ARTS/VST3/FLAM.vst3"
+          notarize_bundle "$ARTS/AU/FLAM.component"
+
+      # ── Packaging ─────────────────────────────────────────────────────────
+      - name: Package
+        run: |
+          TAG="${{ steps.ver.outputs.tag }}"
+          mkdir -p dist
+          ARTS="build/FLAM_artefacts/Release"
+
+          # VST3 — zipped bundle
+          if [ -d "$ARTS/VST3/FLAM.vst3" ]; then
+            ditto -c -k --keepParent "$ARTS/VST3/FLAM.vst3" \
+              "dist/FLAM-${TAG}-macos-universal-VST3.zip"
+          fi
+
+          # AU — zipped bundle
+          if [ -d "$ARTS/AU/FLAM.component" ]; then
+            ditto -c -k --keepParent "$ARTS/AU/FLAM.component" \
+              "dist/FLAM-${TAG}-macos-universal-AU.zip"
+          fi
+
+          # Standalone — zipped .app
+          if [ -d "$ARTS/Standalone/FLAM.app" ]; then
+            ditto -c -k --keepParent "$ARTS/Standalone/FLAM.app" \
+              "dist/FLAM-${TAG}-macos-universal-Standalone.zip"
+          fi
+
+          echo "--- dist contents ---"
+          ls -lh dist/
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-universal
+          path: dist/
+          if-no-files-found: error
+
+# ============================================================================
+#  Windows x64 — VST3 + Standalone
+#  Code-signed when Windows certificate secret is present.
+# ============================================================================
+  windows:
+    name: "Windows x64"
+    runs-on: windows-2022
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cache JUCE
+        uses: actions/cache@v4
+        with:
+          path: JUCE
+          key: juce-${{ env.JUCE_TAG }}-windows-release
+
+      - name: Get version
+        id: ver
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Visual Studio generator, x64. No CMAKE_BUILD_TYPE — multi-config uses --config.
+      - name: Configure
+        run: |
+          cmake -B build -S . -A x64 `
+            -DBUILD_TESTING=OFF
+
+      - name: Build (Release)
+        run: cmake --build build --config Release --parallel
+
+      - name: Verify artifacts
+        shell: pwsh
+        run: |
+          $vst3 = "build\FLAM_artefacts\Release\VST3\FLAM.vst3"
+          if (-not (Test-Path $vst3)) {
+            Write-Error "VST3 bundle not found at $vst3"; exit 1
+          }
+          Write-Host "=== FLAM artefact tree ==="
+          Get-ChildItem "build\FLAM_artefacts\Release" -Recurse -Depth 3 | Select-Object FullName
+
+      # ── Signing ──────────────────────────────────────────────────────────
+      - name: Sign artifacts
+        if: ${{ env.WINDOWS_CERTIFICATE != '' }}
+        env:
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        shell: pwsh
+        run: |
+          # Decode certificate to disk (ephemeral — removed after use)
+          $certBytes = [System.Convert]::FromBase64String($env:WINDOWS_CERTIFICATE)
+          [System.IO.File]::WriteAllBytes(".\flam-cert.pfx", $certBytes)
+
+          # Locate signtool on the runner
+          $signtool = (Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin" `
+            -Recurse -Filter "signtool.exe" -ErrorAction SilentlyContinue |
+            Where-Object { $_.FullName -match "x64" } |
+            Sort-Object FullName -Descending |
+            Select-Object -First 1).FullName
+
+          if (-not $signtool) {
+            Write-Error "signtool.exe not found — cannot sign artifacts"
+            exit 1
+          }
+
+          $password = $env:WINDOWS_CERTIFICATE_PASSWORD
+          $timestampUrl = "http://timestamp.digicert.com"
+
+          # Sign VST3 DLL (the binary inside the bundle directory)
+          $vst3dll = Get-ChildItem "build\FLAM_artefacts\Release\VST3\FLAM.vst3" `
+            -Recurse -Filter "*.vst3" | Select-Object -First 1
+          if ($vst3dll) {
+            & $signtool sign /f ".\flam-cert.pfx" /p $password `
+              /tr $timestampUrl /td sha256 /fd sha256 `
+              $vst3dll.FullName
+          }
+
+          # Sign Standalone .exe
+          $exe = Get-ChildItem "build\FLAM_artefacts\Release\Standalone" `
+            -Recurse -Filter "*.exe" | Select-Object -First 1
+          if ($exe) {
+            & $signtool sign /f ".\flam-cert.pfx" /p $password `
+              /tr $timestampUrl /td sha256 /fd sha256 `
+              $exe.FullName
+          }
+
+          Remove-Item ".\flam-cert.pfx" -Force
+
+      # ── Packaging ─────────────────────────────────────────────────────────
+      - name: Package
+        shell: pwsh
+        run: |
+          $TAG = "${{ steps.ver.outputs.tag }}"
+          New-Item -ItemType Directory -Path dist -Force | Out-Null
+
+          # VST3 bundle (directory) → zip
+          $vst3 = "build\FLAM_artefacts\Release\VST3\FLAM.vst3"
+          if (Test-Path $vst3) {
+            Compress-Archive -Path $vst3 `
+              -DestinationPath "dist\FLAM-${TAG}-windows-x64-VST3.zip" -Force
+          }
+
+          # Standalone → zip the directory contents
+          $standalone = "build\FLAM_artefacts\Release\Standalone"
+          if (Test-Path $standalone) {
+            Compress-Archive -Path "$standalone\*" `
+              -DestinationPath "dist\FLAM-${TAG}-windows-x64-Standalone.zip" -Force
+          }
+
+          Write-Host "--- dist contents ---"
+          Get-ChildItem dist | Format-Table Name, Length
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-x64
+          path: dist/
+          if-no-files-found: error
+
+# ============================================================================
+#  Release — collect all platform artifacts, generate SHA256SUMS, publish
+# ============================================================================
+  release:
+    name: "Publish GitHub Release"
+    needs: [linux, macos, windows]
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get version
+        id: ver
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download Linux artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-x86_64
+          path: release-artifacts/linux
+
+      - name: Download macOS artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-universal
+          path: release-artifacts/macos
+
+      - name: Download Windows artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-x64
+          path: release-artifacts/windows
+
+      - name: Generate SHA256SUMS
+        run: |
+          cd release-artifacts
+          find . -type f | sort | while read f; do
+            sha256sum "$f" | sed 's|\./[^/]*/||'
+          done > ../SHA256SUMS
+          echo "=== SHA256SUMS ==="
+          cat ../SHA256SUMS
+
+      - name: Extract changelog for this version
+        id: notes
+        run: |
+          TAG="${{ steps.ver.outputs.tag }}"
+          # Extract the block between the version header and the next ## header
+          NOTES=$(awk "/^## \[${TAG}\]/{found=1; next} /^## \[/{if(found) exit} found{print}" CHANGELOG.md)
+          if [ -z "$NOTES" ]; then
+            NOTES="See [CHANGELOG.md](CHANGELOG.md) for full details."
+          fi
+          {
+            echo "body<<EOF_BODY"
+            echo "## FLAM ${TAG}"
+            echo ""
+            echo "$NOTES"
+            echo ""
+            echo "---"
+            echo "### Checksums"
+            echo "\`\`\`"
+            cat SHA256SUMS
+            echo "\`\`\`"
+            echo ""
+            echo "> ⚠️  **macOS users:** unsigned builds require right-click → Open on first launch."
+            echo "> Signing requires Apple Developer ID credentials configured in CI secrets."
+            echo "EOF_BODY"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.ver.outputs.tag }}
+          name: "FLAM ${{ steps.ver.outputs.tag }}"
+          body: ${{ steps.notes.outputs.body }}
+          draft: ${{ github.event.inputs.draft == 'true' }}
+          prerelease: false
+          fail_on_unmatched_files: true
+          files: |
+            release-artifacts/**/*
+            SHA256SUMS
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

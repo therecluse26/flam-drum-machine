@@ -39,10 +39,22 @@ public:
     void stopNote(int sampleOffset);
 
     /**
-     * Force a fast release for retriggering (prevents pops but cleans up quickly)
-     * This temporarily overrides the envelope release time to create a smooth crossfade
+     * Force a fast release for retriggering (prevents pops but cleans up quickly).
+     * Sets a 40ms ADSR release then calls noteOff — safe for choke groups and
+     * same-note retrigger where the voice keeps its slot while fading.
      */
     void forceQuickRelease();
+
+    /**
+     * Begin a linear gain fade-out ramp independent of the ADSR envelope.
+     * Intended for voice stealing: the ramp is applied multiplicatively with the
+     * ADSR so the outgoing voice ramps to silence without a step discontinuity.
+     * Real-time safe — no allocation.
+     */
+    void beginFadeOut(int durationSamples);
+
+    /** True while a fade-out ramp is in progress. */
+    bool isFadingOut() const noexcept { return fadingOut; }
 
     /**
      * Render the next block of samples
@@ -138,6 +150,11 @@ private:
 
     juce::ADSR envelope;
     juce::ADSR::Parameters envParams;
+
+    // Per-sample fade-out ramp (voice stealing) — applied multiplicatively with ADSR
+    bool fadingOut{false};
+    int  fadeOutSamplesRemaining{0};
+    int  fadeOutTotalSamples{1};  // Never zero: prevents div-by-zero in ramp calc
 
     // Interpolation state for high-quality resampling
     float lastSample[2]{0.0f, 0.0f};

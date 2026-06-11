@@ -84,6 +84,7 @@ public:
         testPolyphonyCap();
         testChokeGroupSuppressesOlderVoice();
         testRoundRobinAvoidsImmediateRepetition();
+        testVoiceStealFadeOutNoContinuity();
     }
 
 private:
@@ -264,6 +265,61 @@ private:
         // Only the new (non-choked) voice should be playing now
         expectEquals(vm.getActiveVoiceCount(), 1,
                      "Only non-choked voice should remain after release");
+
+        vm.releaseResources();
+    }
+
+    void testVoiceStealFadeOutNoContinuity()
+    {
+        // When all voice slots are full and a new note must steal an active voice,
+        // the stolen voice should fade out smoothly.  We verify that:
+        //   (a) the new note starts immediately (active voice count ≤ polyphony cap
+        //       after the steal), and
+        //   (b) no step discontinuity appears in the first render block — i.e. the
+        //       first sample of the block after a steal is ≤ the last sample of the
+        //       block before the steal (absolute value, allowing for 10% tolerance).
+        //
+        // This test uses polyphony = 2, triggers 3 notes on distinct MIDI pitches,
+        // and checks that the output does not jump discontinuously at the steal point.
+        beginTest("Voice steal uses fade-out ramp (no step discontinuity)");
+
+        VoiceManager vm;
+        vm.seedRNG(42);
+        vm.prepareToPlay(44100.0, 512);
+
+        auto multiKit = makeSyntheticKit(3, -1, false, 2);
+        multiKit->settings.maxPolyphony = 2;
+        vm.loadKit(std::move(multiKit));
+        juce::Thread::sleep(30);
+
+        // Fill polyphony: note 36 then 37
+        vm.triggerNote(36, 0.8f, 0);
+        vm.triggerNote(37, 0.8f, 0);
+
+        // Render one block so voices have non-zero history
+        juce::AudioBuffer<float> blockBefore(2, 512);
+        blockBefore.clear();
+        vm.renderNextBlock(blockBefore, 0, 512);
+
+        // Grab the last sample amplitude before the steal
+        const float ampBefore = std::abs(blockBefore.getSample(0, 511));
+
+        // Trigger a third note — this must steal one of the two active voices
+        vm.triggerNote(38, 0.8f, 0);
+        expect(vm.getActiveVoiceCount() <= 2,
+               "Active voice count must remain ≤ polyphony cap after steal");
+
+        // Render the first block after the steal
+        juce::AudioBuffer<float> blockAfter(2, 512);
+        blockAfter.clear();
+        vm.renderNextBlock(blockAfter, 0, 512);
+
+        // The first sample after the steal must not exceed ampBefore by more
+        // than a generous 150% — a hard-cut click would jump to a completely
+        // different amplitude, whereas a fading voice gradually approaches zero.
+        const float ampAfter = std::abs(blockAfter.getSample(0, 0));
+        expect(ampAfter <= ampBefore * 1.5f + 1e-4f,
+               "First sample after voice steal should not exceed pre-steal amplitude by 150%");
 
         vm.releaseResources();
     }

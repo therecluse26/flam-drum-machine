@@ -12,7 +12,10 @@ namespace flam {
 
 VoiceManager::VoiceManager()
 {
-    voices.resize(MAX_VOICES);
+    // TOTAL_VOICE_SLOTS = MAX_VOICES + FADE_OVERFLOW_SLOTS.
+    // Slots [0, maxActiveVoices) serve new notes; slots [maxActiveVoices, TOTAL)
+    // hold voices that are fading after a steal so the main slot is freed immediately.
+    voices.resize(TOTAL_VOICE_SLOTS);
 
     for (auto& voice : voices)
     {
@@ -149,16 +152,49 @@ void VoiceManager::triggerNote(int midiNote, float velocity, int sampleOffset)
 
     auto& voice = voices[voiceIndex];
 
-    // If we're reusing an active voice (voice stealing), reset it first to free memory
+    // Voice stealing: if the selected slot is still active, fade it out instead
+    // of hard-cutting to avoid a click from a step discontinuity.
     if (voice.isActive && voice.sampleVoice)
     {
-        // Cancel any pending streaming for this voice before resetting
-        if (streamingManager)
-            streamingManager->cancelStream(voice.sampleVoice->getVoiceId());
+        if (voice.sampleVoice->isFadingOut())
+        {
+            // Already fading — it's near-silent, safe to hard-stop.
+            if (streamingManager)
+                streamingManager->cancelStream(voice.sampleVoice->getVoiceId());
+            voice.sampleVoice->reset();
+        }
+        else
+        {
+            // Active non-fading voice: swap it to a fade-overflow slot so it
+            // can ramp to silence while the new note starts immediately here.
+            const int fadeSlot = findFadeSlot();
+            if (fadeSlot >= 0)
+            {
+                std::swap(voice.sampleVoice, voices[fadeSlot].sampleVoice);
 
-        voice.sampleVoice->reset();
-        voice.isActive = false;
-        voice.midiNote = -1;
+                // Cancel streaming for the fading voice; it uses only buffered data.
+                if (streamingManager)
+                    streamingManager->cancelStream(voices[fadeSlot].sampleVoice->getVoiceId());
+
+                const int fadeSamples = static_cast<int>(sampleRate * 0.010); // 10 ms
+                voices[fadeSlot].sampleVoice->beginFadeOut(fadeSamples);
+                voices[fadeSlot].isActive   = true;
+                voices[fadeSlot].midiNote   = -1;   // prevent choke-group interactions
+                voices[fadeSlot].chokeGroup = -1;
+
+                // The swapped-in SampleVoice (from the inactive fade slot) needs reset.
+                voice.sampleVoice->reset();
+            }
+            else
+            {
+                // All fade-overflow slots occupied — fall back to immediate stop.
+                if (streamingManager)
+                    streamingManager->cancelStream(voice.sampleVoice->getVoiceId());
+                voice.sampleVoice->reset();
+            }
+        }
+        voice.isActive   = false;
+        voice.midiNote   = -1;
         voice.chokeGroup = -1;
     }
 
@@ -338,35 +374,60 @@ void VoiceManager::setPolyphony(int maxVoices)
 
 int VoiceManager::findFreeVoice() const
 {
-    int oldestVoiceIndex = -1;
-    int oldestAge = -1;
-
     const int maxVoices = maxActiveVoices.load();
 
-    // First pass: find an inactive voice
+    // Pass 1: inactive voice — best choice, no audible artifact.
+    for (int i = 0; i < maxVoices; ++i)
+        if (!voices[i].isActive)
+            return i;
+
+    // Pass 2: already-fading voice — it will be hard-stopped, but it's nearly
+    // silent so the artifact is minimal compared to cutting a fully-active voice.
+    int oldestFadingIndex = -1;
+    int oldestFadingAge   = -1;
     for (int i = 0; i < maxVoices; ++i)
     {
-        if (!voices[i].isActive)
+        if (voices[i].isActive && voices[i].sampleVoice &&
+            voices[i].sampleVoice->isFadingOut())
         {
-            return i;
+            const int age = voices[i].sampleVoice->getAge();
+            if (age > oldestFadingAge)
+            {
+                oldestFadingAge   = age;
+                oldestFadingIndex = i;
+            }
         }
     }
+    if (oldestFadingIndex >= 0)
+        return oldestFadingIndex;
 
-    // Second pass: steal the oldest voice
+    // Pass 3: steal the oldest active (non-fading) voice. The caller will move
+    // it to a fade-overflow slot so it can ramp to silence rather than hard-cut.
+    int oldestVoiceIndex = -1;
+    int oldestAge        = -1;
     for (int i = 0; i < maxVoices; ++i)
     {
-        if (voices[i].sampleVoice)
+        if (voices[i].sampleVoice && !voices[i].sampleVoice->isFadingOut())
         {
             const int age = voices[i].sampleVoice->getAge();
             if (age > oldestAge)
             {
-                oldestAge = age;
+                oldestAge        = age;
                 oldestVoiceIndex = i;
             }
         }
     }
 
     return oldestVoiceIndex;
+}
+
+int VoiceManager::findFadeSlot() const
+{
+    const int maxVoices = maxActiveVoices.load();
+    for (int i = maxVoices; i < TOTAL_VOICE_SLOTS; ++i)
+        if (!voices[i].isActive)
+            return i;
+    return -1;
 }
 
 void VoiceManager::startVoice(int voiceIndex, int midiNote, float velocity, int sampleOffset)
@@ -488,9 +549,12 @@ const SampleLayer* VoiceManager::findBestLayer(const DrumPiece* piece,
 int VoiceManager::getActiveVoiceCount() const
 {
     const juce::SpinLock::ScopedLockType lock(voiceLock);
+    const int maxVoices = maxActiveVoices.load();
     int count = 0;
-    for (const auto& voice : voices)
-        if (voice.isActive)
+    // Count only the main voice zone; fade-overflow voices are transparent to
+    // the polyphony meter — they're transient artifacts of voice stealing.
+    for (int i = 0; i < maxVoices; ++i)
+        if (voices[i].isActive)
             ++count;
     return count;
 }

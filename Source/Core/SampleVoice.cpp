@@ -36,6 +36,11 @@ void SampleVoice::reset()
     envelope.reset();
     lastSample[0] = lastSample[1] = 0.0f;
 
+    // Clear fade-out state
+    fadingOut = false;
+    fadeOutSamplesRemaining = 0;
+    fadeOutTotalSamples = 1;
+
     // Clear streaming state
     preloadBuffer.reset();
     streamedChunks.clear();
@@ -87,6 +92,18 @@ void SampleVoice::forceQuickRelease()
     fastParams.release = 0.040f;  // 40ms quick release
     envelope.setParameters(fastParams);
     envelope.noteOff();
+}
+
+void SampleVoice::beginFadeOut(int durationSamples)
+{
+    // Start a per-sample linear fade ramp applied multiplicatively on top of the
+    // ADSR. Used for voice stealing so the outgoing voice ramps to silence
+    // instead of hard-cutting. Real-time safe — no allocation.
+    const int safeLen    = juce::jmax(1, durationSamples);
+    fadeOutTotalSamples  = safeLen;
+    fadeOutSamplesRemaining = safeLen;
+    fadingOut            = true;
+    streamingRequested   = true;  // no new stream data needed while fading
 }
 
 void SampleVoice::loadSampleData(const SampleLayer* layer, int newVoiceId, int newStreamId)
@@ -161,27 +178,44 @@ void SampleVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
 
     for (int sample = 0; sample < numSamples; ++sample)
     {
-        // Check if we've reached the end of the entire sample
         if (playbackPosition >= totalSampleLength)
         {
             active.store(false, std::memory_order_release);
             break;
         }
 
-        // Get envelope value
-        const float envelopeValue = envelope.getNextSample();
+        float envelopeValue;
+        bool  shouldStop = false;
 
-        // Check if envelope has finished
-        if (!envelope.isActive())
+        if (fadingOut)
         {
-            active.store(false, std::memory_order_release);
-            break;
+            // Linear ramp from 1→0 over fadeOutTotalSamples, multiplied with ADSR.
+            // This ensures voice-stolen audio ramps to silence without a click even
+            // when the ADSR is at full sustain.
+            const float fadeMultiplier =
+                static_cast<float>(fadeOutSamplesRemaining) /
+                static_cast<float>(fadeOutTotalSamples);
+
+            if (--fadeOutSamplesRemaining <= 0)
+            {
+                fadingOut  = false;
+                shouldStop = true;
+            }
+
+            envelopeValue = envelope.getNextSample() * fadeMultiplier;
+
+            if (!envelope.isActive() && !shouldStop)
+                shouldStop = true;
+        }
+        else
+        {
+            envelopeValue = envelope.getNextSample();
+            if (!envelope.isActive())
+                shouldStop = true;
         }
 
-        // Calculate final gain (layer gain * velocity * envelope)
         const float finalGain = gain * velocity * envelopeValue;
 
-        // Read and interpolate samples for each channel
         for (int channel = 0; channel < numChannels; ++channel)
         {
             const float sampleValue = readSample(channel, playbackPosition);
@@ -189,9 +223,14 @@ void SampleVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
                                   sampleValue * finalGain);
         }
 
-        // Advance playback position with sample rate conversion
         playbackPosition += playbackRate;
         ++age;
+
+        if (shouldStop)
+        {
+            active.store(false, std::memory_order_release);
+            break;
+        }
     }
 }
 

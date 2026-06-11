@@ -1,6 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2024-2026 FLAM Contributors
 // See LICENSE in the repository root for full license text.
+//
+// v1.1 DEFERRED (FLA-83): IRConvolver is fully implemented but intentionally not wired into
+// the v1.0 signal path. Decision: ship v1.0 without convolution reverb to keep scope tight and
+// avoid bundling unlicensed IR files. Wire into Mixer master FX chain post-LimiterProcessor in
+// v1.1 once IR file licensing, UI controls, and flamkit.yaml IR metadata are resolved.
 
 #pragma once
 

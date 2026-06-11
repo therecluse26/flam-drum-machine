@@ -5,6 +5,7 @@
 #pragma once
 
 #include <juce_gui_basics/juce_gui_basics.h>
+#include "FlamLookAndFeel.h"
 #include "../Core/Mixer.h"
 
 namespace flam {
@@ -25,40 +26,50 @@ public:
         , channelIndex(channelIdx)
         , isMasterEQ(isMaster)
     {
-        // Create 10 band sliders
+        setLookAndFeel(&FlamLookAndFeel::instance());
+
         for (int i = 0; i < 10; ++i)
         {
             auto& slider = bandSliders[i];
             addAndMakeVisible(slider);
             slider.setSliderStyle(juce::Slider::LinearVertical);
-            slider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 50, 20);
+            slider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 50, 18);
             slider.setRange(-12.0, 12.0, 0.1);
             slider.setValue(0.0);
             slider.setTextValueSuffix(" dB");
             slider.onValueChange = [this, i] { onBandChanged(i); };
 
-            // Labels for each band
             auto& label = bandLabels[i];
             addAndMakeVisible(label);
             label.setText(getBandFrequencyLabel(i), juce::dontSendNotification);
             label.setJustificationType(juce::Justification::centred);
-            label.setColour(juce::Label::textColourId, juce::Colours::white);
+            label.setFont(juce::Font(10.0f));
         }
 
-        // Update UI from mixer state
         updateFromMixer();
-
         setSize(600, 300);
+    }
+
+    ~EQEditorComponent() override
+    {
+        setLookAndFeel(nullptr);
     }
 
     void paint(juce::Graphics& g) override
     {
-        g.fillAll(juce::Colour(0xff2a2a2a));
+        g.fillAll(juce::Colour(FlamColors::Surface));
 
-        // Title
-        g.setColour(juce::Colours::white);
-        g.setFont(juce::Font(16.0f, juce::Font::bold));
-        g.drawText("10-Band Graphic EQ", getLocalBounds().removeFromTop(30), juce::Justification::centred);
+        // Teal header accent
+        auto header = getLocalBounds().removeFromTop(32).toFloat();
+        g.setColour(juce::Colour(FlamColors::AccentTeal).withAlpha(0.15f));
+        g.fillRect(header);
+        g.setColour(juce::Colour(FlamColors::AccentTeal).withAlpha(0.6f));
+        g.fillRect(header.removeFromBottom(1.5f));
+
+        g.setColour(juce::Colour(FlamColors::TextPrimary));
+        g.setFont(juce::Font(13.0f, juce::Font::bold));
+        g.drawText("EQ  —  10-Band Graphic", getLocalBounds().removeFromTop(32),
+                   juce::Justification::centred);
     }
 
     void resized() override

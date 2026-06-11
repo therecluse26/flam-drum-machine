@@ -44,20 +44,17 @@ public:
     {
         auto bounds = getLocalBounds().toFloat().reduced(8.0f);
 
-        // Draw background
-        if (isMouseOver)
-            g.setColour(juce::Colour(0xff3a3a3a));
-        else
-            g.setColour(juce::Colour(0xff2a2a2a));
-        g.fillRoundedRectangle(bounds, 6.0f);
+        g.setColour(isMouseOver ? juce::Colour(FlamColors::Interactive)
+                                : juce::Colour(FlamColors::Elevated));
+        g.fillRoundedRectangle(bounds, 8.0f);
 
-        // Draw border
-        g.setColour(isMouseOver ? juce::Colours::lightblue : juce::Colours::grey);
-        g.drawRoundedRectangle(bounds, 6.0f, 2.0f);
+        g.setColour(isMouseOver ? juce::Colour(FlamColors::AccentBlue).withAlpha(0.7f)
+                                : juce::Colour(FlamColors::BorderSubtle));
+        g.drawRoundedRectangle(bounds, 8.0f, 1.5f);
 
         auto contentBounds = bounds.reduced(8.0f);
 
-        // Draw cover image
+        // Cover image or placeholder
         auto imageBounds = contentBounds.removeFromTop(contentBounds.getHeight() * 0.5f);
         if (coverImage.isValid())
         {
@@ -65,45 +62,37 @@ public:
         }
         else
         {
-            // Placeholder if no image
-            g.setColour(juce::Colour(0xff1a1a1a));
-            g.fillRect(imageBounds);
-            g.setColour(juce::Colours::grey);
-            g.setFont(24.0f);
-            g.drawText("?", imageBounds, juce::Justification::centred);
+            g.setColour(juce::Colour(FlamColors::Surface));
+            g.fillRoundedRectangle(imageBounds, 4.0f);
+            g.setColour(juce::Colour(FlamColors::TextDisabled));
+            g.setFont(20.0f);
+            g.drawText("FLAM", imageBounds, juce::Justification::centred);
         }
 
         contentBounds.removeFromTop(8.0f);
 
-        // Draw kit name
-        g.setColour(juce::Colours::white);
-        g.setFont(juce::Font(14.0f, juce::Font::bold));
-        auto nameArea = contentBounds.removeFromTop(18.0f);
-        g.drawText(kit ? kit->name : "Unknown Kit", nameArea, juce::Justification::centredLeft);
+        g.setColour(juce::Colour(FlamColors::TextPrimary));
+        g.setFont(juce::Font(13.0f, juce::Font::bold));
+        g.drawText(kit ? kit->name : "Unknown Kit",
+                   contentBounds.removeFromTop(16.0f), juce::Justification::centredLeft);
 
-        // Draw author
-        g.setColour(juce::Colours::lightgrey);
-        g.setFont(11.0f);
-        auto authorArea = contentBounds.removeFromTop(14.0f);
+        g.setColour(juce::Colour(FlamColors::TextSecondary));
+        g.setFont(juce::Font(11.0f));
         g.drawText(kit && kit->author.isNotEmpty() ? kit->author : "",
-                   authorArea, juce::Justification::centredLeft);
+                   contentBounds.removeFromTop(13.0f), juce::Justification::centredLeft);
 
-        // Draw version
-        auto versionArea = contentBounds.removeFromTop(14.0f);
         g.drawText(kit && kit->version.isNotEmpty() ? ("v" + kit->version) : "",
-                   versionArea, juce::Justification::centredLeft);
+                   contentBounds.removeFromTop(13.0f), juce::Justification::centredLeft);
 
         contentBounds.removeFromTop(4.0f);
 
-        // Draw metadata (drums and samples count)
-        g.setColour(juce::Colours::grey);
-        g.setFont(10.0f);
+        g.setColour(juce::Colour(FlamColors::TextDisabled));
+        g.setFont(juce::Font(10.0f));
         if (kit)
         {
-            auto statsArea = contentBounds.removeFromTop(12.0f);
-            juce::String stats = juce::String(kit->getDrumPieceCount()) + " drums, " +
-                                juce::String(kit->getTotalSampleCount()) + " samples";
-            g.drawText(stats, statsArea, juce::Justification::centredLeft);
+            juce::String stats = juce::String(kit->getDrumPieceCount()) + " drums · " +
+                                 juce::String(kit->getTotalSampleCount()) + " samples";
+            g.drawText(stats, contentBounds.removeFromTop(12.0f), juce::Justification::centredLeft);
         }
     }
 
@@ -425,20 +414,29 @@ FlamAudioProcessorEditor::FlamAudioProcessorEditor(FlamAudioProcessor& p)
     : AudioProcessorEditor(&p)
     , audioProcessor(p)
 {
-    titleLabel.setText("FlamKit", juce::dontSendNotification);
-    titleLabel.setFont(juce::Font(24.0f, juce::Font::bold));
-    titleLabel.setJustificationType(juce::Justification::centredTop);
+    // Apply the design system to the editor — cascades to all child components.
+    setLookAndFeel(&flamLaf);
+
+    // Title — left-aligned wordmark
+    titleLabel.setText("FLAMKIT", juce::dontSendNotification);
+    titleLabel.setFont(juce::Font(18.0f, juce::Font::bold));
+    titleLabel.setJustificationType(juce::Justification::centredLeft);
+    titleLabel.setColour(juce::Label::textColourId, juce::Colour(FlamColors::TextPrimary));
     addAndMakeVisible(titleLabel);
 
+    // "Kit:" prefix — subdued
     kitBrowserLabel.setText("Kit:", juce::dontSendNotification);
     kitBrowserLabel.setJustificationType(juce::Justification::centredRight);
+    kitBrowserLabel.setColour(juce::Label::textColourId, juce::Colour(FlamColors::TextSecondary));
     addAndMakeVisible(kitBrowserLabel);
 
+    // Currently loaded kit name — center of header
     currentKitLabel.setText("No kit loaded", juce::dontSendNotification);
     currentKitLabel.setJustificationType(juce::Justification::centredLeft);
+    currentKitLabel.setColour(juce::Label::textColourId, juce::Colour(FlamColors::TextPrimary));
     addAndMakeVisible(currentKitLabel);
 
-    kitBrowserButton.setButtonText("Browse...");
+    kitBrowserButton.setButtonText("Browse");
     kitBrowserButton.onClick = [this] { openKitBrowser(); };
     addAndMakeVisible(kitBrowserButton);
 
@@ -471,38 +469,49 @@ FlamAudioProcessorEditor::FlamAudioProcessorEditor(FlamAudioProcessor& p)
     loadLastLoadedKit();
 }
 
-FlamAudioProcessorEditor::~FlamAudioProcessorEditor() = default;
+FlamAudioProcessorEditor::~FlamAudioProcessorEditor()
+{
+    setLookAndFeel(nullptr);
+}
 
 void FlamAudioProcessorEditor::paint(juce::Graphics& g)
 {
-    g.fillAll(getLookAndFeel().findColour(juce::ResizableWindow::backgroundColourId));
-    
-    g.setColour(juce::Colours::white);
-    g.setFont(12.0f);
+    // Base background
+    g.fillAll(juce::Colour(FlamColors::Background));
+
+    // Header bar — Surface tone with accent bottom border
+    auto headerBounds = getLocalBounds().removeFromTop(100).toFloat();
+    g.setColour(juce::Colour(FlamColors::Surface));
+    g.fillRect(headerBounds);
+
+    // Accent border at the bottom of the header
+    g.setColour(juce::Colour(FlamColors::AccentBlue).withAlpha(0.5f));
+    g.fillRect(headerBounds.removeFromBottom(1.0f));
 }
 
 void FlamAudioProcessorEditor::resized()
 {
     auto bounds = getLocalBounds();
-    auto topArea = bounds.removeFromTop(50);
 
-    titleLabel.setBounds(topArea);
+    // 100px header: first 50px = title row, next 50px = kit row
+    auto headerArea = bounds.removeFromTop(100).reduced(16, 0);
 
-    auto contentArea = bounds.reduced(10);
+    // Title row: FLAMKIT wordmark on left
+    auto titleRow = headerArea.removeFromTop(50);
+    titleLabel.setBounds(titleRow.removeFromLeft(120));
 
-    // Kit browser area at top
-    auto kitArea = contentArea.removeFromTop(40);
-    kitBrowserLabel.setBounds(kitArea.removeFromLeft(40));
-    kitArea.removeFromLeft(5);
-    kitBrowserButton.setBounds(kitArea.removeFromRight(100));
-    kitArea.removeFromRight(5);
-    currentKitLabel.setBounds(kitArea);
+    // Kit row: "Kit:" | kit name | [Browse] button
+    auto kitRow = headerArea.removeFromTop(44);
+    kitBrowserLabel.setBounds(kitRow.removeFromLeft(36));
+    kitRow.removeFromLeft(6);
+    kitBrowserButton.setBounds(kitRow.removeFromRight(80).withSizeKeepingCentre(80, 28));
+    kitRow.removeFromRight(8);
+    currentKitLabel.setBounds(kitRow);
 
-    contentArea.removeFromTop(10);
-
-    // Tabs take full width
+    // Remaining area: content / tabs
+    bounds.removeFromTop(2); // gap below header border
     if (mixerTabs)
-        mixerTabs->setBounds(contentArea);
+        mixerTabs->setBounds(bounds.reduced(0));
 }
 
 void FlamAudioProcessorEditor::setupDrumPads()

@@ -88,7 +88,7 @@ void TenBandGraphicEQ::reset()
 void TenBandGraphicEQ::updateCoefficients()
 {
     // Butterworth Q factor for smooth frequency response
-    constexpr float q = 1.0f / std::sqrt(2.0f);
+    const float q = 1.0f / std::sqrt(2.0f); // not constexpr: std::sqrt is not constexpr until C++26
 
     for (int i = 0; i < NUM_BANDS; ++i)
     {

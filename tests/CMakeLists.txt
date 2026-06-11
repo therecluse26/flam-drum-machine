@@ -39,7 +39,7 @@ target_compile_definitions(flam-tests
         JUCE_STANDALONE_FILTER_WINDOW_USE_KIOSK_MODE=0
         # Path to Tests/Fixtures/ baked at compile time so GoldenRenderTest can
         # locate fixture assets regardless of working directory at runtime.
-        FLAM_TEST_FIXTURES_DIR="${CMAKE_SOURCE_DIR}/Tests/Fixtures")
+        FLAM_TEST_FIXTURES_DIR="${CMAKE_SOURCE_DIR}/L1Tests/Fixtures")
 
 # juce_audio_processors → juce_gui_extra → juce_gui_basics (transitive chain);
 # all modules except juce_audio_plugin_client (the VST3/AU ABI wrapper).
@@ -66,7 +66,11 @@ target_link_libraries(flam-tests
 if(YAML_CPP_FOUND)
     target_include_directories(flam-tests PRIVATE ${YAML_CPP_INCLUDE_DIRS})
     target_compile_definitions(flam-tests PRIVATE FLAM_YAML_SUPPORT=1)
-    target_link_libraries(flam-tests PRIVATE ${YAML_CPP_LIBRARIES})
+    if(DEFINED YAML_CPP_FETCHED)
+        target_link_libraries(flam-tests PRIVATE yaml-cpp::yaml-cpp)
+    else()
+        target_link_libraries(flam-tests PRIVATE ${YAML_CPP_LIBRARIES})
+    endif()
 endif()
 
 # Linux: juce_gui_basics pulls in X11 at link time

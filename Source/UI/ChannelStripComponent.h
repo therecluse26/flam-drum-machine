@@ -5,6 +5,7 @@
 #pragma once
 
 #include <juce_gui_basics/juce_gui_basics.h>
+#include "FlamLookAndFeel.h"
 #include "PeakMeter.h"
 #include "FXButtonComponent.h"
 #include "EQEditorComponent.h"
@@ -38,9 +39,9 @@ public:
     {
         // Channel name label
         addAndMakeVisible(nameLabel);
-        nameLabel.setFont(juce::Font(14.0f, juce::Font::bold));
+        nameLabel.setFont(juce::Font(11.0f, juce::Font::bold));
         nameLabel.setJustificationType(juce::Justification::centred);
-        nameLabel.setColour(juce::Label::textColourId, juce::Colours::white);
+        nameLabel.setColour(juce::Label::textColourId, juce::Colour(FlamColors::TextPrimary));
 
         // Output selector dropdown
         addAndMakeVisible(outputSelector);
@@ -75,14 +76,16 @@ public:
         soloButton.setButtonText("S");
         soloButton.setClickingTogglesState(true);
         soloButton.onClick = [this] { onSoloClicked(); };
-        soloButton.setColour(juce::TextButton::buttonOnColourId, juce::Colours::yellow);
+        soloButton.setColour(juce::TextButton::buttonOnColourId, juce::Colour(FlamColors::AccentYellow));
+        soloButton.setColour(juce::TextButton::textColourOnId, juce::Colour(FlamColors::Background));
 
         // Mute button
         addAndMakeVisible(muteButton);
         muteButton.setButtonText("M");
         muteButton.setClickingTogglesState(true);
         muteButton.onClick = [this] { onMuteClicked(); };
-        muteButton.setColour(juce::TextButton::buttonOnColourId, juce::Colours::red);
+        muteButton.setColour(juce::TextButton::buttonOnColourId, juce::Colour(FlamColors::AccentRed));
+        muteButton.setColour(juce::TextButton::textColourOnId, juce::Colour(FlamColors::TextPrimary));
 
         // Peak meter
         addAndMakeVisible(peakMeter);
@@ -120,13 +123,13 @@ public:
 
     void paint(juce::Graphics& g) override
     {
-        // Background
-        g.setColour(juce::Colour(0xff2a2a2a));
+        g.setColour(juce::Colour(FlamColors::Elevated));
         g.fillAll();
 
-        // Border
-        g.setColour(juce::Colours::darkgrey);
-        g.drawRect(getLocalBounds(), 1);
+        // Right-side separator line between strips
+        g.setColour(juce::Colour(FlamColors::BorderSubtle));
+        g.drawLine((float)getWidth() - 0.5f, 4.0f, (float)getWidth() - 0.5f,
+                   (float)getHeight() - 4.0f, 1.0f);
     }
 
     void resized() override

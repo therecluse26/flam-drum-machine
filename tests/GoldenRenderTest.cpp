@@ -1,13 +1,13 @@
 // GoldenRenderTest.cpp
 // CTEST-5 — L2 golden-render harness.
 //
-// Renders the synthetic fixture kit (Tests/Fixtures/golden-kit/) with a fixed
+// Renders the synthetic fixture kit (L1Tests/Fixtures/golden-kit/) with a fixed
 // seed and event schedule, then null-tests the output against a committed
 // reference WAV.  Residual peak must be < -120 dBFS.
 //
 // To regenerate the golden reference after an intentional DSP change:
 //   FLAM_UPDATE_GOLDEN=1 ./flam-tests "[golden_render]"
-// Review the diff in Tests/Fixtures/goldens/golden_render.wav before committing.
+// Review the diff in L1Tests/Fixtures/goldens/golden_render.wav before committing.
 
 #include <catch2/catch_test_macros.hpp>
 #include <juce_core/juce_core.h>
@@ -181,7 +181,7 @@ static float peakResidual(const juce::AudioBuffer<float>& a,
 // TEST CASES
 // ---------------------------------------------------------------------------
 
-TEST_CASE("Golden render — output matches committed reference", "[golden_render]")
+TEST_CASE("Golden render: output matches committed reference", "[golden_render]")
 {
     auto rendered = renderFixtureKit();
     REQUIRE(rendered.getNumSamples() == TOTAL_RENDER_SAMPLES);
@@ -215,7 +215,7 @@ TEST_CASE("Golden render — output matches committed reference", "[golden_rende
     REQUIRE(peakDiffDB < -120.0f);
 }
 
-TEST_CASE("Golden render — perturbation is detectable above -120 dBFS", "[golden_render]")
+TEST_CASE("Golden render: perturbation is detectable above -120 dBFS", "[golden_render]")
 {
     // This test proves the harness actually catches audio drift:
     // adding 0.001 linear ≈ -60 dBFS, which is 60 dB above the -120 dBFS pass threshold.

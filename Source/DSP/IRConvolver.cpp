@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2024-2026 FLAM Contributors
 // See LICENSE in the repository root for full license text.
+//
+// v1.1 DEFERRED (FLA-83): See IRConvolver.h for deferral rationale.
 
 #include "IRConvolver.h"
 

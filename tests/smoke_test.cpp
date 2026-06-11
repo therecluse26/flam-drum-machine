@@ -1,6 +1,6 @@
 #include <catch2/catch_test_macros.hpp>
 
-TEST_CASE("Smoke test — harness is operational", "[smoke]")
+TEST_CASE("Smoke test: harness is operational", "[smoke]")
 {
     REQUIRE(1 + 1 == 2);
 }

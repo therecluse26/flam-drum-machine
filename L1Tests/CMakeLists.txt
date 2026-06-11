@@ -39,7 +39,11 @@ target_compile_definitions(FlamL1Tests PRIVATE
 if(YAML_CPP_FOUND)
     target_compile_definitions(FlamL1Tests PRIVATE FLAM_YAML_SUPPORT=1)
     target_include_directories(FlamL1Tests PRIVATE ${YAML_CPP_INCLUDE_DIRS})
-    target_link_libraries(FlamL1Tests PRIVATE ${YAML_CPP_LIBRARIES})
+    if(DEFINED YAML_CPP_FETCHED)
+        target_link_libraries(FlamL1Tests PRIVATE yaml-cpp::yaml-cpp)
+    else()
+        target_link_libraries(FlamL1Tests PRIVATE ${YAML_CPP_LIBRARIES})
+    endif()
 endif()
 
 # Non-GUI JUCE modules only — keeps the test build fast and CI-friendly

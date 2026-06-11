@@ -5,6 +5,7 @@
 #pragma once
 
 #include <juce_gui_basics/juce_gui_basics.h>
+#include "FlamLookAndFeel.h"
 #include "../Core/Mixer.h"
 
 namespace flam {
@@ -30,6 +31,7 @@ public:
         , channelIndex(channelIdx)
         , isMasterCompressor(isMaster)
     {
+        setLookAndFeel(&FlamLookAndFeel::instance());
         // Threshold slider
         addAndMakeVisible(thresholdSlider);
         thresholdSlider.setSliderStyle(juce::Slider::LinearHorizontal);
@@ -42,7 +44,7 @@ public:
         addAndMakeVisible(thresholdLabel);
         thresholdLabel.setText("Threshold:", juce::dontSendNotification);
         thresholdLabel.setJustificationType(juce::Justification::centredLeft);
-        thresholdLabel.setColour(juce::Label::textColourId, juce::Colours::white);
+        thresholdLabel.setColour(juce::Label::textColourId, juce::Colour(FlamColors::TextSecondary));
 
         // Ratio slider
         addAndMakeVisible(ratioSlider);
@@ -56,7 +58,7 @@ public:
         addAndMakeVisible(ratioLabel);
         ratioLabel.setText("Ratio:", juce::dontSendNotification);
         ratioLabel.setJustificationType(juce::Justification::centredLeft);
-        ratioLabel.setColour(juce::Label::textColourId, juce::Colours::white);
+        ratioLabel.setColour(juce::Label::textColourId, juce::Colour(FlamColors::TextSecondary));
 
         // Attack slider
         addAndMakeVisible(attackSlider);
@@ -71,7 +73,7 @@ public:
         addAndMakeVisible(attackLabel);
         attackLabel.setText("Attack:", juce::dontSendNotification);
         attackLabel.setJustificationType(juce::Justification::centredLeft);
-        attackLabel.setColour(juce::Label::textColourId, juce::Colours::white);
+        attackLabel.setColour(juce::Label::textColourId, juce::Colour(FlamColors::TextSecondary));
 
         // Release slider
         addAndMakeVisible(releaseSlider);
@@ -86,7 +88,7 @@ public:
         addAndMakeVisible(releaseLabel);
         releaseLabel.setText("Release:", juce::dontSendNotification);
         releaseLabel.setJustificationType(juce::Justification::centredLeft);
-        releaseLabel.setColour(juce::Label::textColourId, juce::Colours::white);
+        releaseLabel.setColour(juce::Label::textColourId, juce::Colour(FlamColors::TextSecondary));
 
         // Makeup gain slider
         addAndMakeVisible(makeupGainSlider);
@@ -100,22 +102,30 @@ public:
         addAndMakeVisible(makeupGainLabel);
         makeupGainLabel.setText("Makeup:", juce::dontSendNotification);
         makeupGainLabel.setJustificationType(juce::Justification::centredLeft);
-        makeupGainLabel.setColour(juce::Label::textColourId, juce::Colours::white);
+        makeupGainLabel.setColour(juce::Label::textColourId, juce::Colour(FlamColors::TextSecondary));
 
-        // Update UI from mixer state
         updateFromMixer();
-
         setSize(350, 220);
+    }
+
+    ~CompressorEditorComponent() override
+    {
+        setLookAndFeel(nullptr);
     }
 
     void paint(juce::Graphics& g) override
     {
-        g.fillAll(juce::Colour(0xff2a2a2a));
+        g.fillAll(juce::Colour(FlamColors::Surface));
 
-        // Title
-        g.setColour(juce::Colours::white);
-        g.setFont(juce::Font(16.0f, juce::Font::bold));
-        g.drawText("Compressor", getLocalBounds().removeFromTop(30), juce::Justification::centred);
+        auto header = getLocalBounds().removeFromTop(32).toFloat();
+        g.setColour(juce::Colour(FlamColors::AccentGreen).withAlpha(0.12f));
+        g.fillRect(header);
+        g.setColour(juce::Colour(FlamColors::AccentGreen).withAlpha(0.6f));
+        g.fillRect(header.removeFromBottom(1.5f));
+
+        g.setColour(juce::Colour(FlamColors::TextPrimary));
+        g.setFont(juce::Font(13.0f, juce::Font::bold));
+        g.drawText("COMPRESSOR", getLocalBounds().removeFromTop(32), juce::Justification::centred);
     }
 
     void resized() override

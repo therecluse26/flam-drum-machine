@@ -5,6 +5,7 @@
 #pragma once
 
 #include <juce_gui_basics/juce_gui_basics.h>
+#include "FlamLookAndFeel.h"
 #include "PeakMeter.h"
 #include "FXButtonComponent.h"
 #include "EQEditorComponent.h"
@@ -34,9 +35,9 @@ public:
     {
         // Master label
         addAndMakeVisible(nameLabel);
-        nameLabel.setFont(juce::Font(16.0f, juce::Font::bold));
+        nameLabel.setFont(juce::Font(11.0f, juce::Font::bold));
         nameLabel.setJustificationType(juce::Justification::centred);
-        nameLabel.setColour(juce::Label::textColourId, juce::Colours::white);
+        nameLabel.setColour(juce::Label::textColourId, juce::Colour(FlamColors::AccentBlue));
         nameLabel.setText("MASTER", juce::dontSendNotification);
 
         // Volume fader (visual)
@@ -90,13 +91,13 @@ public:
 
     void paint(juce::Graphics& g) override
     {
-        // Background with visual distinction
-        g.setColour(juce::Colour(0xff3a3a3a));  // Slightly lighter than regular channels
+        // Master strip — slightly elevated from regular channels, blue left accent
+        g.setColour(juce::Colour(FlamColors::Interactive));
         g.fillAll();
 
-        // Border with highlight
-        g.setColour(juce::Colours::orange.darker(0.5f));
-        g.drawRect(getLocalBounds(), 2);
+        // Blue left accent line to distinguish master from channel strips
+        g.setColour(juce::Colour(FlamColors::AccentBlue));
+        g.fillRect(0, 0, 2, getHeight());
     }
 
     void resized() override
