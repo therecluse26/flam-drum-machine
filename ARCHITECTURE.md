@@ -60,7 +60,7 @@ Source/
 │   ├── LimiterProcessor.h/.cpp ← Brick-wall limiter ✅ (via Mixer)
 │   ├── SimpleEQ.h              ← Header-only EQ — orphaned, not included anywhere 🟡
 │   ├── SimpleCompressor.h      ← Header-only compressor — orphaned, not included anywhere 🟡
-│   └── IRConvolver.h/.cpp      ← Convolution reverb — built, no owner in signal path 🟡
+│   └── IRConvolver.h/.cpp      ← Convolution reverb — deferred to v1.1 (FLA-83) 🔵
 ├── Formats/
 │   └── FlamKitLoader.h/.cpp    ← flamkit.yaml (YAML) + .json parser ✅
 ├── Plugin/
@@ -482,11 +482,22 @@ This section consolidates all 🟡 items. These are tracked, not hidden. Each it
 
 `SampleLoader.h/.cpp` was deleted. It was never compiled into any target; its intended role is fully covered by `VoiceManager`'s inline preloading + `SampleStreamingManager`.
 
-### IRConvolver — no owner
+### ~~IRConvolver — no owner~~ ✅ Decision recorded (FLA-83)
 
 **File:** `Source/DSP/IRConvolver.h/.cpp`
 
-`IRConvolver` is a fully implemented convolution reverb using `juce::dsp::Convolution`. It is compiled (in `FLAM_ENGINE_SOURCES`) but never instantiated in `FlamEngine`, `PluginProcessor`, or `Mixer`. No UI exists for it. It should be either wired into the per-channel FX chain in `Mixer` (after `LimiterProcessor`) or moved to a `FeatureSpecs/` spec until prioritized.
+**Decision: Defer to v1.1.**
+
+`IRConvolver` is a fully implemented convolution reverb using `juce::dsp::Convolution`. It is compiled (in `FLAM_ENGINE_SOURCES`) but intentionally not instantiated in `FlamEngine`, `PluginProcessor`, or `Mixer` for v1.0.
+
+**Rationale:** Wiring convolution reverb into v1.0 requires bundling licensed IR files, implementing a file-chooser or IR browser UI, adding `flamkit.yaml` IR metadata support, and regenerating the L2 golden render. That scope conflicts with the v1.0 priority of shipping a polished, defect-free plugin. A plugin that works exceptionally well without reverb is preferable to one that ships reverb poorly.
+
+**v1.1 integration plan (when scheduled):**
+- Instantiate `IRConvolver` in `Mixer` master section, post-`LimiterProcessor`
+- Add basic UI (wet/dry knob, IR file browser)
+- Update `flamkit.yaml` spec to support per-kit IR file references
+- Source CC0 or CC-BY licensed IR files for bundling
+- Regenerate L2 golden render
 
 ### ~~SimpleCompressor lookahead stub~~ ✅ Resolved (FLA-73)
 
