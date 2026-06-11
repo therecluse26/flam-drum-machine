@@ -21,8 +21,14 @@ class SampleStreamingManager;
 class VoiceManager
 {
 public:
-    static constexpr int MAX_VOICES = 128;
-    static constexpr int MAX_CHOKE_GROUPS = 16;
+    static constexpr int MAX_VOICES          = 128;
+    static constexpr int MAX_CHOKE_GROUPS    = 16;
+
+    // Extra slots beyond MAX_VOICES reserved for voices that are fading out after
+    // a voice steal. The stolen voice is swapped here so the main slot is
+    // immediately available for the new note — no allocation on the audio thread.
+    static constexpr int FADE_OVERFLOW_SLOTS = 8;
+    static constexpr int TOTAL_VOICE_SLOTS   = MAX_VOICES + FADE_OVERFLOW_SLOTS;
     
     VoiceManager();
     ~VoiceManager();
@@ -137,6 +143,8 @@ private:
     juce::Random rng;
 
     int findFreeVoice() const;
+    // Returns an inactive slot in the FADE_OVERFLOW zone, or -1 if all are busy.
+    int findFadeSlot() const;
     void startVoice(int voiceIndex, int midiNote, float velocity, int sampleOffset);
     void stopVoice(int voiceIndex, int sampleOffset);
     void handleChokeGroup(int chokeGroup, int excludeVoice);

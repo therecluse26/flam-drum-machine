@@ -5,6 +5,7 @@
 #pragma once
 
 #include <juce_gui_basics/juce_gui_basics.h>
+#include "FlamLookAndFeel.h"
 
 namespace flam {
 
@@ -100,11 +101,11 @@ public:
         auto trackBounds = juce::Rectangle<float>(trackX, trackTop, trackWidth, trackHeight);
 
         // Draw track groove
-        g.setColour(juce::Colour(0xff1a1a1a));
+        g.setColour(juce::Colour(FlamColors::Background));
         g.fillRoundedRectangle(trackBounds, 2.0f);
 
         // Draw track border
-        g.setColour(juce::Colours::darkgrey);
+        g.setColour(juce::Colour(FlamColors::BorderSubtle));
         g.drawRoundedRectangle(trackBounds, 2.0f, 1.0f);
 
         // Calculate thumb position
@@ -115,7 +116,7 @@ public:
         if (normalizedValue > 0.0f)
         {
             auto filledBounds = trackBounds.withTop(thumbY).withBottom(trackBottom);
-            g.setColour(juce::Colour(0xff4a9eff).withAlpha(0.7f));
+            g.setColour(juce::Colour(FlamColors::AccentBlue).withAlpha(0.75f));
             g.fillRoundedRectangle(filledBounds, 2.0f);
         }
 
@@ -125,8 +126,8 @@ public:
             const float zeroNormalized = (0.0 - minimum) / (maximum - minimum);
             const float zeroY = trackBottom - (zeroNormalized * trackHeight);
 
-            g.setColour(juce::Colours::white.withAlpha(0.5f));
-            g.drawLine(trackX - 2.0f, zeroY, trackX + trackWidth + 2.0f, zeroY, 1.0f);
+            g.setColour(juce::Colour(FlamColors::TextPrimary).withAlpha(0.4f));
+            g.drawLine(trackX - 3.0f, zeroY, trackX + trackWidth + 3.0f, zeroY, 1.0f);
         }
 
         // Draw thumb (rectangular handle)
@@ -142,17 +143,19 @@ public:
         );
 
         // Thumb body
-        g.setColour(isMouseOver || isDragging ? juce::Colour(0xff6fb6ff) : juce::Colour(0xff5a5a5a));
-        g.fillRoundedRectangle(thumbBounds, 2.0f);
+        g.setColour(isMouseOver || isDragging ? juce::Colour(FlamColors::Interactive)
+                                              : juce::Colour(FlamColors::Elevated));
+        g.fillRoundedRectangle(thumbBounds, 3.0f);
 
         // Thumb border
-        g.setColour(juce::Colours::white.withAlpha(0.8f));
-        g.drawRoundedRectangle(thumbBounds, 2.0f, 1.5f);
+        g.setColour(isMouseOver || isDragging ? juce::Colour(FlamColors::AccentBlue)
+                                              : juce::Colour(FlamColors::TextSecondary));
+        g.drawRoundedRectangle(thumbBounds, 3.0f, 1.5f);
 
         // Value display at bottom
         if (showValue)
         {
-            g.setColour(juce::Colours::white);
+            g.setColour(juce::Colour(FlamColors::TextSecondary));
             g.setFont(9.0f);
 
             juce::String valueText = juce::String(value, 1) + textSuffix;

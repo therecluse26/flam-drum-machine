@@ -5,6 +5,7 @@
 #pragma once
 
 #include <juce_gui_basics/juce_gui_basics.h>
+#include "FlamLookAndFeel.h"
 #include "../Core/Mixer.h"
 
 namespace flam {
@@ -27,6 +28,7 @@ public:
         , channelIndex(channelIdx)
         , isMasterSaturation(isMaster)
     {
+        setLookAndFeel(&FlamLookAndFeel::instance());
         // Mode selector dropdown
         addAndMakeVisible(modeSelector);
         modeSelector.addItem("Tape", 1);
@@ -35,11 +37,10 @@ public:
         modeSelector.setSelectedId(1);  // Default to Tape
         modeSelector.onChange = [this] { onModeChanged(); };
 
-        // Mode label
         addAndMakeVisible(modeLabel);
         modeLabel.setText("Mode:", juce::dontSendNotification);
         modeLabel.setJustificationType(juce::Justification::centredLeft);
-        modeLabel.setColour(juce::Label::textColourId, juce::Colours::white);
+        modeLabel.setColour(juce::Label::textColourId, juce::Colour(FlamColors::TextSecondary));
 
         // Amount slider
         addAndMakeVisible(amountSlider);
@@ -49,26 +50,33 @@ public:
         amountSlider.setValue(0.5);
         amountSlider.onValueChange = [this] { onAmountChanged(); };
 
-        // Amount label
         addAndMakeVisible(amountLabel);
         amountLabel.setText("Amount:", juce::dontSendNotification);
         amountLabel.setJustificationType(juce::Justification::centredLeft);
-        amountLabel.setColour(juce::Label::textColourId, juce::Colours::white);
+        amountLabel.setColour(juce::Label::textColourId, juce::Colour(FlamColors::TextSecondary));
 
-        // Update UI from mixer state
         updateFromMixer();
-
         setSize(300, 120);
+    }
+
+    ~SaturationEditorComponent() override
+    {
+        setLookAndFeel(nullptr);
     }
 
     void paint(juce::Graphics& g) override
     {
-        g.fillAll(juce::Colour(0xff2a2a2a));
+        g.fillAll(juce::Colour(FlamColors::Surface));
 
-        // Title
-        g.setColour(juce::Colours::white);
-        g.setFont(juce::Font(16.0f, juce::Font::bold));
-        g.drawText("Saturation", getLocalBounds().removeFromTop(30), juce::Justification::centred);
+        auto header = getLocalBounds().removeFromTop(32).toFloat();
+        g.setColour(juce::Colour(FlamColors::AccentOrange).withAlpha(0.12f));
+        g.fillRect(header);
+        g.setColour(juce::Colour(FlamColors::AccentOrange).withAlpha(0.6f));
+        g.fillRect(header.removeFromBottom(1.5f));
+
+        g.setColour(juce::Colour(FlamColors::TextPrimary));
+        g.setFont(juce::Font(13.0f, juce::Font::bold));
+        g.drawText("SATURATION", getLocalBounds().removeFromTop(32), juce::Justification::centred);
     }
 
     void resized() override

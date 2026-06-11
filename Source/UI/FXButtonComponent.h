@@ -5,6 +5,7 @@
 #pragma once
 
 #include <juce_gui_basics/juce_gui_basics.h>
+#include "FlamLookAndFeel.h"
 
 namespace flam {
 
@@ -30,58 +31,50 @@ public:
     void paint(juce::Graphics& g) override
     {
         auto bounds = getLocalBounds();
+        auto boundsF = bounds.toFloat();
 
-        // Background - highlighted when enabled
         if (isEnabled)
         {
-            g.setColour(highlightColour.withAlpha(0.3f));
-            g.fillRoundedRectangle(bounds.toFloat(), 3.0f);
-
-            // Border when enabled
-            g.setColour(highlightColour);
-            g.drawRoundedRectangle(bounds.toFloat().reduced(0.5f), 3.0f, 1.0f);
+            g.setColour(highlightColour.withAlpha(0.18f));
+            g.fillRoundedRectangle(boundsF, 3.0f);
+            g.setColour(highlightColour.withAlpha(0.8f));
+            g.drawRoundedRectangle(boundsF.reduced(0.5f), 3.0f, 1.0f);
         }
         else
         {
-            // Subtle border when disabled
-            g.setColour(juce::Colour(0xff3a3a3a));
-            g.fillRoundedRectangle(bounds.toFloat(), 3.0f);
-
-            g.setColour(juce::Colours::darkgrey);
-            g.drawRoundedRectangle(bounds.toFloat().reduced(0.5f), 3.0f, 1.0f);
+            g.setColour(juce::Colour(FlamColors::Elevated));
+            g.fillRoundedRectangle(boundsF, 3.0f);
+            g.setColour(juce::Colour(FlamColors::BorderSubtle));
+            g.drawRoundedRectangle(boundsF.reduced(0.5f), 3.0f, 1.0f);
         }
 
         // FX name on left side
         auto labelBounds = bounds.reduced(4, 0).removeFromLeft(bounds.getWidth() - 20);
-        g.setColour(isEnabled ? juce::Colours::white : juce::Colours::grey);
-        g.setFont(juce::Font(12.0f, juce::Font::bold));
+        g.setColour(isEnabled ? juce::Colour(FlamColors::TextPrimary)
+                              : juce::Colour(FlamColors::TextDisabled));
+        g.setFont(juce::Font(11.0f, juce::Font::bold));
         g.drawText(fxName, labelBounds, juce::Justification::centredLeft);
 
-        // Power button (custom drawn symbol) on right side
+        // Power symbol on right side
         auto powerBounds = bounds.reduced(2).removeFromRight(16);
-
-        // Draw power symbol (circle with line at top)
         auto symbolBounds = powerBounds.reduced(3).toFloat();
         auto centerX = symbolBounds.getCentreX();
         auto centerY = symbolBounds.getCentreY();
         auto radius = symbolBounds.getWidth() / 2.0f;
 
-        g.setColour(isEnabled ? highlightColour : juce::Colours::grey);
+        g.setColour(isEnabled ? highlightColour : juce::Colour(FlamColors::TextDisabled));
 
-        // Draw circle (open at top)
         juce::Path powerSymbol;
         powerSymbol.addCentredArc(centerX, centerY, radius, radius, 0.0f,
                                    juce::MathConstants<float>::pi * 0.7f,
                                    juce::MathConstants<float>::pi * 2.3f, true);
         g.strokePath(powerSymbol, juce::PathStrokeType(1.5f));
-
-        // Draw vertical line at top
         g.drawLine(centerX, centerY - radius, centerX, centerY - radius * 0.3f, 1.5f);
 
-        // Highlight power button on hover
         if (powerButtonHovered)
         {
-            g.setColour(isEnabled ? highlightColour.brighter(0.3f) : juce::Colours::lightgrey);
+            g.setColour(isEnabled ? highlightColour.brighter(0.4f)
+                                  : juce::Colour(FlamColors::TextSecondary));
             g.drawRoundedRectangle(powerBounds.toFloat(), 2.0f, 1.0f);
         }
     }

@@ -5,6 +5,7 @@
 #pragma once
 
 #include <juce_gui_basics/juce_gui_basics.h>
+#include "FlamLookAndFeel.h"
 #include <atomic>
 
 namespace flam {
@@ -62,74 +63,57 @@ public:
         auto bounds = getLocalBounds().toFloat();
 
         // Background
-        g.setColour(juce::Colour(0xff1a1a1a));
+        g.setColour(juce::Colour(FlamColors::Background));
         g.fillRoundedRectangle(bounds, 2.0f);
 
-        // Border
-        g.setColour(juce::Colours::darkgrey);
-        g.drawRoundedRectangle(bounds, 2.0f, 1.0f);
+        // Clip indicator strip at top
+        const float clipH = 8.0f;
+        auto clipBounds = bounds.removeFromTop(clipH);
+        g.setColour(displayClipped ? juce::Colour(FlamColors::AccentRed)
+                                   : juce::Colour(FlamColors::Elevated));
+        g.fillRoundedRectangle(clipBounds.reduced(1.0f, 0.0f), 2.0f);
 
-        // Clip indicator overlays the top of the component
         if (displayClipped)
         {
-            auto clipArea = bounds;
-            g.setColour(juce::Colours::red);
-            g.fillRect(clipArea.removeFromTop(4.0f));
-            g.setFont(8.0f);
-            g.setColour(juce::Colours::white);
-            g.drawText("CLIP", clipArea.removeFromTop(10.0f), juce::Justification::centred);
+            g.setFont(7.0f);
+            g.setColour(juce::Colour(FlamColors::TextPrimary));
+            g.drawText("CLIP", clipBounds, juce::Justification::centred);
         }
 
-        const auto meterArea = bounds.reduced(2.0f);
-        const float fullHeight = meterArea.getHeight();
+        bounds.removeFromTop(2.0f);
 
-        if (displayLevel <= 0.0f || fullHeight <= 0.0f)
-            return;
+        // Segmented LED meter: 3px segments with 1px gaps
+        const float segH    = 3.0f;
+        const float segGap  = 1.0f;
+        const float segW    = bounds.getWidth() - 4.0f;
+        const float segX    = bounds.getX() + 2.0f;
+        const float totalH  = bounds.getHeight();
 
-        // Convert to dB and map to a normalised [0,1] position in the meter.
-        const float levelDb = juce::Decibels::gainToDecibels(displayLevel);
-        const float normalizedLevel = juce::jlimit(0.0f, 1.0f,
-            juce::jmap(levelDb, -60.0f, 6.0f, 0.0f, 1.0f));
-        const float meterHeight = fullHeight * normalizedLevel;
+        const int numSegs   = static_cast<int>(totalH / (segH + segGap));
+        const float levelDb = juce::Decibels::gainToDecibels(juce::jmax(displayLevel, 0.00001f));
+        const float norm    = juce::jlimit(0.0f, 1.0f, juce::jmap(levelDb, -60.0f, 6.0f, 0.0f, 1.0f));
+        const int   litSegs = static_cast<int>(norm * numSegs);
 
-        if (meterHeight <= 0.0f)
-            return;
+        // Zone boundaries in segment indices
+        const int greenTop  = static_cast<int>(juce::jmap(-12.0f, -60.0f, 6.0f, 0.0f, 1.0f) * numSegs);
+        const int yellowTop = static_cast<int>(juce::jmap( -3.0f, -60.0f, 6.0f, 0.0f, 1.0f) * numSegs);
 
-        // Zone thresholds (normalised):  Green → Yellow at -12 dB,  Yellow → Red at -3 dB
-        const float greenThreshold  = juce::jmap(-12.0f, -60.0f, 6.0f, 0.0f, 1.0f);
-        const float yellowThreshold = juce::jmap( -3.0f, -60.0f, 6.0f, 0.0f, 1.0f);
-
-        // Absolute pixel heights of each colour zone (measured from the bottom)
-        const float greenZoneH  = fullHeight * greenThreshold;
-        const float yellowZoneH = fullHeight * (yellowThreshold - greenThreshold);
-
-        // Y-coordinate of the top of the filled bar
-        const float barTop     = meterArea.getBottom() - meterHeight;
-        const float greenTop   = meterArea.getBottom() - greenZoneH;
-        const float yellowTop  = greenTop - yellowZoneH;
-
-        if (normalizedLevel <= greenThreshold)
+        for (int i = 0; i < numSegs; ++i)
         {
-            g.setColour(juce::Colours::green);
-            g.fillRect(meterArea.withTop(barTop));
-        }
-        else if (normalizedLevel <= yellowThreshold)
-        {
-            // Yellow section (top of bar) then green section (bottom of bar)
-            g.setColour(juce::Colours::yellow);
-            g.fillRect(meterArea.withTop(barTop).withBottom(greenTop));
-            g.setColour(juce::Colours::green);
-            g.fillRect(meterArea.withTop(greenTop));
-        }
-        else
-        {
-            // Red (top) → Yellow (middle) → Green (bottom)
-            g.setColour(juce::Colours::red);
-            g.fillRect(meterArea.withTop(barTop).withBottom(yellowTop));
-            g.setColour(juce::Colours::yellow);
-            g.fillRect(meterArea.withTop(yellowTop).withBottom(greenTop));
-            g.setColour(juce::Colours::green);
-            g.fillRect(meterArea.withTop(greenTop));
+            const float segY = bounds.getBottom() - (i + 1) * (segH + segGap) + segGap;
+            auto segRect = juce::Rectangle<float>(segX, segY, segW, segH);
+
+            const bool lit = (i < litSegs);
+            juce::Colour col;
+            if (i < greenTop)
+                col = juce::Colour(FlamColors::MeterSafe);
+            else if (i < yellowTop)
+                col = juce::Colour(FlamColors::MeterWarn);
+            else
+                col = juce::Colour(FlamColors::MeterClip);
+
+            g.setColour(lit ? col : col.withAlpha(0.10f));
+            g.fillRoundedRectangle(segRect, 1.0f);
         }
     }
 

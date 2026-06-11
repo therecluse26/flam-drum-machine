@@ -6,6 +6,7 @@
 
 #include <juce_gui_basics/juce_gui_basics.h>
 #include "PluginProcessor.h"
+#include "../UI/FlamLookAndFeel.h"
 #include "../UI/LevelMeter.h"
 #include "../UI/MixerPanel.h"
 
@@ -52,70 +53,44 @@ public:
     {
         auto bounds = getLocalBounds().toFloat();
 
-        // Background
-        g.setColour(juce::Colour(0xff1a1a1a));
+        g.setColour(juce::Colour(FlamColors::Background));
         g.fillRoundedRectangle(bounds, 2.0f);
-
-        // Border
-        g.setColour(juce::Colours::darkgrey);
-        g.drawRoundedRectangle(bounds, 2.0f, 1.0f);
 
         auto meterBounds = bounds.reduced(2.0f);
 
-        // Draw output level from bottom (green)
+        // Output level from bottom (green)
         if (displayOutputLevel > 0.0f)
         {
             const float outputDB = juce::Decibels::gainToDecibels(displayOutputLevel);
-            const float normalizedOutput = juce::jmap(outputDB, -60.0f, 6.0f, 0.0f, 1.0f);
-            const float outputHeight = meterBounds.getHeight() * juce::jlimit(0.0f, 1.0f, normalizedOutput);
-
-            g.setColour(juce::Colours::green);
-            auto outputRect = meterBounds.removeFromBottom(outputHeight);
-            g.fillRect(outputRect);
+            const float norm = juce::jlimit(0.0f, 1.0f, juce::jmap(outputDB, -60.0f, 6.0f, 0.0f, 1.0f));
+            const float h = meterBounds.getHeight() * norm;
+            g.setColour(juce::Colour(FlamColors::MeterSafe));
+            g.fillRect(meterBounds.removeFromBottom(h));
         }
 
-        // Draw gain reduction from top (red) - only if GR is active
+        // Gain reduction from top (red)
         if (displayGainReduction > 0.1f)
         {
-            const float normalizedGR = juce::jmap(displayGainReduction, 0.0f, 20.0f, 0.0f, 1.0f);
-            const float grHeight = meterBounds.getHeight() * juce::jlimit(0.0f, 1.0f, normalizedGR);
-
-            g.setColour(juce::Colours::red.withAlpha(0.8f));
-            auto grRect = meterBounds.removeFromTop(grHeight);
-            g.fillRect(grRect);
+            const float norm = juce::jlimit(0.0f, 1.0f, juce::jmap(displayGainReduction, 0.0f, 20.0f, 0.0f, 1.0f));
+            const float h = meterBounds.getHeight() * norm;
+            g.setColour(juce::Colour(FlamColors::AccentRed).withAlpha(0.8f));
+            g.fillRect(meterBounds.removeFromTop(h));
         }
 
-        // Draw labels inside the meter
         g.setFont(9.0f);
+        g.setColour(juce::Colour(FlamColors::TextSecondary));
+        g.drawText("Out", bounds.removeFromBottom(12).reduced(2.0f, 0.0f), juce::Justification::centred);
+        g.drawText("GR",  bounds.removeFromTop(12).reduced(2.0f, 0.0f),    juce::Justification::centred);
 
-        // Draw "Out" label at bottom
-        g.setColour(juce::Colours::white);
-        auto bottomLabelArea = bounds.removeFromBottom(12).reduced(2.0f, 0.0f);
-        g.drawText("Out", bottomLabelArea, juce::Justification::centred);
-
-        // Draw "GR" label at top
-        auto topLabelArea = bounds.removeFromTop(12).reduced(2.0f, 0.0f);
-        g.drawText("GR", topLabelArea, juce::Justification::centred);
-
-        // Draw GR value in middle if there's gain reduction
         if (displayGainReduction > 0.1f)
         {
+            auto grArea = juce::Rectangle<float>(bounds.getX(), bounds.getCentreY() - 10.0f,
+                                                  bounds.getWidth(), 20.0f);
+            g.setColour(juce::Colour(FlamColors::Background).withAlpha(0.8f));
+            g.fillRoundedRectangle(grArea.reduced(2.0f), 2.0f);
+            g.setColour(juce::Colour(FlamColors::TextPrimary));
             g.setFont(10.0f);
-            auto grValueArea = juce::Rectangle<float>(
-                bounds.getX(),
-                bounds.getCentreY() - 10.0f,
-                bounds.getWidth(),
-                20.0f
-            );
-
-            // Draw background for better readability
-            g.setColour(juce::Colour(0xff1a1a1a).withAlpha(0.8f));
-            g.fillRoundedRectangle(grValueArea.reduced(2.0f), 2.0f);
-
-            // Draw GR value
-            g.setColour(juce::Colours::white);
-            juce::String grText = juce::String(displayGainReduction, 1) + " dB";
-            g.drawText(grText, grValueArea, juce::Justification::centred);
+            g.drawText(juce::String(displayGainReduction, 1) + " dB", grArea, juce::Justification::centred);
         }
     }
 
@@ -172,7 +147,7 @@ public:
         const float flash = hitAlpha;
 
         // ── Background ──────────────────────────────────────────
-        const auto idleBg  = juce::Colour(0xff1e1e1e);
+        const auto idleBg  = juce::Colour(FlamColors::Elevated);
         const auto flashBg = typeColour.withMultipliedBrightness(0.35f + 0.65f * lastVelocity);
         g.setColour(isPressed ? typeColour.darker(0.25f)
                               : idleBg.interpolatedWith(flashBg, flash));
@@ -308,6 +283,9 @@ public:
 
 private:
     FlamAudioProcessor& audioProcessor;
+
+    // LookAndFeel must outlive all child components — declare first.
+    FlamLookAndFeel flamLaf;
 
     juce::Label titleLabel;
     juce::TextButton kitBrowserButton;

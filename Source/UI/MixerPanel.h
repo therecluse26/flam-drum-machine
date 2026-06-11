@@ -5,6 +5,7 @@
 #pragma once
 
 #include <juce_gui_basics/juce_gui_basics.h>
+#include "FlamLookAndFeel.h"
 #include "ChannelStripComponent.h"
 #include "MasterChannelStripComponent.h"
 #include "../Core/Mixer.h"
@@ -45,13 +46,20 @@ public:
 
     void paint(juce::Graphics& g) override
     {
-        // Background
-        g.fillAll(juce::Colour(0xff1a1a1a));
+        g.fillAll(juce::Colour(FlamColors::Surface));
 
-        // Title at top
-        g.setColour(juce::Colours::white);
-        g.setFont(juce::Font(18.0f, juce::Font::bold));
-        g.drawText("Mixer", getLocalBounds().removeFromTop(40), juce::Justification::centred);
+        // Section header
+        auto headerBounds = getLocalBounds().removeFromTop(40).toFloat();
+        g.setColour(juce::Colour(FlamColors::Surface).brighter(0.05f));
+        g.fillRect(headerBounds);
+
+        g.setColour(juce::Colour(FlamColors::BorderSubtle));
+        g.fillRect(headerBounds.removeFromBottom(1.0f));
+
+        g.setColour(juce::Colour(FlamColors::TextSecondary));
+        g.setFont(juce::Font(11.0f, juce::Font::bold));
+        g.drawText("MIXER", getLocalBounds().removeFromTop(40),
+                   juce::Justification::centred);
     }
 
     void resized() override
