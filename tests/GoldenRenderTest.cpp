@@ -181,7 +181,7 @@ static float peakResidual(const juce::AudioBuffer<float>& a,
 // TEST CASES
 // ---------------------------------------------------------------------------
 
-TEST_CASE("Golden render — output matches committed reference", "[golden_render]")
+TEST_CASE("Golden render: output matches committed reference", "[golden_render]")
 {
     auto rendered = renderFixtureKit();
     REQUIRE(rendered.getNumSamples() == TOTAL_RENDER_SAMPLES);
@@ -215,7 +215,7 @@ TEST_CASE("Golden render — output matches committed reference", "[golden_rende
     REQUIRE(peakDiffDB < -120.0f);
 }
 
-TEST_CASE("Golden render — perturbation is detectable above -120 dBFS", "[golden_render]")
+TEST_CASE("Golden render: perturbation is detectable above -120 dBFS", "[golden_render]")
 {
     // This test proves the harness actually catches audio drift:
     // adding 0.001 linear ≈ -60 dBFS, which is 60 dB above the -120 dBFS pass threshold.
