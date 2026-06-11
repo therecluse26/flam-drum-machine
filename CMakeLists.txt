@@ -20,20 +20,33 @@ include(CTest)
 option(FLAM_PLUGINVAL "Enable pluginval L3 host-contract tests (downloads binary)" OFF)
 option(FLAM_SANITIZE  "Enable ASan+UBSan for L1/L2 test targets (L4, Linux/macOS only)" OFF)
 
-# Find yaml-cpp (optional - will use JUCE JSON parser as fallback if not found)
+# Find yaml-cpp — try system pkg first (NixOS/Linux), fall back to FetchContent
+# for hermetic CI builds on Windows and macOS where libyaml-cpp-dev is not installed.
+include(FetchContent)
 find_package(PkgConfig QUIET)
 if(PkgConfig_FOUND)
     pkg_check_modules(YAML_CPP yaml-cpp)
 endif()
 
 if(NOT YAML_CPP_FOUND)
-    message(STATUS "yaml-cpp not found. FlamKitLoader will only support JSON format.")
-    message(STATUS "To enable YAML support: install yaml-cpp or run 'nix-shell' on NixOS.")
-    set(YAML_CPP_FOUND FALSE)
+    message(STATUS "yaml-cpp not found via pkg-config — fetching via FetchContent")
+    FetchContent_Declare(
+        yaml-cpp
+        GIT_REPOSITORY https://github.com/jbeder/yaml-cpp.git
+        GIT_TAG        0.8.0
+    )
+    set(YAML_CPP_BUILD_TESTS    OFF CACHE BOOL "" FORCE)
+    set(YAML_CPP_BUILD_TOOLS    OFF CACHE BOOL "" FORCE)
+    set(YAML_CPP_BUILD_CONTRIB  OFF CACHE BOOL "" FORCE)
+    set(YAML_CPP_INSTALL        OFF CACHE BOOL "" FORCE)
+    FetchContent_MakeAvailable(yaml-cpp)
+    set(YAML_CPP_FOUND         TRUE)
+    set(YAML_CPP_INCLUDE_DIRS  "")  # headers exposed via yaml-cpp::yaml-cpp CMake target
+    set(YAML_CPP_LIBRARIES     "")  # not needed — link via yaml-cpp::yaml-cpp below
+    set(YAML_CPP_FETCHED       TRUE)
 endif()
 
 # Download JUCE if not present
-include(FetchContent)
 FetchContent_Declare(
     JUCE
     GIT_REPOSITORY https://github.com/juce-framework/JUCE.git
@@ -117,9 +130,13 @@ target_link_libraries(FLAM
         juce::juce_recommended_lto_flags
         juce::juce_recommended_warning_flags)
 
-# Link yaml-cpp if found
+# Link yaml-cpp if found (system pkg → ${YAML_CPP_LIBRARIES}; FetchContent → CMake target)
 if(YAML_CPP_FOUND)
-    target_link_libraries(FLAM PRIVATE ${YAML_CPP_LIBRARIES})
+    if(DEFINED YAML_CPP_FETCHED)
+        target_link_libraries(FLAM PRIVATE yaml-cpp::yaml-cpp)
+    else()
+        target_link_libraries(FLAM PRIVATE ${YAML_CPP_LIBRARIES})
+    endif()
 endif()
 
 # Platform-specific settings
@@ -206,7 +223,11 @@ target_link_libraries(flam-render
         juce::juce_recommended_warning_flags)
 
 if(YAML_CPP_FOUND)
-    target_link_libraries(flam-render PRIVATE ${YAML_CPP_LIBRARIES})
+    if(DEFINED YAML_CPP_FETCHED)
+        target_link_libraries(flam-render PRIVATE yaml-cpp::yaml-cpp)
+    else()
+        target_link_libraries(flam-render PRIVATE ${YAML_CPP_LIBRARIES})
+    endif()
 endif()
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")

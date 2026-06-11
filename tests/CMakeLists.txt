@@ -66,7 +66,11 @@ target_link_libraries(flam-tests
 if(YAML_CPP_FOUND)
     target_include_directories(flam-tests PRIVATE ${YAML_CPP_INCLUDE_DIRS})
     target_compile_definitions(flam-tests PRIVATE FLAM_YAML_SUPPORT=1)
-    target_link_libraries(flam-tests PRIVATE ${YAML_CPP_LIBRARIES})
+    if(DEFINED YAML_CPP_FETCHED)
+        target_link_libraries(flam-tests PRIVATE yaml-cpp::yaml-cpp)
+    else()
+        target_link_libraries(flam-tests PRIVATE ${YAML_CPP_LIBRARIES})
+    endif()
 endif()
 
 # Linux: juce_gui_basics pulls in X11 at link time
