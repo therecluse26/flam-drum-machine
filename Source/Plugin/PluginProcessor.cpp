@@ -13,8 +13,15 @@ namespace flam {
 
 juce::AudioProcessor::BusesProperties FlamAudioProcessor::createBusLayout()
 {
-    // Pre-declare and ENABLE all 17 buses (1 stereo Main Mix + 16 mono individual channels)
-    // All buses must be enabled at construction - disabling/enabling them later causes crashes
+    // Static 17-bus layout: 1 stereo Main Mix + 16 mono individual channels.
+    //
+    // All buses are declared and ENABLED here at construction time because JUCE does not
+    // reliably support changing bus *count* after the processor is constructed. Hosts such as
+    // Logic (AU) and Cubase/Reaper (VST3) query the bus layout during plugin load — before any
+    // kit is selected — and use it to build their internal routing graph. Calling bus->enable()
+    // or bus->enable(false) after that window is host-undefined behaviour and was the source of
+    // observed crashes. Unused buses (kit has fewer than 16 channels) simply emit silence, which
+    // is safe and accepted by all tested hosts.
     return juce::AudioProcessor::BusesProperties()
         .withOutput("Main Mix", juce::AudioChannelSet::stereo(), true)
         .withOutput("Bus 1", juce::AudioChannelSet::mono(), true)
@@ -203,23 +210,6 @@ bool FlamAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) cons
 }
 #endif
 
-void FlamAudioProcessor::configureBusesForChannelCount(int numChannels)
-{
-    // Clamp to valid range (we have 16 individual bus slots + 1 Main Mix)
-    numChannels = juce::jlimit(1, 16, numChannels);
-
-    // Enable buses 1 through numChannels (bus 0 is Main Mix, always enabled)
-    for (int busIdx = 1; busIdx <= 16; ++busIdx)
-    {
-        if (auto* bus = getBus(false, busIdx))
-        {
-            if (busIdx <= numChannels)
-                bus->enable();  // Enable buses for channels we have
-            else
-                bus->enable(false);  // Disable unused buses
-        }
-    }
-}
 
 void FlamAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {

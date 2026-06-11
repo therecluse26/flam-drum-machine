@@ -707,11 +707,6 @@ void FlamAudioProcessorEditor::loadKitFromPath(const juce::File& kitFile)
                 {
                     mixer->setNumChannels(numChannels, currentKit->channelNames);
 
-                    // Configure output buses to match channel count
-                    // DISABLED: Causes crashes when called dynamically
-                    // TODO: Find safe way to enable buses after kit loads
-                    // audioProcessor.configureBusesForChannelCount(numChannels);
-
                     // Refresh the mixer UI
                     if (perChannelMixerPanel)
                         perChannelMixerPanel->refreshChannels();
