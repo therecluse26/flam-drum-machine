@@ -33,7 +33,7 @@ if(NOT YAML_CPP_FOUND)
     FetchContent_Declare(
         yaml-cpp
         GIT_REPOSITORY https://github.com/jbeder/yaml-cpp.git
-        GIT_TAG        0.8.0
+        GIT_TAG        c9371de7836d113c0b14bfa15ca70f00ebb3ac6f  # post-0.8.0: bumps cmake_minimum_required to 3.5 (required for CMake 3.28+)
     )
     set(YAML_CPP_BUILD_TESTS    OFF CACHE BOOL "" FORCE)
     set(YAML_CPP_BUILD_TOOLS    OFF CACHE BOOL "" FORCE)
