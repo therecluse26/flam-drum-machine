@@ -39,7 +39,7 @@ target_compile_definitions(flam-tests
         JUCE_STANDALONE_FILTER_WINDOW_USE_KIOSK_MODE=0
         # Path to Tests/Fixtures/ baked at compile time so GoldenRenderTest can
         # locate fixture assets regardless of working directory at runtime.
-        FLAM_TEST_FIXTURES_DIR="${CMAKE_SOURCE_DIR}/Tests/Fixtures")
+        FLAM_TEST_FIXTURES_DIR="${CMAKE_SOURCE_DIR}/L1Tests/Fixtures")
 
 # juce_audio_processors → juce_gui_extra → juce_gui_basics (transitive chain);
 # all modules except juce_audio_plugin_client (the VST3/AU ABI wrapper).

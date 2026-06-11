@@ -240,11 +240,12 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
 endif()
 
 if(BUILD_TESTING)
-    # Explicit binary-dir names avoid the case-collision on case-insensitive
-    # filesystems (macOS HFS+, Windows NTFS): without them CMake maps both
-    # `tests` and `Tests` to the same build path and errors on the second call.
-    add_subdirectory(tests ${CMAKE_BINARY_DIR}/catch2-tests)    # Catch2-based smoke + determinism (CTEST-2/5)
-    add_subdirectory(Tests ${CMAKE_BINARY_DIR}/L1-unit-tests)   # JUCE UnitTest-based L1 (CTEST-3)
+    # L1Tests/ is intentionally different from tests/ — on case-insensitive
+    # filesystems (macOS HFS+, Windows NTFS) `tests` and `Tests` mapped to the
+    # same path, causing CMake to re-process the same CMakeLists.txt and error
+    # on the duplicate target.  Renamed to L1Tests/ to guarantee uniqueness.
+    add_subdirectory(tests)     # Catch2-based smoke + determinism tests (CTEST-2/5)
+    add_subdirectory(L1Tests)   # JUCE UnitTest-based L1 unit tests (CTEST-3)
 
     # ------------------------------------------------------------------
     # L4 — ASan + UBSan (CTEST-6 / FLA-57)
