@@ -221,12 +221,12 @@ jobs:
 
       - name: "Test — L1 + L2"
         run: |
-          ctest --test-dir build --config Release `
+          ctest --test-dir build -C Release `
             --exclude-regex "FLAM_L3_PluginvalHostContract" `
             --output-on-failure -V
 
       - name: "Test — L3 pluginval (VST3)"
         run: |
-          ctest --test-dir build --config Release `
+          ctest --test-dir build -C Release `
             -R "FLAM_L3_PluginvalHostContract" `
             --output-on-failure -V
