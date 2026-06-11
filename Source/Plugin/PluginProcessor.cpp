@@ -510,6 +510,34 @@ void FlamAudioProcessor::updateEngineParameters()
             mixerBus->setBleedAmount(bleedAmountParam->get());
     }
 
+    // Mirror APVTS master params into the audible Mixer master section.
+    // All Mixer setters store into std::atomics — safe to call from the message thread.
+    if (perChannelMixer)
+    {
+        if (masterVolumeParam)
+            perChannelMixer->setMasterVolume(masterVolumeParam->get());
+
+        if (eqBypassParam)
+            perChannelMixer->setMasterEQEnabled(eqBypassParam->get());
+        if (eq31HzParam)   perChannelMixer->setMasterEQBandGain(0, eq31HzParam->get());
+        if (eq62HzParam)   perChannelMixer->setMasterEQBandGain(1, eq62HzParam->get());
+        if (eq125HzParam)  perChannelMixer->setMasterEQBandGain(2, eq125HzParam->get());
+        if (eq250HzParam)  perChannelMixer->setMasterEQBandGain(3, eq250HzParam->get());
+        if (eq500HzParam)  perChannelMixer->setMasterEQBandGain(4, eq500HzParam->get());
+        if (eq1kHzParam)   perChannelMixer->setMasterEQBandGain(5, eq1kHzParam->get());
+        if (eq2kHzParam)   perChannelMixer->setMasterEQBandGain(6, eq2kHzParam->get());
+        if (eq4kHzParam)   perChannelMixer->setMasterEQBandGain(7, eq4kHzParam->get());
+        if (eq8kHzParam)   perChannelMixer->setMasterEQBandGain(8, eq8kHzParam->get());
+        if (eq16kHzParam)  perChannelMixer->setMasterEQBandGain(9, eq16kHzParam->get());
+
+        if (compBypassParam)     perChannelMixer->setMasterCompressorEnabled(compBypassParam->get());
+        if (compAttackParam)     perChannelMixer->setMasterCompressorAttack(compAttackParam->get());
+        if (compReleaseParam)    perChannelMixer->setMasterCompressorRelease(compReleaseParam->get());
+        if (compThresholdParam)  perChannelMixer->setMasterCompressorThreshold(compThresholdParam->get());
+        if (compRatioParam)      perChannelMixer->setMasterCompressorRatio(compRatioParam->get());
+        if (compMakeupGainParam) perChannelMixer->setMasterCompressorMakeupGain(compMakeupGainParam->get());
+    }
+
     if (auto* voiceManager = engine.getVoiceManager())
     {
         if (polyphonyParam)
