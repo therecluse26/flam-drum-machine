@@ -26,13 +26,16 @@ FlamKit is a multi-format audio plugin (VST3 / AU / AAX / Standalone) and headle
 DAW MIDI → FlamAudioProcessor::processBlock()
              └─ FlamEngine::processBlock()
                   ├─ MIDI events → VoiceManager::triggerNote()
-                  ├─ VoiceManager::renderNextBlock()   ← voices → internalBuffer (N-ch)
-                  ├─ SimpleEQ::processBlock()           ← master EQ (stereo)
-                  ├─ SimpleCompressor::processBlock()   ← master compressor (stereo)
-                  └─ MixerBus::getMasterLevel()         ← master gain scalar only
-             └─ Mixer::process()                        🟡 per-channel routing (integration in progress)
-             └─ DAW output buffer
+                  └─ VoiceManager::renderNextBlock()   ← voices → internalBuffer (N-ch)
+             └─ Mixer::process()                        ✅ per-channel routing + FX (FLA-72)
+                  ├─ per-channel strip: vol / pan / solo / mute / EQ / saturation / compressor
+                  └─ master section: vol / EQ / saturation / compressor / limiter
+             └─ DAW output buses (stereo Main Mix + 16 mono individual buses)
 ```
+
+**CLI renderer (`flam-render`) uses the same path** (FLA-72): `FlamEngine → internalBuffer → Mixer::process() → stereo Main Mix`. This means the offline render and the plugin produce identical audio given the same Mixer settings.
+
+**Golden test alignment (FLA-72):** `GoldenRenderTest` was updated in FLA-72 to route through `Mixer` identically. The committed golden (`Tests/Fixtures/goldens/golden_render.f32`) was regenerated intentionally — the old golden captured pre-Mixer audio from before FLA-70 cleared the legacy stereo output. The new golden captures the actual production-path audio.
 
 **Note on `AudioProcessorGraph` inheritance:** `FlamEngine` (`Source/Core/FlamEngine.h:20`) extends `juce::AudioProcessorGraph`, but the current `processBlock()` override **does not use the graph node system** — it drives `VoiceManager` directly. The graph inheritance is retained for future modular routing (e.g. per-channel FX nodes). Do not assume the JUCE graph is active.
 
@@ -49,7 +52,7 @@ Source/
 │   ├── VoiceManager.h/.cpp     ← Voice pool (128), round-robin, choke groups ✅
 │   ├── SampleVoice.h/.cpp      ← Single playing voice (ADSR, interpolation, streaming) ✅
 │   ├── SampleStreamingManager.h/.cpp  ← Hybrid preload+disk streaming thread ✅
-│   ├── Mixer.h/.cpp            ← Per-channel mixer with FX chain (16 buses) 🟡
+│   ├── Mixer.h/.cpp            ← Per-channel mixer with FX chain (16 buses) ✅
 │   ├── MixerBus.h/.cpp         ← Legacy 5-bus mixer (Close/OH/Room/Ambient/Master) 🟡
 │   └── SampleLoader.h/.cpp     ← Background sample loader — ORPHANED 🟡
 ├── DSP/
@@ -223,9 +226,9 @@ VoiceManager::renderNextBlock()
   → DAW output (stereo)
 ```
 
-### Mixer (PerChannelMixer) — integration in progress 🟡
+### Mixer (PerChannelMixer) ✅
 
-`Mixer` (`Source/Core/Mixer.h`) is owned by `PluginProcessor` as `perChannelMixer`. It provides:
+`Mixer` (`Source/Core/Mixer.h`) is owned by `PluginProcessor` as `perChannelMixer` and is the active signal path (FLA-72). It provides:
 
 - `setNumChannels(int n, vector<String> names)` — configures N channel strips (1–16) from kit metadata
 - Per-channel `OutputDestination` enum: `MainMix` or `Bus1`–`Bus16`
@@ -233,15 +236,15 @@ VoiceManager::renderNextBlock()
 - Per-channel atomics: volume, pan, solo, mute, peak level, clip detection
 - Master bus: volume, peak atomics + `LimiterProcessor`
 
-**Architectural debt:** The N-channel `internalBuffer` from `FlamEngine` must be routed through `Mixer` before reaching the DAW output buses. As of this writing, `FlamEngine::processBlock()` copies only stereo channels to the output buffer (line 78–82) and applies a master gain scalar directly; `Mixer::process()` is not called in the production path. See §12 for the tracked debt item.
+`Mixer::process(multiChannelInput, allOutputBuses, numSamples)` is called by both `PluginProcessor::processBlock()` (plugin) and `flam-render` (CLI) after `FlamEngine::processBlock()` fills `internalBuffer`. Channels 0–1 of `allOutputBuses` are the stereo Main Mix; channels 2–N are individual mono buses.
 
-### MixerBus (legacy) 🟡
+### MixerBus (legacy, superseded) 🟡
 
-`MixerBus` (`Source/Core/MixerBus.h`) is owned by `FlamEngine` and supports five named buses (Close, Overhead, Room, Ambient, Master). It was the pre-PerChannelMixer routing layer.
+`MixerBus` (`Source/Core/MixerBus.h`) is owned by `FlamEngine` and supports five named buses (Close, Overhead, Room, Ambient, Master). It was the pre-Mixer routing layer.
 
-**Current usage:** Only `getMasterLevel()` is called from `FlamEngine::processBlock()`. `MixerBus::processBlock()` is never called. `MixerBus` is not in the active signal path and will be superseded by `Mixer` once the integration is complete.
+**Current usage:** `MixerBus::processBlock()` is never called. Only `getMasterLevel()` was used as a master gain scalar; that responsibility has moved to `Mixer::setMasterVolume()`. `MixerBus` is a tracked removal candidate once `Mixer` is fully authoritative.
 
-### FX chain per channel (Mixer, when integrated)
+### FX chain per channel (Mixer) ✅
 
 | Stage | Class | File |
 |-------|-------|------|
@@ -469,21 +472,15 @@ GPLv3 (migrated from LGPL in [FLA-61](https://flam.paperclip.ing/FLA/issues/FLA-
 
 This section consolidates all 🟡 items. These are tracked, not hidden. Each item must be resolved before v1.0 ships.
 
-### Engine stereo → multi-channel integration gap
+### ~~Engine stereo → multi-channel integration gap~~ ✅ Resolved (FLA-72)
 
-**Files:** `Source/Core/FlamEngine.cpp:77–82`, `Source/Plugin/PluginProcessor.cpp`
-
-`VoiceManager::renderNextBlock()` writes to an N-channel `internalBuffer`. `FlamEngine::processBlock()` then copies only stereo channels (0..min(2,N)) to the output, discarding the remaining mic channels. The per-channel `Mixer` is owned by `PluginProcessor` but is not called in the signal path.
-
-**Required fix:** Route `engine.getMultiChannelBuffer()` into `Mixer::process()` in `PluginProcessor::processBlock()`, then write Mixer's per-bus output to the corresponding DAW output bus buffers. `configureBusesForChannelCount()` must negotiate bus layout with the host before this can work.
-
-**Tracked in:** `FeatureSpecs/PerChannelMixer.md`, `Integration_Guide_PerChannelMixer.md` (Phase 3 in progress)
+`VoiceManager::renderNextBlock()` writes to an N-channel `internalBuffer`. After FLA-70 the legacy stereo output was cleared; after FLA-72, `PluginProcessor::processBlock()` and `flam-render` both call `Mixer::process(engine.getMultiChannelBuffer(), ...)` to produce the final stereo output. The `Mixer` is the active signal path.
 
 ### MixerBus orphan
 
 **File:** `Source/Core/MixerBus.h/.cpp`
 
-`MixerBus` is a 5-bus (Close/OH/Room/Ambient/Master) fixed routing layer predating `Mixer`. It is owned by `FlamEngine`, `prepareToPlay()` is called on it, but `processBlock()` is never called. Only `getMasterLevel()` is used (as a master gain scalar). Once the `Mixer` integration is complete and `PluginProcessor` controls master gain via `Mixer`, `MixerBus` should be removed.
+`MixerBus` is a 5-bus (Close/OH/Room/Ambient/Master) fixed routing layer predating `Mixer`. It is owned by `FlamEngine`, `prepareToPlay()` is called on it, but `processBlock()` is never called. `getMasterLevel()` was previously used as a master gain scalar by the engine; master gain is now owned by `Mixer::setMasterVolume()`. `MixerBus` should be removed before v1.0.
 
 ### SampleLoader orphan
 
@@ -505,9 +502,9 @@ This section consolidates all 🟡 items. These are tracked, not hidden. Each it
 
 ### Dynamic bus enablement — host negotiation
 
-**File:** `Source/Plugin/PluginProcessor.cpp` — `configureBusesForChannelCount()`
+**File:** `Source/Plugin/PluginProcessor.cpp`
 
-Some plugin hosts (Logic Pro AU, Cubase VST3) query bus layout at plugin load time and cannot dynamically add buses after scanning. The current design enables buses post-kit-load, which may silently fail in such hosts. Requires testing against reference hosts and potentially a static maximum-bus-count declaration with conditional enabling.
+Some plugin hosts (Logic Pro AU, Cubase VST3) query bus layout at plugin load time and cannot dynamically add buses after scanning. The static 17-bus layout (1 stereo Main Mix + 16 mono buses, all pre-enabled at construction) was adopted to avoid post-init bus changes that caused observed crashes. Unused buses emit silence. Requires testing against reference hosts to confirm the static layout is accepted by all supported DAWs.
 
 ### JSON format — secondary path
 
