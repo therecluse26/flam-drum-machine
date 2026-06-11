@@ -240,8 +240,11 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
 endif()
 
 if(BUILD_TESTING)
-    add_subdirectory(tests)      # Catch2-based smoke + determinism tests (CTEST-2/5)
-    add_subdirectory(Tests)      # JUCE UnitTest-based L1 unit tests (CTEST-3)
+    # Explicit binary-dir names avoid the case-collision on case-insensitive
+    # filesystems (macOS HFS+, Windows NTFS): without them CMake maps both
+    # `tests` and `Tests` to the same build path and errors on the second call.
+    add_subdirectory(tests ${CMAKE_BINARY_DIR}/catch2-tests)    # Catch2-based smoke + determinism (CTEST-2/5)
+    add_subdirectory(Tests ${CMAKE_BINARY_DIR}/L1-unit-tests)   # JUCE UnitTest-based L1 (CTEST-3)
 
     # ------------------------------------------------------------------
     # L4 — ASan + UBSan (CTEST-6 / FLA-57)
