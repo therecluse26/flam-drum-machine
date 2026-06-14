@@ -80,7 +80,7 @@ Dynamic bus configuration caused host crashes. Unused buses emit silence — thi
 
 ### Kit Format
 
-`flamkit.yaml` is the primary format. Example: `Resources/Kits/minimal-kit/flamkit.yaml`.
+`flamkit.yaml` is the primary format. Example: `Resources/Kits/drs-kit/flamkit.yaml`.
 Data model: `DrumKit` → `DrumPiece[]` → `Articulation[]` → `SampleLayer[]`.
 Each `SampleLayer` has `sampleFile`, `velocityMin`, `velocityMax`, `gain`, `roundRobinGroup`.
 
