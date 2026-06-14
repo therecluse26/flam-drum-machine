@@ -17,8 +17,6 @@ not ship any kit whose provenance we cannot verify.
 |-----|-------|----------|---------|---------------------|--------|
 | `drs-kit` (DRSKit) | Acoustic (rock/jazz) | 13 (multi-mic) | CC-BY 4.0 | ✅ Yes — DrumGizmo / DRSDrums | **CLEARED** |
 | `muldjord-kit` (MuldjordKit) | Acoustic (rock/metal) | 2 (stereo) | CC-BY 4.0 | ✅ Yes — FreePats / DrumGizmo (Lars Muldjord) | **CLEARED** |
-| `example-kit` | "Rock/Pop" (stereo) | 2 | **Unknown** | ❌ No — see below | **BLOCKED — do not ship** |
-| `minimal-kit` | "Rock/Pop" (stereo) | 2 | **Unknown** | ❌ No — see below | **BLOCKED — do not ship** |
 
 ## Kit details
 
@@ -63,31 +61,6 @@ not ship any kit whose provenance we cannot verify.
 - **Kit docs (GM map, components, mic notes):** see `muldjord-kit/README.md`.
 - **Provenance reference:** upstream SFZ included as
   `muldjord-kit/MuldjordKit-FreePats-20201018.sfz`.
-
-### example-kit / minimal-kit — provenance UNVERIFIED (BLOCKED ❌)
-
-These two kits share the same `RD_*` sample set. They were added in commit
-`c68cc5a "Got samples loading and playing"` purely to get audio playback working
-during early engine development — **not** vetted for redistribution licensing.
-
-Provenance investigation findings:
-- Embedded WAV metadata reads `comment=Recorded on 12/04/2016 in Edison` and
-  `encoder=Edison` (Edison is FL Studio's built-in recorder/editor).
-- **No copyright, artist, or license tag** is embedded in the files.
-- Sample naming uses an `RD_*` prefix (e.g. `RD_K_1.wav`, `RD_S_1.wav`,
-  `RD_C_C_1.wav`) of unknown origin.
-- Format: stereo WAV, 44.1 kHz, 32-bit float (meets the audio quality bar), but
-  format quality does not establish licensing.
-
-**We cannot certify these samples as CC-licensed or cleared for redistribution.**
-Until their origin and license are confirmed in writing, they must not ship in a
-public FlamKit release. Resolution paths:
-1. The committer confirms the original source + license (and it permits
-   redistribution), or
-2. The kits are replaced with verified CC0/CC-BY content (see the sourcing plan
-   on issue FLA-81), or
-3. They are retained as developer-only test fixtures and excluded from release
-   packaging.
 
 ## How to add a new kit (curation checklist)
 
