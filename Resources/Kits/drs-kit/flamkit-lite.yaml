@@ -1,0 +1,844 @@
+name: DRSKit Lite
+author: The DrumGizmo team
+description: DRSKit2 full
+version: '1.0'
+tags:
+- acoustic
+- rock
+- multi-mic
+channels:
+- name: Ambient-L
+  index: 0
+- name: Ambient-R
+  index: 1
+- name: HH Close
+  index: 2
+- name: Kick Out
+  index: 3
+- name: Kick In
+  index: 4
+- name: OH-L
+  index: 5
+- name: OH-R
+  index: 6
+- name: Ride
+  index: 7
+- name: Snare Btm
+  index: 8
+- name: Snare Top
+  index: 9
+- name: Tom 1
+  index: 10
+- name: Tom 2
+  index: 11
+- name: Tom 3
+  index: 12
+settings:
+  maxPolyphony: 64
+  useRoundRobin: true
+pieces:
+- name: Kick No Contact
+  midiNote: 35
+  articulations:
+  - name: Main
+    chokeGroup: -1
+    attackTime: 0.0
+    holdTime: 0.0
+    decayTime: 0.5
+    sustainLevel: 0.0
+    releaseTime: 0.2
+    layers:
+    - sampleFile: Kdrum_without_contact/samples/1-Kdrum_without_contact.wav
+      velocityMin: 0.0
+      velocityMax: 0.166667
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Kdrum_without_contact/samples/7-Kdrum_without_contact.wav
+      velocityMin: 0.166667
+      velocityMax: 0.333333
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Kdrum_without_contact/samples/12-Kdrum_without_contact.wav
+      velocityMin: 0.333333
+      velocityMax: 0.5
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Kdrum_without_contact/samples/18-Kdrum_without_contact.wav
+      velocityMin: 0.5
+      velocityMax: 0.666667
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Kdrum_without_contact/samples/23-Kdrum_without_contact.wav
+      velocityMin: 0.666667
+      velocityMax: 0.833333
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Kdrum_without_contact/samples/29-Kdrum_without_contact.wav
+      velocityMin: 0.833333
+      velocityMax: 1.0
+      gain: 1.0
+      roundRobinGroup: 0
+- name: Kick
+  midiNote: 36
+  articulations:
+  - name: Main
+    chokeGroup: -1
+    attackTime: 0.0
+    holdTime: 0.0
+    decayTime: 0.5
+    sustainLevel: 0.0
+    releaseTime: 0.2
+    layers:
+    - sampleFile: Kdrum_with_contact/samples/1-Kdrum_with_contact.wav
+      velocityMin: 0.0
+      velocityMax: 0.166667
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Kdrum_with_contact/samples/6-Kdrum_with_contact.wav
+      velocityMin: 0.166667
+      velocityMax: 0.333333
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Kdrum_with_contact/samples/12-Kdrum_with_contact.wav
+      velocityMin: 0.333333
+      velocityMax: 0.5
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Kdrum_with_contact/samples/17-Kdrum_with_contact.wav
+      velocityMin: 0.5
+      velocityMax: 0.666667
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Kdrum_with_contact/samples/23-Kdrum_with_contact.wav
+      velocityMin: 0.666667
+      velocityMax: 0.833333
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Kdrum_with_contact/samples/28-Kdrum_with_contact.wav
+      velocityMin: 0.833333
+      velocityMax: 1.0
+      gain: 1.0
+      roundRobinGroup: 0
+- name: Snare Rim
+  midiNote: 37
+  articulations:
+  - name: Main
+    chokeGroup: -1
+    attackTime: 0.0
+    holdTime: 0.0
+    decayTime: 0.4
+    sustainLevel: 0.0
+    releaseTime: 0.15
+    layers:
+    - sampleFile: Snare_rim/samples/1-Snare_rim.wav
+      velocityMin: 0.0
+      velocityMax: 0.166667
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Snare_rim/samples/4-Snare_rim.wav
+      velocityMin: 0.166667
+      velocityMax: 0.333333
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Snare_rim/samples/7-Snare_rim.wav
+      velocityMin: 0.333333
+      velocityMax: 0.5
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Snare_rim/samples/11-Snare_rim.wav
+      velocityMin: 0.5
+      velocityMax: 0.666667
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Snare_rim/samples/14-Snare_rim.wav
+      velocityMin: 0.666667
+      velocityMax: 0.833333
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Snare_rim/samples/17-Snare_rim.wav
+      velocityMin: 0.833333
+      velocityMax: 1.0
+      gain: 1.0
+      roundRobinGroup: 0
+- name: Snare
+  midiNote: 38
+  articulations:
+  - name: Main
+    chokeGroup: -1
+    attackTime: 0.0
+    holdTime: 0.0
+    decayTime: 0.4
+    sustainLevel: 0.0
+    releaseTime: 0.15
+    layers:
+    - sampleFile: Snare/samples/1-Snare.wav
+      velocityMin: 0.0
+      velocityMax: 0.166667
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Snare/samples/7-Snare.wav
+      velocityMin: 0.166667
+      velocityMax: 0.333333
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Snare/samples/12-Snare.wav
+      velocityMin: 0.333333
+      velocityMax: 0.5
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Snare/samples/18-Snare.wav
+      velocityMin: 0.5
+      velocityMax: 0.666667
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Snare/samples/23-Snare.wav
+      velocityMin: 0.666667
+      velocityMax: 0.833333
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Snare/samples/29-Snare.wav
+      velocityMin: 0.833333
+      velocityMax: 1.0
+      gain: 1.0
+      roundRobinGroup: 0
+- name: Snare Rest
+  midiNote: 40
+  articulations:
+  - name: Main
+    chokeGroup: -1
+    attackTime: 0.0
+    holdTime: 0.0
+    decayTime: 0.4
+    sustainLevel: 0.0
+    releaseTime: 0.15
+    layers:
+    - sampleFile: Snare_rest/samples/1-Snare_rest.wav
+      velocityMin: 0.0
+      velocityMax: 0.166667
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Snare_rest/samples/3-Snare_rest.wav
+      velocityMin: 0.166667
+      velocityMax: 0.333333
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Snare_rest/samples/6-Snare_rest.wav
+      velocityMin: 0.333333
+      velocityMax: 0.5
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Snare_rest/samples/8-Snare_rest.wav
+      velocityMin: 0.5
+      velocityMax: 0.666667
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Snare_rest/samples/11-Snare_rest.wav
+      velocityMin: 0.666667
+      velocityMax: 0.833333
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Snare_rest/samples/13-Snare_rest.wav
+      velocityMin: 0.833333
+      velocityMax: 1.0
+      gain: 1.0
+      roundRobinGroup: 0
+- name: Tom3
+  midiNote: 41
+  articulations:
+  - name: Main
+    chokeGroup: -1
+    attackTime: 0.0
+    holdTime: 0.0
+    decayTime: 0.65
+    sustainLevel: 0.0
+    releaseTime: 0.22
+    layers:
+    - sampleFile: Tom3/samples/1-Tom3.wav
+      velocityMin: 0.0
+      velocityMax: 0.166667
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Tom3/samples/7-Tom3.wav
+      velocityMin: 0.166667
+      velocityMax: 0.333333
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Tom3/samples/13-Tom3.wav
+      velocityMin: 0.333333
+      velocityMax: 0.5
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Tom3/samples/18-Tom3.wav
+      velocityMin: 0.5
+      velocityMax: 0.666667
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Tom3/samples/24-Tom3.wav
+      velocityMin: 0.666667
+      velocityMax: 0.833333
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Tom3/samples/30-Tom3.wav
+      velocityMin: 0.833333
+      velocityMax: 1.0
+      gain: 1.0
+      roundRobinGroup: 0
+- name: Hi-Hat Closed Shank
+  midiNote: 42
+  articulations:
+  - name: Main
+    chokeGroup: 0
+    attackTime: 0.0
+    holdTime: 0.0
+    decayTime: 0.1
+    sustainLevel: 0.0
+    releaseTime: 0.05
+    layers:
+    - sampleFile: Hihat_closed_shank/samples/1-Hihat_closed_shank.wav
+      velocityMin: 0.0
+      velocityMax: 0.166667
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Hihat_closed_shank/samples/4-Hihat_closed_shank.wav
+      velocityMin: 0.166667
+      velocityMax: 0.333333
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Hihat_closed_shank/samples/7-Hihat_closed_shank.wav
+      velocityMin: 0.333333
+      velocityMax: 0.5
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Hihat_closed_shank/samples/10-Hihat_closed_shank.wav
+      velocityMin: 0.5
+      velocityMax: 0.666667
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Hihat_closed_shank/samples/13-Hihat_closed_shank.wav
+      velocityMin: 0.666667
+      velocityMax: 0.833333
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Hihat_closed_shank/samples/16-Hihat_closed_shank.wav
+      velocityMin: 0.833333
+      velocityMax: 1.0
+      gain: 1.0
+      roundRobinGroup: 0
+- name: Tom2
+  midiNote: 43
+  articulations:
+  - name: Main
+    chokeGroup: -1
+    attackTime: 0.0
+    holdTime: 0.0
+    decayTime: 0.65
+    sustainLevel: 0.0
+    releaseTime: 0.22
+    layers:
+    - sampleFile: Tom2/samples/1-Tom2.wav
+      velocityMin: 0.0
+      velocityMax: 0.166667
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Tom2/samples/7-Tom2.wav
+      velocityMin: 0.166667
+      velocityMax: 0.333333
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Tom2/samples/13-Tom2.wav
+      velocityMin: 0.333333
+      velocityMax: 0.5
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Tom2/samples/18-Tom2.wav
+      velocityMin: 0.5
+      velocityMax: 0.666667
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Tom2/samples/24-Tom2.wav
+      velocityMin: 0.666667
+      velocityMax: 0.833333
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Tom2/samples/30-Tom2.wav
+      velocityMin: 0.833333
+      velocityMax: 1.0
+      gain: 1.0
+      roundRobinGroup: 0
+- name: Hi-Hat Foot
+  midiNote: 44
+  articulations:
+  - name: Main
+    chokeGroup: 0
+    attackTime: 0.0
+    holdTime: 0.0
+    decayTime: 0.1
+    sustainLevel: 0.0
+    releaseTime: 0.05
+    layers:
+    - sampleFile: Hihat_foot/samples/1-Hihat_foot.wav
+      velocityMin: 0.0
+      velocityMax: 0.166667
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Hihat_foot/samples/2-Hihat_foot.wav
+      velocityMin: 0.166667
+      velocityMax: 0.333333
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Hihat_foot/samples/3-Hihat_foot.wav
+      velocityMin: 0.333333
+      velocityMax: 0.5
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Hihat_foot/samples/4-Hihat_foot.wav
+      velocityMin: 0.5
+      velocityMax: 0.666667
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Hihat_foot/samples/5-Hihat_foot.wav
+      velocityMin: 0.666667
+      velocityMax: 0.833333
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Hihat_foot/samples/6-Hihat_foot.wav
+      velocityMin: 0.833333
+      velocityMax: 1.0
+      gain: 1.0
+      roundRobinGroup: 0
+- name: Hi-Hat Semi Open
+  midiNote: 46
+  articulations:
+  - name: Main
+    chokeGroup: 0
+    attackTime: 0.0
+    holdTime: 0.0
+    decayTime: 0.1
+    sustainLevel: 0.0
+    releaseTime: 0.05
+    layers:
+    - sampleFile: Hihat_semi_open/samples/1-Hihat_semi_open.wav
+      velocityMin: 0.0
+      velocityMax: 0.166667
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Hihat_semi_open/samples/4-Hihat_semi_open.wav
+      velocityMin: 0.166667
+      velocityMax: 0.333333
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Hihat_semi_open/samples/8-Hihat_semi_open.wav
+      velocityMin: 0.333333
+      velocityMax: 0.5
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Hihat_semi_open/samples/11-Hihat_semi_open.wav
+      velocityMin: 0.5
+      velocityMax: 0.666667
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Hihat_semi_open/samples/15-Hihat_semi_open.wav
+      velocityMin: 0.666667
+      velocityMax: 0.833333
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Hihat_semi_open/samples/18-Hihat_semi_open.wav
+      velocityMin: 0.833333
+      velocityMax: 1.0
+      gain: 1.0
+      roundRobinGroup: 0
+- name: Tom1
+  midiNote: 47
+  articulations:
+  - name: Main
+    chokeGroup: -1
+    attackTime: 0.0
+    holdTime: 0.0
+    decayTime: 0.65
+    sustainLevel: 0.0
+    releaseTime: 0.22
+    layers:
+    - sampleFile: Tom1/samples/1-Tom1.wav
+      velocityMin: 0.0
+      velocityMax: 0.166667
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Tom1/samples/6-Tom1.wav
+      velocityMin: 0.166667
+      velocityMax: 0.333333
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Tom1/samples/11-Tom1.wav
+      velocityMin: 0.333333
+      velocityMax: 0.5
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Tom1/samples/17-Tom1.wav
+      velocityMin: 0.5
+      velocityMax: 0.666667
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Tom1/samples/22-Tom1.wav
+      velocityMin: 0.666667
+      velocityMax: 0.833333
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Tom1/samples/27-Tom1.wav
+      velocityMin: 0.833333
+      velocityMax: 1.0
+      gain: 1.0
+      roundRobinGroup: 0
+- name: Crash Left Shank
+  midiNote: 49
+  articulations:
+  - name: Main
+    chokeGroup: -1
+    attackTime: 0.0
+    holdTime: 0.0
+    decayTime: 3.5
+    sustainLevel: 0.0
+    releaseTime: 1.5
+    layers:
+    - sampleFile: Crash_left_shank/samples/1-Crash_left_shank.wav
+      velocityMin: 0.0
+      velocityMax: 0.166667
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Crash_left_shank/samples/3-Crash_left_shank.wav
+      velocityMin: 0.166667
+      velocityMax: 0.333333
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Crash_left_shank/samples/5-Crash_left_shank.wav
+      velocityMin: 0.333333
+      velocityMax: 0.5
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Crash_left_shank/samples/7-Crash_left_shank.wav
+      velocityMin: 0.5
+      velocityMax: 0.666667
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Crash_left_shank/samples/9-Crash_left_shank.wav
+      velocityMin: 0.666667
+      velocityMax: 0.833333
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Crash_left_shank/samples/11-Crash_left_shank.wav
+      velocityMin: 0.833333
+      velocityMax: 1.0
+      gain: 1.0
+      roundRobinGroup: 0
+- name: Ride Tip
+  midiNote: 51
+  articulations:
+  - name: Main
+    chokeGroup: -1
+    attackTime: 0.0
+    holdTime: 0.0
+    decayTime: 2.5
+    sustainLevel: 0.0
+    releaseTime: 1.0
+    layers:
+    - sampleFile: Ride_tip/samples/1-Ride_tip.wav
+      velocityMin: 0.0
+      velocityMax: 0.166667
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Ride_tip/samples/4-Ride_tip.wav
+      velocityMin: 0.166667
+      velocityMax: 0.333333
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Ride_tip/samples/7-Ride_tip.wav
+      velocityMin: 0.333333
+      velocityMax: 0.5
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Ride_tip/samples/9-Ride_tip.wav
+      velocityMin: 0.5
+      velocityMax: 0.666667
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Ride_tip/samples/12-Ride_tip.wav
+      velocityMin: 0.666667
+      velocityMax: 0.833333
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Ride_tip/samples/15-Ride_tip.wav
+      velocityMin: 0.833333
+      velocityMax: 1.0
+      gain: 1.0
+      roundRobinGroup: 0
+- name: Ride Shank Bell
+  midiNote: 53
+  articulations:
+  - name: Main
+    chokeGroup: -1
+    attackTime: 0.0
+    holdTime: 0.0
+    decayTime: 2.5
+    sustainLevel: 0.0
+    releaseTime: 1.0
+    layers:
+    - sampleFile: Ride_shank_bell/samples/1-Ride_shank_bell.wav
+      velocityMin: 0.0
+      velocityMax: 0.166667
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Ride_shank_bell/samples/3-Ride_shank_bell.wav
+      velocityMin: 0.166667
+      velocityMax: 0.333333
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Ride_shank_bell/samples/5-Ride_shank_bell.wav
+      velocityMin: 0.333333
+      velocityMax: 0.5
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Ride_shank_bell/samples/6-Ride_shank_bell.wav
+      velocityMin: 0.5
+      velocityMax: 0.666667
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Ride_shank_bell/samples/8-Ride_shank_bell.wav
+      velocityMin: 0.666667
+      velocityMax: 0.833333
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Ride_shank_bell/samples/10-Ride_shank_bell.wav
+      velocityMin: 0.833333
+      velocityMax: 1.0
+      gain: 1.0
+      roundRobinGroup: 0
+- name: Hi-Hat Closed
+  midiNote: 56
+  articulations:
+  - name: Main
+    chokeGroup: 0
+    attackTime: 0.0
+    holdTime: 0.0
+    decayTime: 0.1
+    sustainLevel: 0.0
+    releaseTime: 0.05
+    layers:
+    - sampleFile: Hihat_closed/samples/1-Hihat_closed.wav
+      velocityMin: 0.0
+      velocityMax: 0.166667
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Hihat_closed/samples/6-Hihat_closed.wav
+      velocityMin: 0.166667
+      velocityMax: 0.333333
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Hihat_closed/samples/10-Hihat_closed.wav
+      velocityMin: 0.333333
+      velocityMax: 0.5
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Hihat_closed/samples/15-Hihat_closed.wav
+      velocityMin: 0.5
+      velocityMax: 0.666667
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Hihat_closed/samples/19-Hihat_closed.wav
+      velocityMin: 0.666667
+      velocityMax: 0.833333
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Hihat_closed/samples/24-Hihat_closed.wav
+      velocityMin: 0.833333
+      velocityMax: 1.0
+      gain: 1.0
+      roundRobinGroup: 0
+- name: Crash Right Shank
+  midiNote: 57
+  articulations:
+  - name: Main
+    chokeGroup: -1
+    attackTime: 0.0
+    holdTime: 0.0
+    decayTime: 3.5
+    sustainLevel: 0.0
+    releaseTime: 1.5
+    layers:
+    - sampleFile: Crash_right_shank/samples/1-Crash_right_shank.wav
+      velocityMin: 0.0
+      velocityMax: 0.166667
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Crash_right_shank/samples/3-Crash_right_shank.wav
+      velocityMin: 0.166667
+      velocityMax: 0.333333
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Crash_right_shank/samples/5-Crash_right_shank.wav
+      velocityMin: 0.333333
+      velocityMax: 0.5
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Crash_right_shank/samples/8-Crash_right_shank.wav
+      velocityMin: 0.5
+      velocityMax: 0.666667
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Crash_right_shank/samples/10-Crash_right_shank.wav
+      velocityMin: 0.666667
+      velocityMax: 0.833333
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Crash_right_shank/samples/12-Crash_right_shank.wav
+      velocityMin: 0.833333
+      velocityMax: 1.0
+      gain: 1.0
+      roundRobinGroup: 0
+- name: Hi-Hat Open
+  midiNote: 58
+  articulations:
+  - name: Main
+    chokeGroup: 0
+    attackTime: 0.0
+    holdTime: 0.0
+    decayTime: 1.2
+    sustainLevel: 0.0
+    releaseTime: 0.4
+    layers:
+    - sampleFile: Hihat_open/samples/1-Hihat_open.wav
+      velocityMin: 0.0
+      velocityMax: 0.166667
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Hihat_open/samples/4-Hihat_open.wav
+      velocityMin: 0.166667
+      velocityMax: 0.333333
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Hihat_open/samples/8-Hihat_open.wav
+      velocityMin: 0.333333
+      velocityMax: 0.5
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Hihat_open/samples/11-Hihat_open.wav
+      velocityMin: 0.5
+      velocityMax: 0.666667
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Hihat_open/samples/15-Hihat_open.wav
+      velocityMin: 0.666667
+      velocityMax: 0.833333
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Hihat_open/samples/18-Hihat_open.wav
+      velocityMin: 0.833333
+      velocityMax: 1.0
+      gain: 1.0
+      roundRobinGroup: 0
+- name: Hi-Hat Open Tip
+  midiNote: 61
+  articulations:
+  - name: Main
+    chokeGroup: 0
+    attackTime: 0.0
+    holdTime: 0.0
+    decayTime: 1.2
+    sustainLevel: 0.0
+    releaseTime: 0.4
+    layers:
+    - sampleFile: Hihat_open_tip/samples/1-Hihat_open_tip.wav
+      velocityMin: 0.0
+      velocityMax: 0.166667
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Hihat_open_tip/samples/4-Hihat_open_tip.wav
+      velocityMin: 0.166667
+      velocityMax: 0.333333
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Hihat_open_tip/samples/7-Hihat_open_tip.wav
+      velocityMin: 0.333333
+      velocityMax: 0.5
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Hihat_open_tip/samples/10-Hihat_open_tip.wav
+      velocityMin: 0.5
+      velocityMax: 0.666667
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Hihat_open_tip/samples/13-Hihat_open_tip.wav
+      velocityMin: 0.666667
+      velocityMax: 0.833333
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Hihat_open_tip/samples/16-Hihat_open_tip.wav
+      velocityMin: 0.833333
+      velocityMax: 1.0
+      gain: 1.0
+      roundRobinGroup: 0
+- name: Ride Rest
+  midiNote: 63
+  articulations:
+  - name: Main
+    chokeGroup: -1
+    attackTime: 0.0
+    holdTime: 0.0
+    decayTime: 2.5
+    sustainLevel: 0.0
+    releaseTime: 1.0
+    layers:
+    - sampleFile: Ride_rest/samples/1-Ride_rest.wav
+      velocityMin: 0.0
+      velocityMax: 0.333333
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Ride_rest/samples/2-Ride_rest.wav
+      velocityMin: 0.333333
+      velocityMax: 0.666667
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Ride_rest/samples/3-Ride_rest.wav
+      velocityMin: 0.666667
+      velocityMax: 1.0
+      gain: 1.0
+      roundRobinGroup: 0
+- name: Ride Shank
+  midiNote: 66
+  articulations:
+  - name: Main
+    chokeGroup: -1
+    attackTime: 0.0
+    holdTime: 0.0
+    decayTime: 2.5
+    sustainLevel: 0.0
+    releaseTime: 1.0
+    layers:
+    - sampleFile: Ride_shank/samples/1-Ride_shank.wav
+      velocityMin: 0.0
+      velocityMax: 0.166667
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Ride_shank/samples/3-Ride_shank.wav
+      velocityMin: 0.166667
+      velocityMax: 0.333333
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Ride_shank/samples/5-Ride_shank.wav
+      velocityMin: 0.333333
+      velocityMax: 0.5
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Ride_shank/samples/6-Ride_shank.wav
+      velocityMin: 0.5
+      velocityMax: 0.666667
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Ride_shank/samples/8-Ride_shank.wav
+      velocityMin: 0.666667
+      velocityMax: 0.833333
+      gain: 1.0
+      roundRobinGroup: 0
+    - sampleFile: Ride_shank/samples/10-Ride_shank.wav
+      velocityMin: 0.833333
+      velocityMax: 1.0
+      gain: 1.0
+      roundRobinGroup: 0

@@ -50,6 +50,10 @@ public:
 
     Mixer* getMixer() { return perChannelMixer.get(); }
 
+    /** Reconfigure the per-channel mixer for a kit's channels. Safe to call from the
+        message thread: suspends audio processing while channels + FX buffers are rebuilt. */
+    void configureMixerForChannels(const std::vector<juce::String>& channelNames);
+
 private:
     // Helper to create bus properties (called before base class initialization)
     static juce::AudioProcessor::BusesProperties createBusLayout();

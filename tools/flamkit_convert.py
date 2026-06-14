@@ -318,17 +318,107 @@ def _sfz_note(s: str) -> int:
     return 60
 
 
+def _sfz_preprocess(
+    sfz_path: Path,
+    root_dir: Path | None = None,
+    _visited: set | None = None,
+    _defines: dict | None = None,
+) -> str:
+    """Recursively expand #include directives; collect #define macros in _defines.
+
+    SFZ preprocessor rules:
+    - #include "rel/path" — resolved first relative to the current file's dir,
+      then falling back to root_dir (the top-level SFZ's dir). Many kits write
+      all includes relative to the top-level Programs/ directory.
+    - #define $VAR value — stored in the shared _defines dict; substitution is
+      applied at the TOP-LEVEL call only, after the full tree is expanded.
+    - sample= paths are always relative to the top-level SFZ; do not rebase them.
+
+    _defines is a SHARED mutable dict threaded through all recursive calls so
+    that defines from any included file are visible to the entire include tree.
+    """
+    is_root = _defines is None
+    if _visited is None:
+        _visited = set()
+    if _defines is None:
+        _defines = {}
+    if root_dir is None:
+        root_dir = sfz_path.parent
+
+    canonical = sfz_path.resolve()
+    if canonical in _visited:
+        return ""
+    _visited.add(canonical)
+
+    try:
+        raw = sfz_path.read_text(encoding="utf-8", errors="replace")
+    except OSError as e:
+        print(f"  Warning: cannot read {sfz_path}: {e}", file=sys.stderr)
+        return ""
+
+    lines_out: list[str] = []
+
+    for line in raw.splitlines(keepends=True):
+        stripped = line.strip()
+
+        # Collect #define $VAR value into shared dict; emit nothing (strip directive).
+        m = re.match(r"#define\s+(\$\w+)\s+(\S+)", stripped)
+        if m:
+            _defines[m.group(1)] = m.group(2)
+            continue
+
+        # Expand #include "relative/path"
+        m = re.match(r'#include\s+"([^"]+)"', stripped)
+        if m:
+            rel = m.group(1)
+            # Try relative to the current file's dir first, then root_dir.
+            inc_path = sfz_path.parent / rel
+            if not inc_path.exists():
+                inc_path = root_dir / rel
+            expanded = _sfz_preprocess(inc_path, root_dir, _visited, _defines)
+            if not expanded.endswith("\n"):
+                expanded += "\n"
+            lines_out.append(expanded)
+            continue
+
+        lines_out.append(line)
+
+    text = "".join(lines_out)
+
+    # Apply substitutions only at root level, once the full tree is expanded.
+    if is_root:
+        for var in sorted(_defines, key=len, reverse=True):
+            text = text.replace(var, _defines[var])
+
+    return text
+
+
 def _sfz_parse_opcodes(text: str) -> dict:
     """Parse key=value pairs from a text fragment."""
     return {m.group(1): m.group(2) for m in re.finditer(r"(\w+)\s*=\s*(\S+)", text)}
 
 
-def parse_sfz(sfz_path: str) -> dict:
-    """Convert an SFZ file to intermediate repr."""
-    sfz_path = Path(sfz_path)
+def parse_sfz(
+    sfz_path: str,
+    replace_ext: str | None = None,
+    kit_root: str | None = None,
+) -> dict:
+    """Convert an SFZ file to intermediate repr.
 
-    with open(sfz_path, "r", encoding="utf-8", errors="replace") as f:
-        raw = f.read()
+    Args:
+        sfz_path:    Path to the top-level SFZ file.
+        replace_ext: If set (e.g. ".wav"), rewrite sample file extensions.
+                     Useful when FLAC sources have been converted to WAV.
+        kit_root:    If set, rebase all sample paths to be relative to this
+                     directory instead of relative to the SFZ's parent.
+                     E.g. set to the kit root when the SFZ lives in Programs/.
+    """
+    sfz_path = Path(sfz_path)
+    sfz_dir = sfz_path.parent
+    kit_root_path = Path(kit_root).resolve() if kit_root else None
+
+    # Full preprocessing: resolve #include and #define
+    raw = _sfz_preprocess(sfz_path)
 
     # Strip line comments
     raw = re.sub(r"//[^\n]*", "", raw)
@@ -367,12 +457,27 @@ def parse_sfz(sfz_path: str) -> dict:
     if current_header == "region":
         flush_region()
 
-    # Build pieces keyed by MIDI note
-    pieces_map: dict = {}
+    # Build pieces keyed by (MIDI note, sample group) — one piece per note per
+    # unique instrument sub-folder so multi-mic kits collapse to the primary mic only.
+    # We deduplicate by keeping ONLY the first mic group seen per note.
+    note_first_group: dict[int, str] = {}
+    pieces_map: dict[int, dict] = {}
     for ops in regions:
         sample = ops.get("sample", "").replace("\\", "/")
         if not sample:
             continue
+
+        # Optional: rebase path relative to kit_root instead of SFZ dir.
+        if kit_root_path is not None:
+            abs_sample = (sfz_dir / sample).resolve()
+            try:
+                sample = str(abs_sample.relative_to(kit_root_path)).replace("\\", "/")
+            except ValueError:
+                pass  # keep original if outside kit_root
+
+        # Optional: rewrite file extension (e.g. .flac → .wav)
+        if replace_ext:
+            sample = str(Path(sample).with_suffix(replace_ext))
 
         lovel = int(ops.get("lovel", 0))
         hivel = int(ops.get("hivel", 127))
@@ -381,6 +486,20 @@ def parse_sfz(sfz_path: str) -> dict:
 
         key_str = ops.get("key") or ops.get("pitch_keycenter") or ops.get("lokey") or "60"
         midi_note = _sfz_note(key_str)
+
+        # Derive the instrument sub-folder (second-to-last path component)
+        # so we can group regions by instrument rather than mic position.
+        parts = Path(sample).parts
+        # For Virtuosity-style paths like "Samples/kickmic/kick/file.flac",
+        # the instrument group is parts[-2] (e.g. "kick").
+        sample_group = parts[-2] if len(parts) >= 2 else "unknown"
+
+        # Accept only the first mic group encountered for this MIDI note
+        # to avoid duplicating across mic positions.
+        if midi_note not in note_first_group:
+            note_first_group[midi_note] = sample_group
+        elif note_first_group[midi_note] != sample_group:
+            continue
 
         seq_pos = int(ops.get("seq_position", 1))
         rr_group = seq_pos - 1
@@ -395,9 +514,8 @@ def parse_sfz(sfz_path: str) -> dict:
         layer = _layer(sample, vel_min, vel_max, gain=gain, rr_group=rr_group)
 
         if midi_note not in pieces_map:
-            # Derive piece name from sample path
-            parts = Path(sample).parts
-            piece_name = parts[-2].replace("_", " ").title() if len(parts) >= 2 else f"Note {midi_note}"
+            # Derive piece name from the instrument sub-folder
+            piece_name = _pretty_name(sample_group)
             pieces_map[midi_note] = {
                 "name":    piece_name,
                 "layers":  [],
@@ -640,7 +758,9 @@ def _cmd_convert(args):
         kit_data = parse_drumgizmo(args.drumgizmo, getattr(args, "midimap", None))
     else:
         print(f"SFZ: {args.sfz}")
-        kit_data = parse_sfz(args.sfz)
+        replace_ext = getattr(args, "replace_ext", None) or None
+        kit_root = getattr(args, "kit_root", None) or None
+        kit_data = parse_sfz(args.sfz, replace_ext=replace_ext, kit_root=kit_root)
 
     tags = [t.strip() for t in args.tags.split(",")] if args.tags else None
     out = emit_flamkit_yaml(
@@ -686,10 +806,16 @@ def main():
     pc.add_argument("--midimap", metavar="MIDIMAP_XML",
                     help="DrumGizmo midimap XML (recommended with --drumgizmo)")
     pc.add_argument("-o", "--output", metavar="DIR", required=True)
-    pc.add_argument("--name",    help="Override kit name")
-    pc.add_argument("--author",  default="", help="Kit author")
-    pc.add_argument("--version", default="1.0")
-    pc.add_argument("--tags",    help="Comma-separated tags")
+    pc.add_argument("--name",        help="Override kit name")
+    pc.add_argument("--author",      default="", help="Kit author")
+    pc.add_argument("--version",     default="1.0")
+    pc.add_argument("--tags",        help="Comma-separated tags")
+    pc.add_argument("--replace-ext", metavar="EXT",
+                    help="Rewrite sample file extension in output (e.g. .wav). "
+                         "Use after converting FLAC sources to WAV.")
+    pc.add_argument("--kit-root", metavar="DIR",
+                    help="Rebase sample paths relative to this directory (e.g. the "
+                         "kit root when the SFZ lives in a Programs/ subdirectory).")
 
     # -- normalize --
     pn = sub.add_parser("normalize", help="Normalize + trim-silence samples in-place")
