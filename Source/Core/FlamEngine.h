@@ -42,7 +42,7 @@ public:
      *  Not real-time safe — call only from the non-audio thread before playback starts. */
     void seedRNG(uint64_t seed) noexcept;
 
-    /** Switch to offline mode: loads full samples instead of 5ms preload. Call before loadKit(). */
+    /** Switch to offline mode: loads full samples instead of the 100ms preload. Call before loadKit(). */
     void setOfflineMode(bool offline);
 
     /** Returns true once the background preload thread has finished. */

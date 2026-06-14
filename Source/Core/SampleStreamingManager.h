@@ -19,7 +19,7 @@ struct SampleLayer;
  * Manages hybrid sample streaming with pre-cached attack portions.
  *
  * Strategy:
- * - Pre-loads first ~5ms of each sample into RAM (the "attack")
+ * - Pre-loads first PRELOAD_MS (100ms) of each sample into RAM (the "attack")
  * - Streams the remainder from disk on-demand when samples are triggered
  * - Uses a background thread pool to avoid blocking the audio thread
  * - Provides lock-free handoff between preload and streamed data

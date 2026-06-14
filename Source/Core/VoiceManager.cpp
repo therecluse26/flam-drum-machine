@@ -289,7 +289,7 @@ void VoiceManager::loadKit(std::unique_ptr<DrumKit> kit)
     // Signal that a background load is starting (cleared when the lambda finishes)
     isKitLoading.store(true);
 
-    // In offline mode, load the full sample; in real-time mode load only the first 5ms
+    // In offline mode, load the full sample; in real-time mode load only the first 100ms (PRELOAD_MS)
     const bool offline = offlineMode.load();
 
     juce::Thread::launch([this, offline]() {
@@ -338,11 +338,18 @@ void VoiceManager::loadKit(std::unique_ptr<DrumKit> kit)
             const double srcSampleRate = reader->sampleRate;
 
             // Offline: load full sample (capped at 30 s) to avoid streaming mid-render.
-            // Real-time: load first 5 ms; SampleStreamingManager delivers the rest.
+            // Real-time: load SampleStreamingManager::PRELOAD_MS (100 ms); the streamer
+            // delivers the rest. The preload MUST outlast one audio buffer plus the
+            // worst-case first-chunk fetch (cold file open + disk read) — the first
+            // streamed chunk can never arrive in the same block it was requested in
+            // (renderNextBlock polls before the streaming thread runs). A too-small
+            // window (the old 5 ms) underran on every hit at common buffer sizes,
+            // producing attack-transient pops. Sourced from the shared constant so it
+            // stays in lockstep with the streamer's resume offset.
             const int preloadSamples = offline
                 ? static_cast<int>(juce::jmin(totalLength,
                       static_cast<juce::int64>(srcSampleRate * 30.0)))
-                : static_cast<int>((srcSampleRate * 5.0) / 1000.0);
+                : SampleStreamingManager::getPreloadSamples(srcSampleRate);
             const int actualPreloadSize = juce::jmin(preloadSamples, static_cast<int>(totalLength));
 
             // Allocate and read the preload portion
