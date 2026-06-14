@@ -707,19 +707,15 @@ void FlamAudioProcessorEditor::loadKitFromPath(const juce::File& kitFile)
             // Update drum pads to match the kit
             updateDrumPadsFromKit();
 
-            // Configure mixer with kit's channel count
-            if (auto* mixer = audioProcessor.getMixer())
-            {
-                int numChannels = static_cast<int>(currentKit->channelNames.size());
-                if (numChannels > 0)
-                {
-                    mixer->setNumChannels(numChannels, currentKit->channelNames);
+            // Configure mixer with kit's channel count. Goes through the processor so the
+            // channel rebuild + FX-buffer reallocation happen with audio processing suspended
+            // (calling mixer->setNumChannels() directly here raced the audio thread and left
+            // channelFXBuffers undersized → out-of-bounds crash on the next processBlock).
+            audioProcessor.configureMixerForChannels(currentKit->channelNames);
 
-                    // Refresh the mixer UI
-                    if (perChannelMixerPanel)
-                        perChannelMixerPanel->refreshChannels();
-                }
-            }
+            // Refresh the mixer UI
+            if (perChannelMixerPanel)
+                perChannelMixerPanel->refreshChannels();
         }
         else
         {

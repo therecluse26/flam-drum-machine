@@ -602,6 +602,13 @@ void Mixer::processChannelToMainMix(
     if (!audible)
         return;
 
+    // Defensive: FX buffers must match the channel count (see the Mixer.h contract — callers
+    // pair setNumChannels() with prepareToPlay() under suspended processing). If a caller ever
+    // resizes channels without re-preparing, emit silence for this channel instead of indexing
+    // out of bounds. Single comparison only, so it stays real-time safe.
+    if (chIdx >= channelFXBuffers.size())
+        return;
+
     // Use pre-allocated mono buffer for FX processing
     auto& channelBuffer = channelFXBuffers[chIdx];
     channelBuffer.clear(0, numSamples);

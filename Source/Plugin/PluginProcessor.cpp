@@ -182,6 +182,24 @@ void FlamAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
     updateEngineParameters();
 }
 
+void FlamAudioProcessor::configureMixerForChannels(const std::vector<juce::String>& channelNames)
+{
+    if (!perChannelMixer || channelNames.empty())
+        return;
+
+    // setNumChannels() rebuilds `channels` and prepareToPlay() reallocates the per-channel
+    // FX buffers — both are read by process() on the audio thread. suspendProcessing(true)
+    // acquires JUCE's callback lock so no processBlock() runs during the swap, which keeps
+    // `channels` and `channelFXBuffers` in lockstep (the contract documented in Mixer.h).
+    suspendProcessing(true);
+    perChannelMixer->setNumChannels(static_cast<int>(channelNames.size()), channelNames);
+    // If the host hasn't called prepareToPlay() yet, getSampleRate()/getBlockSize() are 0;
+    // that's harmless because no processBlock runs before the host's prepareToPlay, which
+    // re-sizes everything. In the normal standalone ordering these are already valid.
+    perChannelMixer->prepareToPlay(getSampleRate(), getBlockSize());
+    suspendProcessing(false);
+}
+
 void FlamAudioProcessor::releaseResources()
 {
     engine.releaseResources();
