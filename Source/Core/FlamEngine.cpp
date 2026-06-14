@@ -24,10 +24,11 @@ void FlamEngine::prepareToPlay(double sampleRate, int samplesPerBlock)
 
     voiceManager->prepareToPlay(sampleRate, samplesPerBlock);
 
-    // Allocate internal buffer for multi-channel rendering
-    // Get required channel count from loaded kit (defaults to 2 if no kit loaded)
-    const int requiredChannels = voiceManager->getRequiredChannelCount();
-    internalBuffer.setSize(requiredChannels, samplesPerBlock, false, false, true);
+    // Pre-size to the maximum possible channel count (16 mic channels, matching the
+    // 17-bus plugin layout: Bus 0 = stereo Main Mix, Buses 1–16 = mono per-channel).
+    // Allocating the ceiling here means processBlock() never needs to resize on
+    // the audio thread, which would risk heap allocation and priority inversion.
+    internalBuffer.setSize(16, samplesPerBlock, false, false, true);
 
     AudioProcessorGraph::prepareToPlay(sampleRate, samplesPerBlock);
 }
@@ -51,10 +52,6 @@ void FlamEngine::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer
         const auto samplePosition = metadata.samplePosition;
         handleMidiEvent(message, samplePosition);
     }
-
-    // Ensure internal buffer is correct size (may need resize if block size changed)
-    if (internalBuffer.getNumSamples() < numSamples)
-        internalBuffer.setSize(internalBuffer.getNumChannels(), numSamples, false, false, true);
 
     // Clear internal buffer and render drum voices to full multi-channel output
     internalBuffer.clear();
