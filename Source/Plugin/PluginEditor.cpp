@@ -407,7 +407,7 @@ public:
             if (!entry_.channels.isEmpty())
                 stats << entry_.channels.size() << " ch";
             if (entry_.sampleCount > 0)
-                stats << (stats.isEmpty() ? "" : "  \xc2\xb7  ") << entry_.sampleCount << " samples";
+                stats << (stats.isEmpty() ? juce::String{} : juce::String (juce::CharPointer_UTF8 ("  \xc2\xb7  "))) << entry_.sampleCount << " samples";
             if (stats.isNotEmpty())
             {
                 g.setColour (juce::Colour (FlamColors::TextDisabled));
@@ -426,7 +426,7 @@ public:
             g.fillRoundedRectangle (badge, 5.0f);
             g.setColour (juce::Colours::white);
             g.setFont (juce::Font (9.5f, juce::Font::bold));
-            g.drawText ("\xe2\x9c\x93  Installed", badge, juce::Justification::centred);
+            g.drawText (juce::String (juce::CharPointer_UTF8 ("\xe2\x9c\x93  Installed")), badge, juce::Justification::centred);
         }
     }
 
@@ -477,7 +477,7 @@ public:
         statusLabel_.setFont (juce::Font (13.0f));
         statusLabel_.setColour (juce::Label::textColourId, juce::Colour (FlamColors::TextSecondary));
         statusLabel_.setJustificationType (juce::Justification::centred);
-        statusLabel_.setText ("Fetching repository index\xe2\x80\xa6", juce::dontSendNotification);
+        statusLabel_.setText (juce::String (juce::CharPointer_UTF8 ("Fetching repository index\xe2\x80\xa6")), juce::dontSendNotification);
         addAndMakeVisible (statusLabel_);
 
         gridContent_ = std::make_unique<juce::Component>();
@@ -506,7 +506,7 @@ public:
         const auto age = juce::Time::getCurrentTime() - lastRefreshTime_;
         if (lastRefreshTime_.toMilliseconds() == 0 || age.inMinutes() > 60)
         {
-            statusLabel_.setText ("Fetching repository index\xe2\x80\xa6", juce::dontSendNotification);
+            statusLabel_.setText (juce::String (juce::CharPointer_UTF8 ("Fetching repository index\xe2\x80\xa6")), juce::dontSendNotification);
             statusLabel_.setVisible (true);
             repoManager_.refreshAllIndices();
         }

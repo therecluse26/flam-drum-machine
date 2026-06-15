@@ -244,7 +244,7 @@ private:
 
         isRefreshing_ = true;
         refreshButton_.setEnabled (false);
-        statusLabel_.setText ("Refreshing\xe2\x80\xa6", juce::dontSendNotification); // "Refreshing…"
+        statusLabel_.setText (juce::String (juce::CharPointer_UTF8 ("Refreshing\xe2\x80\xa6")), juce::dontSendNotification); // "Refreshing…"
         clearError();
 
         // This enqueues background I/O and returns immediately.
@@ -278,7 +278,7 @@ private:
             suffixLabel_.setColour (juce::Label::textColourId, juce::Colour (FlamColors::TextSecondary));
             addAndMakeVisible (suffixLabel_);
 
-            removeButton_.setButtonText ("\xe2\x9c\x95"); // ✕
+            removeButton_.setButtonText (juce::String (juce::CharPointer_UTF8 ("\xe2\x9c\x95"))); // ✕
             removeButton_.onClick = [this] { owner_.removeUrl (row_); };
             removeButton_.setColour (juce::TextButton::buttonColourId,  juce::Colour (FlamColors::Elevated));
             removeButton_.setColour (juce::TextButton::textColourOffId, juce::Colour (FlamColors::AccentRed));
@@ -330,7 +330,7 @@ private:
         RepoSourcesComponent& owner_;
         juce::Label     urlLabel_;
         juce::Label     suffixLabel_;
-        juce::TextButton removeButton_ { "\xe2\x9c\x95" };
+        juce::TextButton removeButton_ { juce::String (juce::CharPointer_UTF8 ("\xe2\x9c\x95")) };
         int  row_        = -1;
         bool isOfficial_ = false;
 
