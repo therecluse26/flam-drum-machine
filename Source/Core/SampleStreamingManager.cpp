@@ -132,14 +132,44 @@ void SampleStreamingManager::run()
     }
 }
 
+juce::AudioFormatReader* SampleStreamingManager::getCachedReader(const juce::File& file)
+{
+    // Streaming-thread-only; no locking. MRU kept at the front.
+    const auto path = file.getFullPathName();
+
+    for (auto it = readerCache.begin(); it != readerCache.end(); ++it)
+    {
+        if (it->path == path)
+        {
+            // Hit — promote to most-recently-used (O(1) splice, keeps the pointer valid).
+            readerCache.splice(readerCache.begin(), readerCache, it);
+            return readerCache.front().reader.get();
+        }
+    }
+
+    // Miss — open the file. Never cache a null reader.
+    std::unique_ptr<juce::AudioFormatReader> reader(formatManager.createReaderFor(file));
+    if (!reader)
+        return nullptr;
+
+    readerCache.push_front({ path, std::move(reader) });
+
+    // Evict the least-recently-used entry; its unique_ptr closes the file handle.
+    if (static_cast<int>(readerCache.size()) > READER_CACHE_SIZE)
+        readerCache.pop_back();
+
+    return readerCache.front().reader.get();
+}
+
 void SampleStreamingManager::processStreamRequest(const StreamRequest& request)
 {
     if (!request.sampleFile.existsAsFile())
         return;
 
-    // Create reader for this sample
-    std::unique_ptr<juce::AudioFormatReader> reader(
-        formatManager.createReaderFor(request.sampleFile));
+    // Reader is owned by the LRU cache (opened once, reused across triggers). Fetched
+    // exactly once here — no eviction can occur mid-request (run() is single-threaded and
+    // sequential), so this pointer stays valid for the whole streaming loop below.
+    auto* reader = getCachedReader(request.sampleFile);
 
     if (!reader)
         return;

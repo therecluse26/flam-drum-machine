@@ -10,6 +10,8 @@
 #include <vector>
 #include <array>
 #include <atomic>
+#include <thread>
+#include <mutex>
 
 namespace flam {
 
@@ -41,7 +43,10 @@ public:
     void triggerNote(int midiNote, float velocity, int sampleOffset);
     void releaseNote(int midiNote, int sampleOffset);
 
+    /** Load/replace the kit. Cancels and joins any in-flight preload first, so it is
+     *  NOT real-time safe — call only from a non-audio thread. */
     void loadKit(std::unique_ptr<DrumKit> kit);
+    /** Clear the kit. Cancels/joins the preload worker — non-audio thread only. */
     void clearKit();
 
     void setPolyphony(int maxVoices);
@@ -82,6 +87,17 @@ private:
     };
 
     std::vector<Voice> voices;
+
+    // Background preload worker. Owned + joinable (not detached) so it can be cancelled
+    // and joined before currentKit / this are destroyed — a detached worker would
+    // dereference freed SampleLayers or a dangling this (use-after-free). abortLoad makes
+    // a join return promptly; loadMutex serializes concurrent loadKit/clearKit calls.
+    // Declared before currentKit so it is destroyed after it (the explicit join in
+    // ~VoiceManager is the real guarantee; this ordering is defense in depth).
+    std::thread loaderThread;
+    std::atomic<bool> abortLoad{false};
+    std::mutex loadMutex;
+
     std::unique_ptr<DrumKit> currentKit;
     std::unique_ptr<SampleStreamingManager> streamingManager;
 
@@ -141,6 +157,10 @@ private:
     // Per-instance RNG — replaces juce::Random::getSystemRandom() for seedability.
     // Audio-thread only; seed via seedRNG() before playback.
     juce::Random rng;
+
+    // Cancel + join the preload worker. Caller must hold loadMutex and must NOT hold
+    // voiceLock (the worker takes voiceLock to publish → would deadlock).
+    void stopBackgroundLoad();
 
     int findFreeVoice() const;
     // Returns an inactive slot in the FADE_OVERFLOW zone, or -1 if all are busy.
