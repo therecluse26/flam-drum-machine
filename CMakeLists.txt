@@ -84,6 +84,7 @@ target_sources(FLAM
         Source/Core/SampleStreamingManager.cpp
         Source/Core/Mixer.cpp
         Source/Formats/FlamKitLoader.cpp
+        Source/Repository/RepositoryManager.cpp
         Source/DSP/IRConvolver.cpp
         Source/DSP/TenBandGraphicEQ.cpp
         Source/DSP/SaturationProcessor.cpp
@@ -122,6 +123,7 @@ target_link_libraries(FLAM
         juce::juce_audio_processors
         juce::juce_audio_utils
         juce::juce_core
+        juce::juce_cryptography
         juce::juce_data_structures
         juce::juce_dsp
         juce::juce_events
