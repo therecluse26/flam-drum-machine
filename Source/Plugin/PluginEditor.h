@@ -9,6 +9,7 @@
 #include "../UI/FlamLookAndFeel.h"
 #include "../UI/LevelMeter.h"
 #include "../UI/MixerPanel.h"
+#include "../Repository/RepositoryManager.h"
 
 namespace flam {
 
@@ -313,6 +314,7 @@ private:
     void openFileBrowser();
     void removeKitFromLibrary(const juce::File& kitFile);
     void handleKitRemoval(const juce::File& kitFile);
+    void onRemoteKitInstalled(const juce::File& kitYaml);
     void saveLastLoadedKit(const juce::File& kitFile);
     void loadLastLoadedKit();
 
@@ -323,6 +325,9 @@ private:
     // File browser window (for adding external kits)
     std::unique_ptr<juce::Component> fileBrowserWindow;
 
+    // Remote repository manager
+    std::unique_ptr<RepositoryManager> repositoryManager;
+
     // Kit library
     std::vector<juce::File> availableKits;
     juce::File currentKitFile;
@@ -331,6 +336,7 @@ private:
     void addKitToLibrary(const juce::File& kitFile);
     void saveKitList();
     void updateDrumPadsFromKit();
+    const std::vector<juce::File>& getAvailableKits() const { return availableKits; }
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(FlamAudioProcessorEditor)
 };

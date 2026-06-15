@@ -84,6 +84,7 @@ target_sources(FLAM
         Source/Core/SampleStreamingManager.cpp
         Source/Core/Mixer.cpp
         Source/Formats/FlamKitLoader.cpp
+        Source/Repository/RepositoryManager.cpp
         Source/DSP/IRConvolver.cpp
         Source/DSP/TenBandGraphicEQ.cpp
         Source/DSP/SaturationProcessor.cpp
@@ -106,7 +107,6 @@ target_compile_definitions(FLAM
     PUBLIC
         JUCE_DISPLAY_SPLASH_SCREEN=0
         JUCE_WEB_BROWSER=0
-        JUCE_USE_CURL=0
         JUCE_VST3_CAN_REPLACE_VST2=0
         JUCE_STANDALONE_FILTER_WINDOW_USE_KIOSK_MODE=0
         # Use FLAM's custom standalone app (Source/Plugin/StandaloneApp.cpp) so the standalone
@@ -123,6 +123,7 @@ target_link_libraries(FLAM
         juce::juce_audio_processors
         juce::juce_audio_utils
         juce::juce_core
+        juce::juce_cryptography
         juce::juce_data_structures
         juce::juce_dsp
         juce::juce_events
@@ -155,6 +156,18 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
         ${X11_Xinerama_LIB}
         ${X11_Xext_LIB}
         ${X11_Xcursor_LIB})
+endif()
+
+# Optional libcurl for JUCE URL support on Linux
+find_package(CURL QUIET)
+if(CURL_FOUND)
+    target_compile_definitions(FLAM PRIVATE JUCE_USE_CURL=1)
+    target_link_libraries(FLAM PRIVATE CURL::libcurl)
+else()
+    target_compile_definitions(FLAM PRIVATE JUCE_USE_CURL=0)
+    if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        message(WARNING "libcurl not found — remote repository browsing will not work on Linux. Install libcurl-dev and reconfigure.")
+    endif()
 endif()
 
 # Copy resources
