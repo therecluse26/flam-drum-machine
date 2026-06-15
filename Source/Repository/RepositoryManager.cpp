@@ -118,11 +118,25 @@ void RepositoryManager::refreshAllIndices()
                             .withConnectionTimeoutMs (10000);
             auto stream = juceUrl.createInputStream (opts);
             if (!stream)
-                continue;  // network unavailable or URL unreachable — skip silently
+            {
+                notifyFetchFailed (url, "Could not connect (network error or 404)");
+                continue;
+            }
 
             auto json = stream->readEntireStreamAsString();
             if (json.isEmpty())
+            {
+                notifyFetchFailed (url, "Empty response from server");
                 continue;
+            }
+
+            // Validate JSON before handing off to the kit parser.
+            juce::var testParse;
+            if (juce::JSON::parse (json, testParse).failed())
+            {
+                notifyFetchFailed (url, "Malformed JSON in index response");
+                continue;
+            }
 
             // Extract a display name from the URL (last path component before /index.json).
             auto repoName = juce::URL (url).getDomain();
@@ -488,6 +502,16 @@ void RepositoryManager::notifyRefreshed()
     {
         if (alive->load())
             listeners_.call ([] (Listener& l) { l.repositoryRefreshed(); });
+    });
+}
+
+void RepositoryManager::notifyFetchFailed (const juce::String& url, const juce::String& error)
+{
+    auto alive = aliveFlag_;
+    juce::MessageManager::callAsync ([this, alive, url, error]()
+    {
+        if (alive->load())
+            listeners_.call ([&] (Listener& l) { l.repositoryFetchFailed (url, error); });
     });
 }
 
