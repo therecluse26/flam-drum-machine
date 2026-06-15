@@ -169,6 +169,12 @@ public:
         reloadUrls();
     }
 
+    void repositoryFetchFailed (const juce::String& url, const juce::String&) override
+    {
+        // Show the failing URL so the user can identify or remove it from Sources.
+        statusLabel_.setText ("Could not reach: " + url, juce::dontSendNotification);
+    }
+
     void kitDownloadProgress (const juce::String&, float) override {}
     void kitDownloadComplete (const juce::String&, const juce::File&) override {}
     void kitDownloadFailed   (const juce::String&, const juce::String&) override {}

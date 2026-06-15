@@ -506,6 +506,7 @@ public:
         const auto age = juce::Time::getCurrentTime() - lastRefreshTime_;
         if (lastRefreshTime_.toMilliseconds() == 0 || age.inMinutes() > 60)
         {
+            lastFetchError_.clear();
             statusLabel_.setText (juce::String (juce::CharPointer_UTF8 ("Fetching repository index\xe2\x80\xa6")), juce::dontSendNotification);
             statusLabel_.setVisible (true);
             repoManager_.refreshAllIndices();
@@ -545,6 +546,19 @@ public:
             nullptr);
     }
 
+    void repositoryFetchFailed (const juce::String& url, const juce::String& error) override
+    {
+        // Accumulate errors so the final rebuildGrid can show them if no kits loaded.
+        if (lastFetchError_.isEmpty())
+            lastFetchError_ = "Could not reach: " + url + "\n" + error;
+        else
+            lastFetchError_ += "\n\nCould not reach: " + url + "\n" + error;
+
+        statusLabel_.setText (lastFetchError_ + "\nCheck your network or Sources tab.",
+                              juce::dontSendNotification);
+        statusLabel_.setVisible (true);
+    }
+
     void coverImageReady (const juce::String& kitId, const juce::Image& img) override
     {
         for (auto* t : tiles_)
@@ -572,13 +586,20 @@ private:
 
         if (kits.empty())
         {
-            statusLabel_.setText ("No kits found.\nAdd repository URLs in the Sources tab.",
-                                   juce::dontSendNotification);
+            if (lastFetchError_.isNotEmpty())
+                statusLabel_.setText (lastFetchError_ + "\nCheck your network or Sources tab.",
+                                       juce::dontSendNotification);
+            else
+                statusLabel_.setText ("No kits available.\nAdd repository URLs in the Sources tab.",
+                                       juce::dontSendNotification);
+
+            lastFetchError_.clear();
             statusLabel_.setVisible (true);
             viewport_.setVisible (false);
             return;
         }
 
+        lastFetchError_.clear();
         statusLabel_.setVisible (false);
         viewport_.setVisible (true);
 
@@ -608,6 +629,7 @@ private:
     RepositoryManager&               repoManager_;
     std::function<void(juce::File)>  kitInstalledCallback_;
     juce::Time                       lastRefreshTime_;
+    juce::String                     lastFetchError_;
 
     juce::Label                          statusLabel_;
     juce::Viewport                       viewport_;

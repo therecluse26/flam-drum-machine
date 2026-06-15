@@ -34,6 +34,7 @@ public:
     {
         virtual ~Listener() = default;
         virtual void repositoryRefreshed() = 0;
+        virtual void repositoryFetchFailed (const juce::String& url, const juce::String& error) = 0;
         virtual void kitDownloadProgress (const juce::String& kitId, float progress) = 0;
         virtual void kitDownloadComplete (const juce::String& kitId, const juce::File& kitYaml) = 0;
         virtual void kitDownloadFailed   (const juce::String& kitId, const juce::String& error) = 0;
@@ -130,6 +131,7 @@ private:
     // Listener dispatch (always posted to the message thread)
     // -------------------------------------------------------------------------
     void notifyRefreshed    ();
+    void notifyFetchFailed  (const juce::String& url, const juce::String& error);
     void notifyProgress     (const juce::String& id, float progress);
     void notifyComplete     (const juce::String& id, const juce::File& yaml);
     void notifyFailed       (const juce::String& id, const juce::String& error);
