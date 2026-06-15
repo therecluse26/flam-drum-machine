@@ -20,7 +20,7 @@ struct SampleLayer
     int roundRobinGroup{0};
 
     // Hybrid streaming: preload buffer + metadata
-    std::shared_ptr<juce::AudioBuffer<float>> preloadBuffer;  // First ~5ms cached in RAM
+    std::shared_ptr<juce::AudioBuffer<float>> preloadBuffer;  // First PRELOAD_MS (100ms) cached in RAM
     double sourceSampleRate{44100.0};
     juce::int64 totalSampleLength{0};  // Total length of full sample file
 

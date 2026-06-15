@@ -27,7 +27,14 @@ VoiceManager::VoiceManager()
     std::fill(chokeGroupLastVoice.begin(), chokeGroupLastVoice.end(), -1);
 }
 
-VoiceManager::~VoiceManager() = default;
+VoiceManager::~VoiceManager()
+{
+    // Cancel + join the preload worker before any member it touches (currentKit,
+    // voiceLock, streamingManager) begins destructing. A still-joinable std::thread
+    // would call std::terminate, and a running loader would dereference freed memory.
+    const std::lock_guard<std::mutex> loadGuard(loadMutex);
+    stopBackgroundLoad();
+}
 
 void VoiceManager::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
@@ -45,7 +52,13 @@ void VoiceManager::prepareToPlay(double sampleRate, int samplesPerBlock)
 
 void VoiceManager::releaseResources()
 {
-    clearKit();
+    // Do NOT clear the loaded kit here. releaseResources() runs on every audio device
+    // stop/reconfigure — e.g. changing the buffer size or sample rate in the standalone's
+    // audio settings — and the host calls prepareToPlay() again immediately afterward,
+    // expecting the plugin to keep working. Discarding currentKit silenced all playback
+    // until an app restart (which reloaded the last kit). Kit teardown belongs in
+    // clearKit()/loadKit()/the destructor, not in the device lifecycle. preloadBuffers live
+    // on the kit and are sample-rate-independent, so they remain valid across a reconfigure.
 
     for (auto& voice : voices)
     {
@@ -276,6 +289,15 @@ void VoiceManager::loadKit(std::unique_ptr<DrumKit> kit)
     if (!kit)
         return;
 
+    // Serialize against concurrent loadKit()/clearKit() — the editor fires one detached
+    // thread per kit click (PluginEditor::loadKitFromPath), so two rapid switches can race
+    // here. Not real-time safe: call only from a non-audio thread.
+    const std::lock_guard<std::mutex> loadGuard(loadMutex);
+
+    // Cancel + join any in-flight preload before we swap the kit it holds raw pointers
+    // into — otherwise the old worker would write into freed SampleLayers (use-after-free).
+    stopBackgroundLoad();
+
     // Store kit immediately so it can be used (samples will load in background)
     {
         const juce::SpinLock::ScopedLockType lock(voiceLock);
@@ -286,13 +308,15 @@ void VoiceManager::loadKit(std::unique_ptr<DrumKit> kit)
         setRoundRobinEnabled(currentKit->settings.useRoundRobin);
     }
 
-    // Signal that a background load is starting (cleared when the lambda finishes)
+    // Set BEFORE launching so isKitLoaded()/waitForKitLoaded() never observe a false
+    // "loaded" in the gap between launch and the worker's first store.
     isKitLoading.store(true);
 
-    // In offline mode, load the full sample; in real-time mode load only the first 5ms
+    // In offline mode, load the full sample; in real-time mode load only the first 100ms (PRELOAD_MS)
     const bool offline = offlineMode.load();
 
-    juce::Thread::launch([this, offline]() {
+    // Owned + joinable (see stopBackgroundLoad) — replaces the old detached juce::Thread::launch.
+    loaderThread = std::thread([this, offline]() {
         juce::AudioFormatManager formatManager;
         formatManager.registerBasicFormats();
 
@@ -324,6 +348,14 @@ void VoiceManager::loadKit(std::unique_ptr<DrumKit> kit)
         // Load preload buffer for each sample WITHOUT holding the lock
         for (auto* layer : layersToLoad)
         {
+            // Bail promptly if a newer loadKit()/clearKit()/destructor asked us to stop —
+            // keeps their join() fast (worst case: one in-flight preload read).
+            if (abortLoad.load())
+            {
+                isKitLoading.store(false);
+                return;
+            }
+
             if (!layer->sampleFile.existsAsFile())
                 continue;
 
@@ -338,11 +370,18 @@ void VoiceManager::loadKit(std::unique_ptr<DrumKit> kit)
             const double srcSampleRate = reader->sampleRate;
 
             // Offline: load full sample (capped at 30 s) to avoid streaming mid-render.
-            // Real-time: load first 5 ms; SampleStreamingManager delivers the rest.
+            // Real-time: load SampleStreamingManager::PRELOAD_MS (100 ms); the streamer
+            // delivers the rest. The preload MUST outlast one audio buffer plus the
+            // worst-case first-chunk fetch (cold file open + disk read) — the first
+            // streamed chunk can never arrive in the same block it was requested in
+            // (renderNextBlock polls before the streaming thread runs). A too-small
+            // window (the old 5 ms) underran on every hit at common buffer sizes,
+            // producing attack-transient pops. Sourced from the shared constant so it
+            // stays in lockstep with the streamer's resume offset.
             const int preloadSamples = offline
                 ? static_cast<int>(juce::jmin(totalLength,
                       static_cast<juce::int64>(srcSampleRate * 30.0)))
-                : static_cast<int>((srcSampleRate * 5.0) / 1000.0);
+                : SampleStreamingManager::getPreloadSamples(srcSampleRate);
             const int actualPreloadSize = juce::jmin(preloadSamples, static_cast<int>(totalLength));
 
             // Allocate and read the preload portion
@@ -351,18 +390,41 @@ void VoiceManager::loadKit(std::unique_ptr<DrumKit> kit)
             if (!reader->read(preloadBuffer.get(), 0, actualPreloadSize, 0, true, true))
                 continue;
 
-            // Store the preload buffer and metadata
-            layer->preloadBuffer = preloadBuffer;
-            layer->sourceSampleRate = srcSampleRate;
-            layer->totalSampleLength = totalLength;
+            // Publish under voiceLock. Every reader of these fields (triggerNote,
+            // renderNextBlock via loadSampleData, getRequiredChannelCount) holds voiceLock,
+            // so this removes the torn shared_ptr read and guarantees a layer is never seen
+            // half-published. Keep the critical section to these three stores ONLY — the
+            // audio thread spins on this SpinLock, so no I/O or allocation inside it.
+            {
+                const juce::SpinLock::ScopedLockType pub(voiceLock);
+                layer->preloadBuffer = preloadBuffer;
+                layer->sourceSampleRate = srcSampleRate;
+                layer->totalSampleLength = totalLength;
+            }
         }
 
         isKitLoading.store(false);
     });
 }
 
+void VoiceManager::stopBackgroundLoad()
+{
+    // Caller MUST hold loadMutex, and MUST NOT hold voiceLock: the worker takes voiceLock
+    // to publish each layer, so joining while holding it would deadlock.
+    abortLoad.store(true);
+    if (loaderThread.joinable())
+        loaderThread.join();
+    abortLoad.store(false);
+    isKitLoading.store(false);
+}
+
 void VoiceManager::clearKit()
 {
+    // Serialize with loadKit and cancel/join any in-flight preload BEFORE freeing the kit
+    // it points into. Not real-time safe: non-audio thread only.
+    const std::lock_guard<std::mutex> loadGuard(loadMutex);
+    stopBackgroundLoad();
+
     const juce::SpinLock::ScopedLockType lock(voiceLock);
     currentKit.reset();
 }

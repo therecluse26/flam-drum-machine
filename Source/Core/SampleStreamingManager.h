@@ -10,6 +10,7 @@
 #include <memory>
 #include <atomic>
 #include <queue>
+#include <list>
 
 namespace flam {
 
@@ -19,7 +20,7 @@ struct SampleLayer;
  * Manages hybrid sample streaming with pre-cached attack portions.
  *
  * Strategy:
- * - Pre-loads first ~5ms of each sample into RAM (the "attack")
+ * - Pre-loads first PRELOAD_MS (100ms) of each sample into RAM (the "attack")
  * - Streams the remainder from disk on-demand when samples are triggered
  * - Uses a background thread pool to avoid blocking the audio thread
  * - Provides lock-free handoff between preload and streamed data
@@ -84,10 +85,32 @@ private:
     void processStreamRequest(const StreamRequest& request);
     void streamSampleChunk(juce::AudioFormatReader* reader, const StreamRequest& request);
 
+    /**
+     * Return an open reader for the file, reusing a cached one if present (LRU).
+     * Streaming-thread-only — no synchronization. Returns nullptr if the file can't be
+     * opened. The returned pointer is owned by the cache and stays valid for the duration
+     * of a single processStreamRequest (no eviction occurs mid-request).
+     */
+    juce::AudioFormatReader* getCachedReader(const juce::File& file);
+
     double sampleRate{44100.0};
     int blockSize{512};
 
     juce::AudioFormatManager formatManager;
+
+    // Bounded LRU cache of open readers, keyed by file path (MRU at the front). Re-opening
+    // a WAV (file open + header parse) on every trigger was redundant and added latency on
+    // the critical path; a drum kit hammers the same files repeatedly. Touched ONLY on the
+    // streaming thread (run()), so no synchronization is needed. Holds up to
+    // READER_CACHE_SIZE open file handles; the tail is evicted (closing its handle) on
+    // overflow. Linear scan is fine at this size and called once per request.
+    static constexpr int READER_CACHE_SIZE = 64;
+    struct CachedReader
+    {
+        juce::String path;
+        std::unique_ptr<juce::AudioFormatReader> reader;
+    };
+    std::list<CachedReader> readerCache;
 
     // Lock-free queue for stream requests (audio thread -> streaming thread)
     juce::AbstractFifo requestFifo{32};
