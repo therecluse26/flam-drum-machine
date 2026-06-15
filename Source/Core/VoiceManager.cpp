@@ -52,7 +52,13 @@ void VoiceManager::prepareToPlay(double sampleRate, int samplesPerBlock)
 
 void VoiceManager::releaseResources()
 {
-    clearKit();
+    // Do NOT clear the loaded kit here. releaseResources() runs on every audio device
+    // stop/reconfigure — e.g. changing the buffer size or sample rate in the standalone's
+    // audio settings — and the host calls prepareToPlay() again immediately afterward,
+    // expecting the plugin to keep working. Discarding currentKit silenced all playback
+    // until an app restart (which reloaded the last kit). Kit teardown belongs in
+    // clearKit()/loadKit()/the destructor, not in the device lifecycle. preloadBuffers live
+    // on the kit and are sample-rate-independent, so they remain valid across a reconfigure.
 
     for (auto& voice : voices)
     {

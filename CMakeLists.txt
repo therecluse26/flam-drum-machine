@@ -59,7 +59,7 @@ FetchContent_MakeAvailable(JUCE)
 # Define the plugin
 juce_add_plugin(FLAM
     COMPANY_NAME "FLAM"
-    IS_SYNTH FALSE
+    IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE
     IS_MIDI_EFFECT FALSE
@@ -77,6 +77,7 @@ target_sources(FLAM
     PRIVATE
         Source/Plugin/PluginProcessor.cpp
         Source/Plugin/PluginEditor.cpp
+        Source/Plugin/StandaloneApp.cpp
         Source/Core/FlamEngine.cpp
         Source/Core/VoiceManager.cpp
         Source/Core/SampleVoice.cpp
@@ -107,7 +108,10 @@ target_compile_definitions(FLAM
         JUCE_WEB_BROWSER=0
         JUCE_USE_CURL=0
         JUCE_VST3_CAN_REPLACE_VST2=0
-        JUCE_STANDALONE_FILTER_WINDOW_USE_KIOSK_MODE=0)
+        JUCE_STANDALONE_FILTER_WINDOW_USE_KIOSK_MODE=0
+        # Use FLAM's custom standalone app (Source/Plugin/StandaloneApp.cpp) so the standalone
+        # launches with a low default audio buffer (~128 frames) for imperceptible latency.
+        JUCE_USE_CUSTOM_PLUGIN_STANDALONE_APP=1)
 
 # Link with JUCE modules
 target_link_libraries(FLAM
