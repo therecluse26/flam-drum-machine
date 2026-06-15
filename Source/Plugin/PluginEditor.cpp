@@ -284,7 +284,340 @@ private:
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(FileBrowserWindow)
 };
 
-// Kit browser window — Library tab (local kit grid) + Sources tab (repo URL management)
+// ── RemoteKitTileComponent ─────────────────────────────────────────────────────
+// One card in the Browse tab: cover art, metadata, license badge, and a
+// download button (replaced by a ProgressBar while in progress).  An
+// "Installed" overlay badge appears when the kit is already on disk.
+class RemoteKitTileComponent : public juce::Component
+{
+public:
+    RemoteKitTileComponent (const KitIndexEntry& entry,
+                             std::function<void(juce::String)> onDownload)
+        : entry_ (entry)
+        , downloadCallback_ (std::move (onDownload))
+        , progressBar_ (progressValue_)   // ProgressBar keeps a double& — progressValue_
+    {                                     // must be declared before progressBar_ in the class.
+        downloadButton_.setButtonText ("Download");
+        downloadButton_.setEnabled (entry_.license.isNotEmpty() && !entry_.isInstalled);
+        downloadButton_.setTooltip (entry_.license.isNotEmpty()
+                                    ? "License: " + entry_.license
+                                    : "No license info — download disabled");
+        downloadButton_.onClick = [this]
+        {
+            if (downloadCallback_)
+                downloadCallback_ (entry_.id);
+        };
+        downloadButton_.setVisible (!entry_.isInstalled);
+        addAndMakeVisible (downloadButton_);
+
+        progressBar_.setVisible (false);
+        addAndMakeVisible (progressBar_);
+    }
+
+    void setDownloadProgress (float progress)
+    {
+        progressValue_ = static_cast<double> (progress);
+        downloadButton_.setVisible (false);
+        progressBar_.setVisible (true);
+        repaint();
+    }
+
+    void markInstalled()
+    {
+        entry_.isInstalled = true;
+        downloadButton_.setVisible (false);
+        progressBar_.setVisible (false);
+        repaint();
+    }
+
+    void setCoverImage (const juce::Image& img) { coverImage_ = img; repaint(); }
+
+    const juce::String& getKitId() const noexcept { return entry_.id; }
+
+    void paint (juce::Graphics& g) override
+    {
+        const auto bounds = getLocalBounds().toFloat().reduced (6.0f);
+
+        g.setColour (isMouseOver_ ? juce::Colour (FlamColors::Interactive)
+                                  : juce::Colour (FlamColors::Elevated));
+        g.fillRoundedRectangle (bounds, 8.0f);
+        g.setColour (isMouseOver_ ? juce::Colour (FlamColors::AccentBlue).withAlpha (0.5f)
+                                  : juce::Colour (FlamColors::BorderSubtle));
+        g.drawRoundedRectangle (bounds, 8.0f, 1.5f);
+
+        auto content = bounds.reduced (8.0f);
+        content.removeFromBottom (36.0f); // reserved for download button
+
+        // Cover image / placeholder
+        auto imgArea = content.removeFromTop (content.getHeight() * 0.45f);
+        if (coverImage_.isValid())
+        {
+            g.drawImage (coverImage_, imgArea, juce::RectanglePlacement::centred);
+        }
+        else
+        {
+            g.setColour (juce::Colour (FlamColors::Surface));
+            g.fillRoundedRectangle (imgArea, 4.0f);
+            g.setColour (juce::Colour (FlamColors::TextDisabled));
+            g.setFont (18.0f);
+            g.drawText ("FLAM", imgArea, juce::Justification::centred);
+        }
+
+        content.removeFromTop (6.0f);
+
+        g.setColour (juce::Colour (FlamColors::TextPrimary));
+        g.setFont (juce::Font (12.0f, juce::Font::bold));
+        g.drawText (entry_.name, content.removeFromTop (16.0f), juce::Justification::centredLeft);
+
+        g.setColour (juce::Colour (FlamColors::TextSecondary));
+        g.setFont (juce::Font (10.0f));
+        if (entry_.author.isNotEmpty())
+            g.drawText (entry_.author, content.removeFromTop (13.0f), juce::Justification::centredLeft);
+        else
+            content.removeFromTop (13.0f);
+
+        content.removeFromTop (4.0f);
+
+        // License badge
+        {
+            auto row = content.removeFromTop (18.0f);
+            if (entry_.license.isNotEmpty())
+            {
+                const float bw = std::min (row.getWidth(),
+                                           (float) entry_.license.length() * 6.5f + 14.0f);
+                auto badge = row.removeFromLeft (bw).reduced (0.0f, 1.0f);
+                g.setColour (licenseBadgeColour (entry_.license));
+                g.fillRoundedRectangle (badge, 4.0f);
+                g.setColour (juce::Colours::white);
+                g.setFont (juce::Font (9.5f, juce::Font::bold));
+                g.drawText (entry_.license, badge, juce::Justification::centred);
+            }
+            else
+            {
+                g.setColour (juce::Colour (FlamColors::AccentRed).withAlpha (0.8f));
+                g.setFont (juce::Font (9.5f));
+                g.drawText ("No License", row, juce::Justification::centredLeft);
+            }
+        }
+
+        // Channel / sample counts
+        content.removeFromTop (3.0f);
+        {
+            juce::String stats;
+            if (!entry_.channels.isEmpty())
+                stats << entry_.channels.size() << " ch";
+            if (entry_.sampleCount > 0)
+                stats << (stats.isEmpty() ? "" : "  \xc2\xb7  ") << entry_.sampleCount << " samples";
+            if (stats.isNotEmpty())
+            {
+                g.setColour (juce::Colour (FlamColors::TextDisabled));
+                g.setFont (juce::Font (10.0f));
+                g.drawText (stats, content.removeFromTop (13.0f), juce::Justification::centredLeft);
+            }
+        }
+
+        // "Installed" badge — top-right corner of the card
+        if (entry_.isInstalled)
+        {
+            constexpr float bw = 76.0f, bh = 20.0f;
+            auto badge = juce::Rectangle<float> (bounds.getRight() - bw - 4.0f,
+                                                  bounds.getY() + 4.0f, bw, bh);
+            g.setColour (juce::Colour (FlamColors::AccentGreen).withAlpha (0.9f));
+            g.fillRoundedRectangle (badge, 5.0f);
+            g.setColour (juce::Colours::white);
+            g.setFont (juce::Font (9.5f, juce::Font::bold));
+            g.drawText ("\xe2\x9c\x93  Installed", badge, juce::Justification::centred);
+        }
+    }
+
+    void resized() override
+    {
+        const auto strip = getLocalBounds().reduced (10, 6).removeFromBottom (28);
+        downloadButton_.setBounds (strip);
+        progressBar_.setBounds (strip);
+    }
+
+    void mouseEnter (const juce::MouseEvent&) override { isMouseOver_ = true;  repaint(); }
+    void mouseExit  (const juce::MouseEvent&) override { isMouseOver_ = false; repaint(); }
+
+private:
+    static juce::Colour licenseBadgeColour (const juce::String& license) noexcept
+    {
+        const auto l = license.toUpperCase();
+        if (l.contains ("CC0") || l.contains ("PUBLIC DOMAIN"))  return juce::Colour (0xFF27AE60);
+        if (l.contains ("CC-BY") || l.contains ("CC BY"))        return juce::Colour (FlamColors::AccentBlue);
+        if (l.contains ("GPL"))                                   return juce::Colour (FlamColors::AccentOrange);
+        if (l.contains ("MIT") || l.contains ("BSD"))            return juce::Colour (0xFF8E44AD);
+        return juce::Colour (FlamColors::TextSecondary);
+    }
+
+    KitIndexEntry                     entry_;
+    std::function<void(juce::String)> downloadCallback_;
+    juce::Image                       coverImage_;
+    double                            progressValue_ {0.0}; // declared before progressBar_
+    juce::ProgressBar                 progressBar_;
+    juce::TextButton                  downloadButton_;
+    bool                              isMouseOver_ {false};
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (RemoteKitTileComponent)
+};
+
+// ── BrowseTabContent ───────────────────────────────────────────────────────────
+// Browse tab: async grid of remote kits fetched from all configured repositories.
+// Implements RepositoryManager::Listener — all callbacks arrive on the message thread.
+class BrowseTabContent : public juce::Component,
+                          public RepositoryManager::Listener
+{
+public:
+    BrowseTabContent (RepositoryManager& mgr,
+                      std::function<void(juce::File)> onKitInstalled)
+        : repoManager_ (mgr)
+        , kitInstalledCallback_ (std::move (onKitInstalled))
+    {
+        statusLabel_.setFont (juce::Font (13.0f));
+        statusLabel_.setColour (juce::Label::textColourId, juce::Colour (FlamColors::TextSecondary));
+        statusLabel_.setJustificationType (juce::Justification::centred);
+        statusLabel_.setText ("Fetching repository index\xe2\x80\xa6", juce::dontSendNotification);
+        addAndMakeVisible (statusLabel_);
+
+        gridContent_ = std::make_unique<juce::Component>();
+        viewport_.setViewedComponent (gridContent_.get(), false);
+        viewport_.setScrollBarsShown (true, false);
+        viewport_.setVisible (false);
+        addAndMakeVisible (viewport_);
+
+        repoManager_.addListener (this);
+
+        auto kits = repoManager_.getKits();
+        if (!kits.empty())
+            rebuildGrid (kits);           // index already populated — render immediately
+        else
+            repoManager_.refreshAllIndices();  // non-blocking; repositoryRefreshed() fires later
+    }
+
+    ~BrowseTabContent() override
+    {
+        repoManager_.removeListener (this);
+    }
+
+    // Call when the Browse tab becomes visible if the index might be stale.
+    void refreshIfStale()
+    {
+        const auto age = juce::Time::getCurrentTime() - lastRefreshTime_;
+        if (lastRefreshTime_.toMilliseconds() == 0 || age.inMinutes() > 60)
+        {
+            statusLabel_.setText ("Fetching repository index\xe2\x80\xa6", juce::dontSendNotification);
+            statusLabel_.setVisible (true);
+            repoManager_.refreshAllIndices();
+        }
+    }
+
+    // ── RepositoryManager::Listener ────────────────────────────────────────
+    void repositoryRefreshed() override
+    {
+        lastRefreshTime_ = juce::Time::getCurrentTime();
+        rebuildGrid (repoManager_.getKits());
+    }
+
+    void kitDownloadProgress (const juce::String& kitId, float progress) override
+    {
+        for (auto* t : tiles_)
+            if (t->getKitId() == kitId)
+                t->setDownloadProgress (progress);
+    }
+
+    void kitDownloadComplete (const juce::String& kitId, const juce::File& kitYaml) override
+    {
+        for (auto* t : tiles_)
+            if (t->getKitId() == kitId)
+                t->markInstalled();
+
+        if (kitInstalledCallback_)
+            kitInstalledCallback_ (kitYaml);
+    }
+
+    void kitDownloadFailed (const juce::String& kitId, const juce::String& error) override
+    {
+        juce::NativeMessageBox::showMessageBoxAsync (
+            juce::MessageBoxIconType::WarningIcon,
+            "Download Failed",
+            "Could not download '" + kitId + "':\n" + error,
+            nullptr);
+    }
+
+    void coverImageReady (const juce::String& kitId, const juce::Image& img) override
+    {
+        for (auto* t : tiles_)
+            if (t->getKitId() == kitId)
+                t->setCoverImage (img);
+    }
+
+    // ── Component ──────────────────────────────────────────────────────────
+    void resized() override
+    {
+        statusLabel_.setBounds (getLocalBounds());
+        viewport_.setBounds (getLocalBounds());
+    }
+
+    void paint (juce::Graphics& g) override
+    {
+        g.fillAll (juce::Colour (FlamColors::Background));
+    }
+
+private:
+    void rebuildGrid (const std::vector<KitIndexEntry>& kits)
+    {
+        tiles_.clear();
+        gridContent_->removeAllChildren();
+
+        if (kits.empty())
+        {
+            statusLabel_.setText ("No kits found.\nAdd repository URLs in the Sources tab.",
+                                   juce::dontSendNotification);
+            statusLabel_.setVisible (true);
+            viewport_.setVisible (false);
+            return;
+        }
+
+        statusLabel_.setVisible (false);
+        viewport_.setVisible (true);
+
+        constexpr int tileW = 200, tileH = 270, pad = 12, cols = 3;
+        int row = 0, col = 0;
+
+        for (const auto& entry : kits)
+        {
+            auto* tile = tiles_.add (new RemoteKitTileComponent (entry,
+                [this](const juce::String& id) { repoManager_.downloadKit (id); }));
+
+            tile->setBounds (col * (tileW + pad) + pad,
+                             row * (tileH + pad) + pad,
+                             tileW, tileH);
+            gridContent_->addAndMakeVisible (tile);
+
+            repoManager_.getCoverImage (entry);   // async — fires coverImageReady() later
+
+            if (++col >= cols) { col = 0; ++row; }
+        }
+
+        const int rows = (int) std::ceil ((float) kits.size() / cols);
+        gridContent_->setSize (cols * (tileW + pad) + pad,
+                               rows * (tileH + pad) + pad);
+    }
+
+    RepositoryManager&               repoManager_;
+    std::function<void(juce::File)>  kitInstalledCallback_;
+    juce::Time                       lastRefreshTime_;
+
+    juce::Label                          statusLabel_;
+    juce::Viewport                       viewport_;
+    std::unique_ptr<juce::Component>     gridContent_;
+    juce::OwnedArray<RemoteKitTileComponent> tiles_;
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (BrowseTabContent)
+};
+
+// Kit browser window — Installed | Browse | Sources tabs
 class FlamAudioProcessorEditor::KitBrowserWindow : public juce::DocumentWindow
 {
 public:
@@ -300,16 +633,29 @@ public:
         libraryPanel_ = std::make_unique<LibraryPanel> (editor, kits);
 
         if (repoMgr != nullptr)
+        {
+            browsePanel_ = std::make_unique<BrowseTabContent> (
+                *repoMgr,
+                [this, editor] (juce::File yaml)    // fired on the message thread
+                {
+                    editor->addKitToLibrary (yaml);
+                    editor->scanForKits();
+                    libraryPanel_->refreshKits (editor->getAvailableKits());
+                });
+
             sourcesPanel_ = std::make_unique<RepoSourcesComponent> (*repoMgr);
+        }
 
         tabs_ = std::make_unique<juce::TabbedComponent> (juce::TabbedButtonBar::TabsAtTop);
-        tabs_->addTab ("Library", juce::Colour (FlamColors::Surface), libraryPanel_.get(),  false);
+        tabs_->addTab ("Installed", juce::Colour (FlamColors::Surface), libraryPanel_.get(), false);
+        if (browsePanel_)
+            tabs_->addTab ("Browse",    juce::Colour (FlamColors::Surface), browsePanel_.get(),  false);
         if (sourcesPanel_)
-            tabs_->addTab ("Sources", juce::Colour (FlamColors::Surface), sourcesPanel_.get(), false);
+            tabs_->addTab ("Sources",   juce::Colour (FlamColors::Surface), sourcesPanel_.get(), false);
 
         setContentNonOwned (tabs_.get(), false);
         setResizable (true, true);
-        centreWithSize (700, 650);
+        centreWithSize (720, 650);
         setVisible (true);
         setAlwaysOnTop (true);
     }
@@ -344,13 +690,37 @@ private:
 
             viewport_ = std::make_unique<juce::Viewport>();
             content_  = std::make_unique<juce::Component>();
+            viewport_->setViewedComponent (content_.get(), false);
+            viewport_->setScrollBarsShown (true, false);
+            addAndMakeVisible (viewport_.get());
 
-            constexpr int tileW   = 200;
-            constexpr int tileH   = 280;
-            constexpr int spacing = 16;
-            constexpr int cols    = 3;
+            rebuildTiles (kits);
+        }
 
+        // Rebuild the tile grid with a fresh kit list (called after a remote download).
+        void refreshKits (const std::vector<juce::File>& kits)
+        {
+            rebuildTiles (kits);
+            resized();
+        }
+
+        void resized() override
+        {
+            auto area = getLocalBounds();
+            addKitButton_->setBounds (area.removeFromTop (44).reduced (8, 6));
+            viewport_->setBounds (area);
+        }
+
+    private:
+        void rebuildTiles (const std::vector<juce::File>& kits)
+        {
+            // OwnedArray::clear() deletes each tile, which auto-removes it from
+            // content_ via JUCE's destructor → removeFromParent() chain.
+            tiles_.clear();
+
+            constexpr int tileW = 200, tileH = 280, spacing = 16, cols = 3;
             int row = 0, col = 0;
+
             for (const auto& kitFile : kits)
             {
                 auto* tile = new KitTileComponent (kitFile,
@@ -369,22 +739,11 @@ private:
                 if (++col >= cols) { col = 0; ++row; }
             }
 
-            const int rows = (int) std::ceil ((float) kits.size() / cols);
+            const int rows = (int) std::ceil ((float) std::max ((size_t) 1, kits.size()) / cols);
             content_->setSize (cols * (tileW + spacing) + spacing,
                                rows * (tileH + spacing) + spacing);
-            viewport_->setViewedComponent (content_.get(), false);
-            viewport_->setScrollBarsShown (true, false);
-            addAndMakeVisible (viewport_.get());
         }
 
-        void resized() override
-        {
-            auto area = getLocalBounds();
-            addKitButton_->setBounds (area.removeFromTop (44).reduced (8, 6));
-            viewport_->setBounds (area);
-        }
-
-    private:
         void confirmRemoveKit_ (const juce::File& kitFile)
         {
             auto* ownerPtr = owner_;
@@ -413,10 +772,12 @@ private:
     };
 
     // -------------------------------------------------------------------------
-    // Members — declared so that tabs_ is destroyed before its tab panels
+    // Members — tabs_ must be declared last so it's destroyed first (before
+    // the panels it references are torn down).
     // -------------------------------------------------------------------------
     FlamAudioProcessorEditor*              owner;
     std::unique_ptr<LibraryPanel>          libraryPanel_;
+    std::unique_ptr<BrowseTabContent>      browsePanel_;
     std::unique_ptr<RepoSourcesComponent>  sourcesPanel_;
     std::unique_ptr<juce::TabbedComponent> tabs_;
 

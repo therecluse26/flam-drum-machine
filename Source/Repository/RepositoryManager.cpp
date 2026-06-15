@@ -96,11 +96,11 @@ juce::StringArray RepositoryManager::getRepoUrls() const
 
 void RepositoryManager::refreshAllIndices()
 {
-    // Must not be called from the audio thread — network I/O would block the
-    // callback and violate real-time constraints.  isThisTheMessageThread()
-    // guards against accidental call from UI code that intends to block; audio
-    // threads are never the message thread, so both are caught.
-    jassert (!juce::MessageManager::getInstance()->isThisTheMessageThread());
+    // Safe to call from any thread including the message thread: all network I/O
+    // runs on the internal ThreadPool and this method returns immediately after
+    // enqueuing the job.  Audio threads must never call this (violates RT
+    // contract), but there is no cheap jassert for "not the audio thread" —
+    // guard by convention instead.
 
     // Snapshot the URL list before handing off to the background thread.
     auto urls = repoUrls_;
