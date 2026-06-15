@@ -5,6 +5,8 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 #include "../Formats/FlamKitLoader.h"
+#include "../Repository/RepositoryManager.h"
+#include "../UI/RepoSourcesComponent.h"
 #include <thread>
 #include <cmath>
 
@@ -282,92 +284,39 @@ private:
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(FileBrowserWindow)
 };
 
-// Kit browser window showing grid of kits
+// Kit browser window — Library tab (local kit grid) + Sources tab (repo URL management)
 class FlamAudioProcessorEditor::KitBrowserWindow : public juce::DocumentWindow
 {
 public:
-    KitBrowserWindow(FlamAudioProcessorEditor* editor, const std::vector<juce::File>& kits)
-        : DocumentWindow("Select Drum Kit",
-                        juce::Desktop::getInstance().getDefaultLookAndFeel()
-                            .findColour(juce::ResizableWindow::backgroundColourId),
-                        DocumentWindow::closeButton)
-        , owner(editor)
+    KitBrowserWindow (FlamAudioProcessorEditor* editor,
+                      const std::vector<juce::File>& kits,
+                      RepositoryManager* repoMgr)
+        : DocumentWindow ("Select Drum Kit",
+                          juce::Desktop::getInstance().getDefaultLookAndFeel()
+                              .findColour (juce::ResizableWindow::backgroundColourId),
+                          DocumentWindow::closeButton)
+        , owner (editor)
     {
-        mainContent = std::make_unique<juce::Component>();
+        libraryPanel_ = std::make_unique<LibraryPanel> (editor, kits);
 
-        // Create "Add Kit" button at the top
-        addKitButton = std::make_unique<juce::TextButton>("Add Kit from File System");
-        addKitButton->onClick = [this]() {
-            owner->kitBrowserWindow.reset();
-            owner->openFileBrowser();
-        };
-        mainContent->addAndMakeVisible(addKitButton.get());
+        if (repoMgr != nullptr)
+            sourcesPanel_ = std::make_unique<RepoSourcesComponent> (*repoMgr);
 
-        viewport = std::make_unique<juce::Viewport>();
-        content = std::make_unique<juce::Component>();
+        tabs_ = std::make_unique<juce::TabbedComponent> (juce::TabbedButtonBar::TabsAtTop);
+        tabs_->addTab ("Library", juce::Colour (FlamColors::Surface), libraryPanel_.get(),  false);
+        if (sourcesPanel_)
+            tabs_->addTab ("Sources", juce::Colour (FlamColors::Surface), sourcesPanel_.get(), false);
 
-        // Create kit tiles
-        const int tileWidth = 200;
-        const int tileHeight = 280;
-        const int spacing = 16;
-        const int cols = 3;
-
-        int row = 0;
-        int col = 0;
-
-        for (const auto& kitFile : kits)
-        {
-            auto* tile = new KitTileComponent(kitFile,
-                [this](juce::File selectedFile) {
-                    // Select callback
-                    owner->loadKitFromPath(selectedFile);
-                    owner->kitBrowserWindow.reset();
-                },
-                [this](juce::File fileToDelete) {
-                    // Delete callback
-                    removeKit(fileToDelete);
-                });
-
-            int x = col * (tileWidth + spacing) + spacing;
-            int y = row * (tileHeight + spacing) + spacing;
-            tile->setBounds(x, y, tileWidth, tileHeight);
-
-            content->addAndMakeVisible(tile);
-            tiles.add(tile);
-
-            col++;
-            if (col >= cols)
-            {
-                col = 0;
-                row++;
-            }
-        }
-
-        // Set content size
-        int rows = (int)std::ceil((float)kits.size() / cols);
-        int contentHeight = rows * (tileHeight + spacing) + spacing;
-        int contentWidth = cols * (tileWidth + spacing) + spacing;
-        content->setSize(contentWidth, contentHeight);
-
-        viewport->setViewedComponent(content.get(), false);
-        viewport->setScrollBarsShown(true, false);
-        mainContent->addAndMakeVisible(viewport.get());
-
-        // Layout: button at top, viewport below
-        int buttonHeight = 40;
-        addKitButton->setBounds(spacing, spacing, contentWidth - spacing * 2, buttonHeight);
-        viewport->setBounds(0, buttonHeight + spacing * 2, contentWidth, 600 - buttonHeight - spacing * 2);
-        mainContent->setSize(contentWidth, 600);
-
-        setContentNonOwned(mainContent.get(), true);
-        setResizable(true, true);
-        centreWithSize(cols * (tileWidth + spacing) + spacing + 20, 640);
-        setVisible(true);
-        setAlwaysOnTop(true);
+        setContentNonOwned (tabs_.get(), false);
+        setResizable (true, true);
+        centreWithSize (700, 650);
+        setVisible (true);
+        setAlwaysOnTop (true);
     }
 
     ~KitBrowserWindow() override
     {
+        // Detach before unique_ptr members are destroyed.
         clearContentComponent();
     }
 
@@ -376,44 +325,110 @@ public:
         owner->kitBrowserWindow.reset();
     }
 
-    void removeKit(const juce::File& kitFile)
-    {
-        // Capture owner pointer safely
-        auto* ownerPtr = owner;
-
-        // Show confirmation dialog
-        auto options = juce::MessageBoxOptions()
-            .withIconType(juce::MessageBoxIconType::WarningIcon)
-            .withTitle("Remove Kit")
-            .withMessage("Are you sure you want to remove this kit from the library?\n\n"
-                        "This will only remove it from the FlamKit library list.\n"
-                        "The kit files will NOT be deleted from your computer.")
-            .withButton("Remove")
-            .withButton("Cancel");
-
-        juce::AlertWindow::showAsync(options, [ownerPtr, kitFile](int result) {
-            if (result == 1) // "Remove" button
-            {
-                ownerPtr->handleKitRemoval(kitFile);
-            }
-        });
-    }
-
 private:
-    FlamAudioProcessorEditor* owner;
-    std::unique_ptr<juce::Component> mainContent;
-    std::unique_ptr<juce::TextButton> addKitButton;
-    std::unique_ptr<juce::Viewport> viewport;
-    std::unique_ptr<juce::Component> content;
-    juce::OwnedArray<KitTileComponent> tiles;
+    // -------------------------------------------------------------------------
+    // Library tab — scrollable grid of local kit tiles
+    // -------------------------------------------------------------------------
+    class LibraryPanel : public juce::Component
+    {
+    public:
+        LibraryPanel (FlamAudioProcessorEditor* editor, const std::vector<juce::File>& kits)
+            : owner_ (editor)
+        {
+            addKitButton_ = std::make_unique<juce::TextButton> ("Add Kit from File System");
+            addKitButton_->onClick = [this] {
+                owner_->kitBrowserWindow.reset();
+                owner_->openFileBrowser();
+            };
+            addAndMakeVisible (addKitButton_.get());
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(KitBrowserWindow)
+            viewport_ = std::make_unique<juce::Viewport>();
+            content_  = std::make_unique<juce::Component>();
+
+            constexpr int tileW   = 200;
+            constexpr int tileH   = 280;
+            constexpr int spacing = 16;
+            constexpr int cols    = 3;
+
+            int row = 0, col = 0;
+            for (const auto& kitFile : kits)
+            {
+                auto* tile = new KitTileComponent (kitFile,
+                    [this] (juce::File f) {
+                        owner_->loadKitFromPath (f);
+                        owner_->kitBrowserWindow.reset();
+                    },
+                    [this] (juce::File f) { confirmRemoveKit_ (f); });
+
+                tile->setBounds (col * (tileW + spacing) + spacing,
+                                 row * (tileH + spacing) + spacing,
+                                 tileW, tileH);
+                content_->addAndMakeVisible (tile);
+                tiles_.add (tile);
+
+                if (++col >= cols) { col = 0; ++row; }
+            }
+
+            const int rows = (int) std::ceil ((float) kits.size() / cols);
+            content_->setSize (cols * (tileW + spacing) + spacing,
+                               rows * (tileH + spacing) + spacing);
+            viewport_->setViewedComponent (content_.get(), false);
+            viewport_->setScrollBarsShown (true, false);
+            addAndMakeVisible (viewport_.get());
+        }
+
+        void resized() override
+        {
+            auto area = getLocalBounds();
+            addKitButton_->setBounds (area.removeFromTop (44).reduced (8, 6));
+            viewport_->setBounds (area);
+        }
+
+    private:
+        void confirmRemoveKit_ (const juce::File& kitFile)
+        {
+            auto* ownerPtr = owner_;
+            auto options = juce::MessageBoxOptions()
+                .withIconType (juce::MessageBoxIconType::WarningIcon)
+                .withTitle ("Remove Kit")
+                .withMessage ("Are you sure you want to remove this kit from the library?\n\n"
+                              "This will only remove it from the FlamKit library list.\n"
+                              "The kit files will NOT be deleted from your computer.")
+                .withButton ("Remove")
+                .withButton ("Cancel");
+
+            juce::AlertWindow::showAsync (options, [ownerPtr, kitFile] (int result) {
+                if (result == 1)
+                    ownerPtr->handleKitRemoval (kitFile);
+            });
+        }
+
+        FlamAudioProcessorEditor* owner_;
+        std::unique_ptr<juce::TextButton>  addKitButton_;
+        std::unique_ptr<juce::Viewport>    viewport_;
+        std::unique_ptr<juce::Component>   content_;
+        juce::OwnedArray<KitTileComponent> tiles_;
+
+        JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (LibraryPanel)
+    };
+
+    // -------------------------------------------------------------------------
+    // Members — declared so that tabs_ is destroyed before its tab panels
+    // -------------------------------------------------------------------------
+    FlamAudioProcessorEditor*              owner;
+    std::unique_ptr<LibraryPanel>          libraryPanel_;
+    std::unique_ptr<RepoSourcesComponent>  sourcesPanel_;
+    std::unique_ptr<juce::TabbedComponent> tabs_;
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (KitBrowserWindow)
 };
 
 FlamAudioProcessorEditor::FlamAudioProcessorEditor(FlamAudioProcessor& p)
     : AudioProcessorEditor(&p)
     , audioProcessor(p)
 {
+    repositoryManager = std::make_unique<RepositoryManager>();
+
     // Apply the design system to the editor — cascades to all child components.
     setLookAndFeel(&flamLaf);
 
@@ -587,12 +602,17 @@ void FlamAudioProcessorEditor::scanForKits()
 
 void FlamAudioProcessorEditor::openKitBrowser()
 {
-    // Don't open multiple browsers
     if (kitBrowserWindow != nullptr)
         return;
 
-    // Create and show kit browser window
-    kitBrowserWindow = std::make_unique<KitBrowserWindow>(this, availableKits);
+    kitBrowserWindow = std::make_unique<KitBrowserWindow>(this, availableKits, repositoryManager.get());
+}
+
+void FlamAudioProcessorEditor::onRemoteKitInstalled(const juce::File& kitYaml)
+{
+    addKitToLibrary(kitYaml);
+    scanForKits();
+    loadKitFromPath(kitYaml);
 }
 
 void FlamAudioProcessorEditor::openFileBrowser()
