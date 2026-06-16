@@ -327,6 +327,12 @@ private:
     juce::Label kitBrowserLabel;
     juce::Label currentKitLabel;
 
+    // Gear icon button — opens JUCE's Audio/MIDI settings dialog.
+    // Only meaningful in the standalone build; absent in plugin hosts.
+#if JucePlugin_Build_Standalone
+    std::unique_ptr<juce::DrawableButton> settingsButton;
+#endif
+
     juce::GroupComponent drumPadsGroup;
     juce::OwnedArray<DrumPad> drumPads;
 

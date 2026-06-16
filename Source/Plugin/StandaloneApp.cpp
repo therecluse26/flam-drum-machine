@@ -32,6 +32,45 @@
 
 namespace flam {
 
+// StandaloneFilterWindow subclass that hides the stock "Options" button.
+// StandaloneFilterWindow adds optionsButton as a direct (or one-level-deep) child in its
+// constructor. Because optionsButton is a private member we can't call it directly — instead we
+// walk children after the base constructor runs and set matching buttons invisible.
+class FlamStandaloneFilterWindow : public juce::StandaloneFilterWindow
+{
+public:
+    FlamStandaloneFilterWindow (const juce::String& title, juce::Colour bg,
+                                std::unique_ptr<juce::StandalonePluginHolder> holder)
+        : juce::StandaloneFilterWindow (title, bg, std::move (holder))
+    {
+        // The base constructor already ran — options button is now a child.
+        suppressOptionsButton (*this, /*depth=*/0);
+    }
+
+private:
+    // Walks the component tree up to 2 levels deep and hides any Button whose text
+    // matches the stock JUCE standalone Options button label.
+    // NOTE: Use bare 'Component' here — juce_IncludeModuleHeaders.h defines
+    // '#define Component juce::Component', so 'juce::Component' would double-expand.
+    static void suppressOptionsButton (Component& root, int depth)
+    {
+        for (int i = 0; i < root.getNumChildComponents(); ++i)
+        {
+            auto* child = root.getChildComponent (i);
+
+            if (auto* btn = dynamic_cast<juce::Button*> (child))
+            {
+                const auto text = btn->getButtonText().trim().toLowerCase();
+                if (text == "options" || text == "audio/midi settings" || text == "audio & midi settings")
+                    btn->setVisible (false);
+            }
+
+            if (depth < 2)
+                suppressOptionsButton (*child, depth + 1);
+        }
+    }
+};
+
 // Preferred audio buffer size (frames), requested on FIRST launch only. The device clamps this to
 // its nearest supported size. Once the user changes the buffer in Options → Audio/MIDI Settings,
 // their saved DEVICESETUP XML overrides this on every later launch (JUCE merges the saved XML over
@@ -72,7 +111,7 @@ public:
             return nullptr;
         }
 
-        return new juce::StandaloneFilterWindow (
+        return new FlamStandaloneFilterWindow (
             getApplicationName(),
             juce::LookAndFeel::getDefaultLookAndFeel().findColour (juce::ResizableWindow::backgroundColourId),
             createPluginHolder());
@@ -161,6 +200,15 @@ protected:
 private:
     std::unique_ptr<juce::StandalonePluginHolder> pluginHolder;
 };
+
+// Opens JUCE's built-in Audio/MIDI settings dialog from standalone mode.
+// Declared here (after all JUCE standalone includes are in scope) so that PluginEditor.cpp
+// can forward-declare and call it without pulling in juce_StandaloneFilterWindow.h directly.
+void openStandaloneAudioMidiSettings()
+{
+    if (auto* holder = juce::StandalonePluginHolder::getInstance())
+        holder->showAudioSettingsDialog();
+}
 
 } // namespace flam
 

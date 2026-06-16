@@ -11,7 +11,11 @@
 #include <cmath>
 
 #if JucePlugin_Build_Standalone
-#include <juce_audio_plugin_client/Standalone/juce_StandaloneFilterWindow.h>
+// openStandaloneAudioMidiSettings() is defined in StandaloneApp.cpp, which has the full JUCE
+// standalone include chain (juce_audio_devices → juce_StandaloneFilterWindow) in the right order.
+// We can't include juce_StandaloneFilterWindow.h here directly because that header requires
+// juce_audio_devices to already be in scope, which is only guaranteed via the module unity build.
+namespace flam { void openStandaloneAudioMidiSettings(); }
 #endif
 
 namespace flam {
@@ -922,11 +926,7 @@ FlamAudioProcessorEditor::FlamAudioProcessorEditor(FlamAudioProcessor& p)
         settingsButton->setColour (juce::DrawableButton::backgroundOnColourId,
                                    juce::Colours::transparentBlack);
         settingsButton->setTooltip ("Audio/MIDI Settings");
-        settingsButton->onClick = []()
-        {
-            if (auto* holder = juce::StandalonePluginHolder::getInstance())
-                holder->showAudioSettingsDialog();
-        };
+        settingsButton->onClick = []() { openStandaloneAudioMidiSettings(); };
         addAndMakeVisible (*settingsButton);
     }
 #endif
