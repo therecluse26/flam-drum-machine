@@ -147,51 +147,85 @@ public:
         const auto fullBounds = getLocalBounds().toFloat().reduced(2.0f);
         const float flash = hitAlpha;
 
-        // ── Background ──────────────────────────────────────────
-        const auto idleBg  = juce::Colour(FlamColors::Elevated);
-        const auto flashBg = typeColour.withMultipliedBrightness(0.35f + 0.65f * lastVelocity);
-        g.setColour(isPressed ? typeColour.darker(0.25f)
-                              : idleBg.interpolatedWith(flashBg, flash));
-        g.fillRoundedRectangle(fullBounds, 6.0f);
+        // ── Body gradient — elevates pad off the surface ────────────
+        const auto idleTop  = juce::Colour(FlamColors::Elevated).brighter(0.08f);
+        const auto idleBot  = juce::Colour(FlamColors::Elevated).darker(0.10f);
+        const auto flashTop = typeColour.withMultipliedBrightness(0.40f + 0.60f * lastVelocity);
+        const auto flashBot = typeColour.withMultipliedBrightness(0.25f + 0.45f * lastVelocity);
 
+        if (isPressed)
+        {
+            FlamLookAndFeel::paintGradientFill(g, fullBounds,
+                                               typeColour.darker(0.15f),
+                                               typeColour.darker(0.40f),
+                                               6.0f);
+        }
+        else
+        {
+            FlamLookAndFeel::paintGradientFill(g, fullBounds,
+                                               idleTop.interpolatedWith(flashTop, flash),
+                                               idleBot.interpolatedWith(flashBot, flash),
+                                               6.0f);
+        }
+
+        // ── Inner shadow adds recessed depth at the top edge ────────
+        if (!isPressed)
+            FlamLookAndFeel::paintInnerShadow(g, fullBounds,
+                                              juce::Colours::black.withAlpha(0.20f),
+                                              3.0f, 6.0f);
+
+        // ── Hover highlight ──────────────────────────────────────────
         if (isMouseOver && flash < 0.1f && !isPressed)
         {
-            g.setColour(juce::Colours::white.withAlpha(0.04f));
+            g.setColour(juce::Colours::white.withAlpha(0.05f));
             g.fillRoundedRectangle(fullBounds, 6.0f);
         }
 
-        // ── Border — glows at hit intensity ────────────────────
-        g.setColour(typeColour.withAlpha(0.30f + 0.70f * flash));
-        g.drawRoundedRectangle(fullBounds, 6.0f, flash > 0.05f ? 2.0f : 1.0f);
+        // ── Layered border: subtle base, tints toward accent on hit ─
+        const juce::Colour outlineColour =
+            isPressed ? typeColour
+                      : juce::Colour(FlamColors::BorderSubtle)
+                            .interpolatedWith(typeColour, 0.25f + 0.75f * flash);
+        FlamLookAndFeel::paintAccentOutline(g, fullBounds, outlineColour, 6.0f,
+                                            (isPressed || flash > 0.05f) ? 1.5f : 1.0f);
 
-        // ── Velocity bar (thin strip at bottom) ─────────────────
+        if (flash > 0.08f)
+            FlamLookAndFeel::paintAccentGlow(g, fullBounds, typeColour, flash * 5.0f);
+
+        // ── Velocity strip ───────────────────────────────────────────
         auto textBounds = fullBounds.reduced(4.0f, 2.0f);
 
         if (lastVelocity > 0.0f)
         {
-            auto velStrip = textBounds.removeFromBottom(4.0f);
+            auto velStrip = textBounds.removeFromBottom(5.0f);
             textBounds.removeFromBottom(2.0f); // gap
 
-            g.setColour(juce::Colours::black.withAlpha(0.45f));
-            g.fillRoundedRectangle(velStrip, 2.0f);
+            // Track background
+            FlamLookAndFeel::paintGradientFill(g, velStrip,
+                                               juce::Colours::black.withAlpha(0.55f),
+                                               juce::Colours::black.withAlpha(0.30f),
+                                               2.0f);
 
-            g.setColour(typeColour.withMultipliedBrightness(0.7f + 0.3f * flash));
-            g.fillRoundedRectangle(velStrip.withWidth(velStrip.getWidth() * lastVelocity), 2.0f);
+            // Fill indicator
+            FlamLookAndFeel::paintGradientFill(g, velStrip.withWidth(velStrip.getWidth() * lastVelocity),
+                                               typeColour.withMultipliedBrightness(0.85f + 0.15f * flash),
+                                               typeColour.withMultipliedBrightness(0.60f + 0.10f * flash),
+                                               2.0f);
         }
 
-        // ── Pad name (upper 60% of text area) ──────────────────
-        g.setFont(juce::Font(11.0f, juce::Font::bold));
-        g.setColour(juce::Colours::white.withAlpha(0.90f));
+        // ── Pad name — captionBold (12 px meets legibility floor) ───
+        g.setFont(FlamType::captionBold());
+        g.setColour(juce::Colours::white.withAlpha(0.92f));
         g.drawText(padName,
                    textBounds.withTrimmedBottom(textBounds.getHeight() * 0.40f),
                    juce::Justification::centred);
 
-        // ── MIDI note + velocity hint (lower 40%) ───────────────
+        // ── MIDI note + velocity hint — micro (12 px) ────────────────
         juce::String subLabel = "(" + juce::String(note) + ")";
         if (flash > 0.08f)
             subLabel += "  v" + juce::String(juce::roundToInt(lastVelocity * 127.0f));
-        g.setFont(juce::Font(9.0f));
-        g.setColour(juce::Colours::white.withAlpha(0.40f + 0.35f * flash));
+        g.setFont(FlamType::micro());
+        g.setColour(juce::Colours::white.withAlpha(0.45f + 0.30f * flash));
         g.drawText(subLabel,
                    textBounds.withTrimmedTop(textBounds.getHeight() * 0.60f),
                    juce::Justification::centred);
