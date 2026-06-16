@@ -66,8 +66,8 @@ public:
         g.setColour(juce::Colour(FlamColors::Background));
         g.fillRoundedRectangle(bounds, 2.0f);
 
-        // Clip indicator strip at top
-        const float clipH = 8.0f;
+        // Clip indicator strip at top — 14px tall so the micro() 12px label fits
+        const float clipH = 14.0f;
         auto clipBounds = bounds.removeFromTop(clipH);
         g.setColour(displayClipped ? juce::Colour(FlamColors::AccentRed)
                                    : juce::Colour(FlamColors::Elevated));
@@ -75,7 +75,7 @@ public:
 
         if (displayClipped)
         {
-            g.setFont(7.0f);
+            g.setFont(FlamType::micro());
             g.setColour(juce::Colour(FlamColors::TextPrimary));
             g.drawText("CLIP", clipBounds, juce::Justification::centred);
         }

@@ -104,8 +104,8 @@ public:
         if (label.isNotEmpty())
         {
             g.setColour(juce::Colour(FlamColors::TextSecondary));
-            g.setFont(10.0f);
-            auto labelBounds = bounds.removeFromTop(14.0f);
+            g.setFont(FlamType::label());
+            auto labelBounds = bounds.removeFromTop(16.0f);
             g.drawText(label, labelBounds, juce::Justification::centred);
         }
 
@@ -113,7 +113,7 @@ public:
         if (showValue)
         {
             g.setColour(juce::Colour(FlamColors::TextSecondary));
-            g.setFont(9.0f);
+            g.setFont(FlamType::micro());
 
             juce::String valueText;
             if (textSuffix == "L/R")
@@ -131,7 +131,7 @@ public:
                 valueText = juce::String(value, 1) + textSuffix;
             }
 
-            auto textBounds = bounds.removeFromBottom(14.0f);
+            auto textBounds = bounds.removeFromBottom(16.0f);
             g.drawText(valueText, textBounds, juce::Justification::centred);
         }
 
@@ -142,10 +142,17 @@ public:
         const float centerY = knobBounds.getCentreY();
         const float radius = diameter * 0.5f;
 
-        // Draw knob body
-        g.setColour(isMouseOver || isDragging ? juce::Colour(FlamColors::Interactive)
-                                              : juce::Colour(FlamColors::Elevated));
-        g.fillEllipse(centerX - radius, centerY - radius, diameter, diameter);
+        // Draw knob body with gradient for depth
+        {
+            auto base = isMouseOver || isDragging ? juce::Colour(FlamColors::Interactive)
+                                                  : juce::Colour(FlamColors::Elevated);
+            juce::ColourGradient grad(base.brighter(0.12f),
+                                      centerX, centerY - radius,
+                                      base.darker(0.12f),
+                                      centerX, centerY + radius, false);
+            g.setGradientFill(grad);
+            g.fillEllipse(centerX - radius, centerY - radius, diameter, diameter);
+        }
 
         // Draw knob border
         g.setColour(juce::Colour(isMouseOver || isDragging ? FlamColors::BorderActive

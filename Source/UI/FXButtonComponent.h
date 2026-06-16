@@ -35,15 +35,17 @@ public:
 
         if (isEnabled)
         {
-            g.setColour(highlightColour.withAlpha(0.18f));
-            g.fillRoundedRectangle(boundsF, 3.0f);
+            FlamLookAndFeel::paintGradientFill(g, boundsF,
+                highlightColour.withAlpha(0.25f),
+                highlightColour.withAlpha(0.10f), 3.0f);
             g.setColour(highlightColour.withAlpha(0.8f));
             g.drawRoundedRectangle(boundsF.reduced(0.5f), 3.0f, 1.0f);
         }
         else
         {
-            g.setColour(juce::Colour(FlamColors::Elevated));
-            g.fillRoundedRectangle(boundsF, 3.0f);
+            auto base = juce::Colour(FlamColors::Elevated);
+            FlamLookAndFeel::paintGradientFill(g, boundsF,
+                base.brighter(0.08f), base, 3.0f);
             g.setColour(juce::Colour(FlamColors::BorderSubtle));
             g.drawRoundedRectangle(boundsF.reduced(0.5f), 3.0f, 1.0f);
         }
@@ -52,7 +54,7 @@ public:
         auto labelBounds = bounds.reduced(4, 0).removeFromLeft(bounds.getWidth() - 20);
         g.setColour(isEnabled ? juce::Colour(FlamColors::TextPrimary)
                               : juce::Colour(FlamColors::TextDisabled));
-        g.setFont(juce::Font(11.0f, juce::Font::bold));
+        g.setFont(FlamType::captionBold());
         g.drawText(fxName, labelBounds, juce::Justification::centredLeft);
 
         // Power symbol on right side

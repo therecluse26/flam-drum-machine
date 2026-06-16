@@ -48,16 +48,18 @@ public:
     {
         g.fillAll(juce::Colour(FlamColors::Surface));
 
-        // Section header
+        // Section header with gradient for depth
         auto headerBounds = getLocalBounds().removeFromTop(40).toFloat();
-        g.setColour(juce::Colour(FlamColors::Surface).brighter(0.05f));
-        g.fillRect(headerBounds);
+        auto base = juce::Colour(FlamColors::Surface);
+        FlamLookAndFeel::paintGradientFill(g, headerBounds,
+            base.brighter(0.10f), base.brighter(0.02f));
 
+        auto dividerBounds = headerBounds;
         g.setColour(juce::Colour(FlamColors::BorderSubtle));
-        g.fillRect(headerBounds.removeFromBottom(1.0f));
+        g.fillRect(dividerBounds.removeFromBottom(1.0f));
 
         g.setColour(juce::Colour(FlamColors::TextSecondary));
-        g.setFont(juce::Font(11.0f, juce::Font::bold));
+        g.setFont(FlamType::labelBold());
         g.drawText("MIXER", getLocalBounds().removeFromTop(40),
                    juce::Justification::centred);
     }
