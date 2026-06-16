@@ -100,9 +100,11 @@ public:
 
         auto trackBounds = juce::Rectangle<float>(trackX, trackTop, trackWidth, trackHeight);
 
-        // Draw track groove
+        // Draw track groove with inner shadow for recessed feel
         g.setColour(juce::Colour(FlamColors::Background));
         g.fillRoundedRectangle(trackBounds, 2.0f);
+        FlamLookAndFeel::paintInnerShadow(g, trackBounds,
+            juce::Colours::black.withAlpha(0.35f), 3.0f, 2.0f);
 
         // Draw track border
         g.setColour(juce::Colour(FlamColors::BorderSubtle));
@@ -142,10 +144,13 @@ public:
             thumbHeight
         );
 
-        // Thumb body
-        g.setColour(isMouseOver || isDragging ? juce::Colour(FlamColors::Interactive)
-                                              : juce::Colour(FlamColors::Elevated));
-        g.fillRoundedRectangle(thumbBounds, 3.0f);
+        // Thumb body with gradient for raised feel
+        {
+            auto base = isMouseOver || isDragging ? juce::Colour(FlamColors::Interactive)
+                                                  : juce::Colour(FlamColors::Elevated);
+            FlamLookAndFeel::paintGradientFill(g, thumbBounds,
+                base.brighter(0.15f), base.darker(0.08f), 3.0f);
+        }
 
         // Thumb border
         g.setColour(isMouseOver || isDragging ? juce::Colour(FlamColors::AccentBlue)
@@ -156,7 +161,7 @@ public:
         if (showValue)
         {
             g.setColour(juce::Colour(FlamColors::TextSecondary));
-            g.setFont(9.0f);
+            g.setFont(FlamType::micro());
 
             juce::String valueText = juce::String(value, 1) + textSuffix;
             auto textBounds = bounds.removeFromBottom(20.0f);

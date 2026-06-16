@@ -35,7 +35,7 @@ public:
     {
         // Master label
         addAndMakeVisible(nameLabel);
-        nameLabel.setFont(juce::Font(11.0f, juce::Font::bold));
+        nameLabel.setFont(FlamType::captionBold());
         nameLabel.setJustificationType(juce::Justification::centred);
         nameLabel.setColour(juce::Label::textColourId, juce::Colour(FlamColors::AccentBlue));
         nameLabel.setText("MASTER", juce::dontSendNotification);
@@ -91,12 +91,13 @@ public:
 
     void paint(juce::Graphics& g) override
     {
-        // Master strip — slightly elevated from regular channels, blue left accent
-        g.setColour(juce::Colour(FlamColors::Interactive));
-        g.fillAll();
+        // Master strip — gradient with warm tint + blue left accent line
+        auto base = juce::Colour(FlamColors::Interactive);
+        FlamLookAndFeel::paintGradientFill(g, getLocalBounds().toFloat(),
+            base.brighter(0.08f), base.darker(0.04f));
 
         // Blue left accent line to distinguish master from channel strips
-        g.setColour(juce::Colour(FlamColors::AccentBlue));
+        g.setColour(juce::Colour(FlamColors::AccentBlue).withAlpha(0.85f));
         g.fillRect(0, 0, 2, getHeight());
     }
 

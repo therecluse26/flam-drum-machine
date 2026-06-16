@@ -103,7 +103,7 @@ private:
     // Constants
     // -------------------------------------------------------------------------
     static constexpr const char* kOfficialRepoUrl =
-        "https://raw.githubusercontent.com/flam-drum-machine/flam-drum-machine/main/repo/index.json";
+        "https://raw.githubusercontent.com/therecluse26/flam-drum-machine/main/repo/index.json";
     static constexpr const char* kSettingsKey = "repoUrls";
 
     // -------------------------------------------------------------------------

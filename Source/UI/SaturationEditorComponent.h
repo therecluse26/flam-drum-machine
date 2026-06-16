@@ -75,7 +75,7 @@ public:
         g.fillRect(header.removeFromBottom(1.5f));
 
         g.setColour(juce::Colour(FlamColors::TextPrimary));
-        g.setFont(juce::Font(13.0f, juce::Font::bold));
+        g.setFont(FlamType::labelBold());
         g.drawText("SATURATION", getLocalBounds().removeFromTop(32), juce::Justification::centred);
     }
 

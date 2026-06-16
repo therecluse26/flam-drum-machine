@@ -39,7 +39,7 @@ public:
     {
         // Channel name label
         addAndMakeVisible(nameLabel);
-        nameLabel.setFont(juce::Font(11.0f, juce::Font::bold));
+        nameLabel.setFont(FlamType::captionBold());
         nameLabel.setJustificationType(juce::Justification::centred);
         nameLabel.setColour(juce::Label::textColourId, juce::Colour(FlamColors::TextPrimary));
 
@@ -123,8 +123,10 @@ public:
 
     void paint(juce::Graphics& g) override
     {
-        g.setColour(juce::Colour(FlamColors::Elevated));
-        g.fillAll();
+        // Subtle vertical gradient gives strips a raised, tactile appearance
+        auto base = juce::Colour(FlamColors::Elevated);
+        FlamLookAndFeel::paintGradientFill(g, getLocalBounds().toFloat(),
+            base.brighter(0.06f), base.darker(0.04f));
 
         // Right-side separator line between strips
         g.setColour(juce::Colour(FlamColors::BorderSubtle));

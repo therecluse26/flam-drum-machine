@@ -43,7 +43,7 @@ public:
             addAndMakeVisible(label);
             label.setText(getBandFrequencyLabel(i), juce::dontSendNotification);
             label.setJustificationType(juce::Justification::centred);
-            label.setFont(juce::Font(10.0f));
+            label.setFont(FlamType::caption());
         }
 
         updateFromMixer();
@@ -67,7 +67,7 @@ public:
         g.fillRect(header.removeFromBottom(1.5f));
 
         g.setColour(juce::Colour(FlamColors::TextPrimary));
-        g.setFont(juce::Font(13.0f, juce::Font::bold));
+        g.setFont(FlamType::labelBold());
         g.drawText("EQ  —  10-Band Graphic", getLocalBounds().removeFromTop(32),
                    juce::Justification::centred);
     }
