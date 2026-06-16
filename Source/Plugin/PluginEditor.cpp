@@ -10,6 +10,10 @@
 #include <thread>
 #include <cmath>
 
+#if JucePlugin_Build_Standalone
+#include <juce_audio_plugin_client/Standalone/juce_StandaloneFilterWindow.h>
+#endif
+
 namespace flam {
 
 // Kit tile component that displays kit information
@@ -45,18 +49,27 @@ public:
     void paint(juce::Graphics& g) override
     {
         auto bounds = getLocalBounds().toFloat().reduced(8.0f);
+        const juce::Colour cardBase = isMouseOver ? juce::Colour(FlamColors::Interactive)
+                                                  : juce::Colour(FlamColors::Elevated);
 
-        g.setColour(isMouseOver ? juce::Colour(FlamColors::Interactive)
-                                : juce::Colour(FlamColors::Elevated));
-        g.fillRoundedRectangle(bounds, 8.0f);
+        // Gradient fill gives the card a subtle lifted-surface feel
+        FlamLookAndFeel::paintGradientFill(g, bounds,
+                                            cardBase.brighter(0.06f),
+                                            cardBase.darker(0.06f),
+                                            8.0f);
+
+        // Soft glow around the card border on hover
+        if (isMouseOver)
+            FlamLookAndFeel::paintAccentGlow(g, bounds,
+                                              juce::Colour(FlamColors::AccentBlue), 5.0f);
 
         g.setColour(isMouseOver ? juce::Colour(FlamColors::AccentBlue).withAlpha(0.7f)
                                 : juce::Colour(FlamColors::BorderSubtle));
-        g.drawRoundedRectangle(bounds, 8.0f, 1.5f);
+        g.drawRoundedRectangle(bounds.reduced(0.5f), 8.0f, 1.5f);
 
         auto contentBounds = bounds.reduced(8.0f);
 
-        // Cover image or placeholder
+        // Cover image or recessed placeholder
         auto imageBounds = contentBounds.removeFromTop(contentBounds.getHeight() * 0.5f);
         if (coverImage.isValid())
         {
@@ -66,35 +79,37 @@ public:
         {
             g.setColour(juce::Colour(FlamColors::Surface));
             g.fillRoundedRectangle(imageBounds, 4.0f);
+            FlamLookAndFeel::paintInnerShadow(g, imageBounds,
+                                               juce::Colours::black.withAlpha(0.45f), 4.0f, 4.0f);
             g.setColour(juce::Colour(FlamColors::TextDisabled));
-            g.setFont(20.0f);
+            g.setFont(FlamType::display());
             g.drawText("FLAM", imageBounds, juce::Justification::centred);
         }
 
         contentBounds.removeFromTop(8.0f);
 
         g.setColour(juce::Colour(FlamColors::TextPrimary));
-        g.setFont(juce::Font(13.0f, juce::Font::bold));
+        g.setFont(FlamType::labelBold());
         g.drawText(kit ? kit->name : "Unknown Kit",
-                   contentBounds.removeFromTop(16.0f), juce::Justification::centredLeft);
+                   contentBounds.removeFromTop(17.0f), juce::Justification::centredLeft);
 
         g.setColour(juce::Colour(FlamColors::TextSecondary));
-        g.setFont(juce::Font(11.0f));
+        g.setFont(FlamType::caption());
         g.drawText(kit && kit->author.isNotEmpty() ? kit->author : "",
-                   contentBounds.removeFromTop(13.0f), juce::Justification::centredLeft);
+                   contentBounds.removeFromTop(14.0f), juce::Justification::centredLeft);
 
         g.drawText(kit && kit->version.isNotEmpty() ? ("v" + kit->version) : "",
-                   contentBounds.removeFromTop(13.0f), juce::Justification::centredLeft);
+                   contentBounds.removeFromTop(14.0f), juce::Justification::centredLeft);
 
         contentBounds.removeFromTop(4.0f);
 
         g.setColour(juce::Colour(FlamColors::TextDisabled));
-        g.setFont(juce::Font(10.0f));
+        g.setFont(FlamType::micro());
         if (kit)
         {
             juce::String stats = juce::String(kit->getDrumPieceCount()) + " drums · " +
                                  juce::String(kit->getTotalSampleCount()) + " samples";
-            g.drawText(stats, contentBounds.removeFromTop(12.0f), juce::Justification::centredLeft);
+            g.drawText(stats, contentBounds.removeFromTop(13.0f), juce::Justification::centredLeft);
         }
     }
 
@@ -337,18 +352,28 @@ public:
     void paint (juce::Graphics& g) override
     {
         const auto bounds = getLocalBounds().toFloat().reduced (6.0f);
+        const juce::Colour cardBase = isMouseOver_ ? juce::Colour(FlamColors::Interactive)
+                                                   : juce::Colour(FlamColors::Elevated);
 
-        g.setColour (isMouseOver_ ? juce::Colour (FlamColors::Interactive)
-                                  : juce::Colour (FlamColors::Elevated));
-        g.fillRoundedRectangle (bounds, 8.0f);
+        // Gradient fill gives the card a subtle lifted-surface feel
+        FlamLookAndFeel::paintGradientFill(g, bounds,
+                                            cardBase.brighter(0.06f),
+                                            cardBase.darker(0.06f),
+                                            8.0f);
+
+        // Soft glow around the card border on hover
+        if (isMouseOver_)
+            FlamLookAndFeel::paintAccentGlow(g, bounds,
+                                              juce::Colour(FlamColors::AccentBlue), 5.0f);
+
         g.setColour (isMouseOver_ ? juce::Colour (FlamColors::AccentBlue).withAlpha (0.5f)
                                   : juce::Colour (FlamColors::BorderSubtle));
-        g.drawRoundedRectangle (bounds, 8.0f, 1.5f);
+        g.drawRoundedRectangle (bounds.reduced(0.5f), 8.0f, 1.5f);
 
         auto content = bounds.reduced (8.0f);
         content.removeFromBottom (36.0f); // reserved for download button
 
-        // Cover image / placeholder
+        // Cover image / recessed placeholder
         auto imgArea = content.removeFromTop (content.getHeight() * 0.45f);
         if (coverImage_.isValid())
         {
@@ -358,44 +383,47 @@ public:
         {
             g.setColour (juce::Colour (FlamColors::Surface));
             g.fillRoundedRectangle (imgArea, 4.0f);
+            FlamLookAndFeel::paintInnerShadow(g, imgArea,
+                                               juce::Colours::black.withAlpha(0.4f), 4.0f, 4.0f);
             g.setColour (juce::Colour (FlamColors::TextDisabled));
-            g.setFont (18.0f);
+            g.setFont (FlamType::display());
             g.drawText ("FLAM", imgArea, juce::Justification::centred);
         }
 
         content.removeFromTop (6.0f);
 
         g.setColour (juce::Colour (FlamColors::TextPrimary));
-        g.setFont (juce::Font (12.0f, juce::Font::bold));
-        g.drawText (entry_.name, content.removeFromTop (16.0f), juce::Justification::centredLeft);
+        g.setFont (FlamType::labelBold());
+        g.drawText (entry_.name, content.removeFromTop (17.0f), juce::Justification::centredLeft);
 
         g.setColour (juce::Colour (FlamColors::TextSecondary));
-        g.setFont (juce::Font (10.0f));
+        g.setFont (FlamType::caption());
         if (entry_.author.isNotEmpty())
-            g.drawText (entry_.author, content.removeFromTop (13.0f), juce::Justification::centredLeft);
+            g.drawText (entry_.author, content.removeFromTop (14.0f), juce::Justification::centredLeft);
         else
-            content.removeFromTop (13.0f);
+            content.removeFromTop (14.0f);
 
         content.removeFromTop (4.0f);
 
-        // License badge
+        // License badge — width derived from actual font metrics
         {
             auto row = content.removeFromTop (18.0f);
             if (entry_.license.isNotEmpty())
             {
+                // 7.5px/char approximation for 12px bold; avoids deprecated getStringWidthFloat
                 const float bw = std::min (row.getWidth(),
-                                           (float) entry_.license.length() * 6.5f + 14.0f);
+                                           (float) entry_.license.length() * 7.5f + 16.0f);
                 auto badge = row.removeFromLeft (bw).reduced (0.0f, 1.0f);
                 g.setColour (licenseBadgeColour (entry_.license));
                 g.fillRoundedRectangle (badge, 4.0f);
                 g.setColour (juce::Colours::white);
-                g.setFont (juce::Font (9.5f, juce::Font::bold));
+                g.setFont (FlamType::captionBold());
                 g.drawText (entry_.license, badge, juce::Justification::centred);
             }
             else
             {
                 g.setColour (juce::Colour (FlamColors::AccentRed).withAlpha (0.8f));
-                g.setFont (juce::Font (9.5f));
+                g.setFont (FlamType::caption());
                 g.drawText ("No License", row, juce::Justification::centredLeft);
             }
         }
@@ -411,7 +439,7 @@ public:
             if (stats.isNotEmpty())
             {
                 g.setColour (juce::Colour (FlamColors::TextDisabled));
-                g.setFont (juce::Font (10.0f));
+                g.setFont (FlamType::micro());
                 g.drawText (stats, content.removeFromTop (13.0f), juce::Justification::centredLeft);
             }
         }
@@ -419,13 +447,13 @@ public:
         // "Installed" badge — top-right corner of the card
         if (entry_.isInstalled)
         {
-            constexpr float bw = 76.0f, bh = 20.0f;
+            constexpr float bw = 80.0f, bh = 20.0f;
             auto badge = juce::Rectangle<float> (bounds.getRight() - bw - 4.0f,
                                                   bounds.getY() + 4.0f, bw, bh);
             g.setColour (juce::Colour (FlamColors::AccentGreen).withAlpha (0.9f));
             g.fillRoundedRectangle (badge, 5.0f);
             g.setColour (juce::Colours::white);
-            g.setFont (juce::Font (9.5f, juce::Font::bold));
+            g.setFont (FlamType::captionBold());
             g.drawText (juce::String (juce::CharPointer_UTF8 ("\xe2\x9c\x93  Installed")), badge, juce::Justification::centred);
         }
     }
@@ -474,7 +502,7 @@ public:
         : repoManager_ (mgr)
         , kitInstalledCallback_ (std::move (onKitInstalled))
     {
-        statusLabel_.setFont (juce::Font (13.0f));
+        statusLabel_.setFont (FlamType::label());
         statusLabel_.setColour (juce::Label::textColourId, juce::Colour (FlamColors::TextSecondary));
         statusLabel_.setJustificationType (juce::Justification::centred);
         statusLabel_.setText (juce::String (juce::CharPointer_UTF8 ("Fetching repository index\xe2\x80\xa6")), juce::dontSendNotification);
@@ -806,6 +834,52 @@ private:
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (KitBrowserWindow)
 };
 
+#if JucePlugin_Build_Standalone
+// Returns a gear-icon Path centered at (12,12) fitting in a 24×24 box.
+// 8 teeth, flat tops, circular valley arcs, even-odd center hole.
+static juce::Path buildGearPath()
+{
+    const float cx     = 12.0f, cy = 12.0f;
+    const float outerR = 10.0f;  // tooth-tip radius
+    const float innerR = 7.5f;   // valley / tooth-base radius
+    const float holeR  = 3.5f;   // center hole radius
+    const int   teeth  = 8;
+    const float toothHalf = 0.22f; // half-angular width of each tooth (radians)
+
+    juce::Path p;
+    const float step       = juce::MathConstants<float>::twoPi / (float)teeth;
+    const float startAngle = -juce::MathConstants<float>::halfPi;
+
+    for (int i = 0; i < teeth; ++i)
+    {
+        const float base      = startAngle + (float)i * step;
+        const float a0        = base - toothHalf;       // leading tooth edge
+        const float a1        = base + toothHalf;       // trailing tooth edge
+        const float nextValley = base + step - toothHalf; // next tooth's leading edge
+
+        // Leading valley → tooth tip
+        if (i == 0)
+            p.startNewSubPath (cx + innerR * std::cos(a0), cy + innerR * std::sin(a0));
+        else
+            p.lineTo (cx + innerR * std::cos(a0), cy + innerR * std::sin(a0));
+
+        p.lineTo (cx + outerR * std::cos(a0), cy + outerR * std::sin(a0)); // up leading face
+        p.lineTo (cx + outerR * std::cos(a1), cy + outerR * std::sin(a1)); // across tooth top
+        p.lineTo (cx + innerR * std::cos(a1), cy + innerR * std::sin(a1)); // down trailing face
+
+        // Arc from trailing tooth base to next tooth's leading base
+        p.addArc (cx - innerR, cy - innerR, innerR * 2.0f, innerR * 2.0f, a1, nextValley, false);
+    }
+    p.closeSubPath();
+
+    // Center hole — even-odd rule (setUsingNonZeroWinding(false)) makes it transparent.
+    p.addEllipse (cx - holeR, cy - holeR, holeR * 2.0f, holeR * 2.0f);
+    p.setUsingNonZeroWinding (false);
+
+    return p;
+}
+#endif
+
 FlamAudioProcessorEditor::FlamAudioProcessorEditor(FlamAudioProcessor& p)
     : AudioProcessorEditor(&p)
     , audioProcessor(p)
@@ -815,12 +889,47 @@ FlamAudioProcessorEditor::FlamAudioProcessorEditor(FlamAudioProcessor& p)
     // Apply the design system to the editor — cascades to all child components.
     setLookAndFeel(&flamLaf);
 
-    // Title — left-aligned wordmark
+    // Title — left-aligned wordmark using the 108.1 display scale
     titleLabel.setText("FLAMKIT", juce::dontSendNotification);
-    titleLabel.setFont(juce::Font(18.0f, juce::Font::bold));
+    titleLabel.setFont(FlamType::display());   // 20 px bold, per typography scale
     titleLabel.setJustificationType(juce::Justification::centredLeft);
     titleLabel.setColour(juce::Label::textColourId, juce::Colour(FlamColors::TextPrimary));
     addAndMakeVisible(titleLabel);
+
+    // Gear settings button — standalone only; hidden/no-op in plugin hosts.
+#if JucePlugin_Build_Standalone
+    {
+        const auto gearPath = buildGearPath();
+
+        auto makeGearDrawable = [&](juce::Colour colour) -> std::unique_ptr<juce::DrawablePath>
+        {
+            auto d = std::make_unique<juce::DrawablePath>();
+            d->setPath (gearPath);
+            d->setFill (juce::FillType (colour));
+            return d;
+        };
+
+        auto normalD = makeGearDrawable (juce::Colour (FlamColors::TextSecondary));
+        auto hoverD  = makeGearDrawable (juce::Colour (FlamColors::TextPrimary));
+        auto downD   = makeGearDrawable (juce::Colour (FlamColors::AccentBlue));
+
+        settingsButton = std::make_unique<juce::DrawableButton> ("settings",
+                                                                  juce::DrawableButton::ImageFitted);
+        settingsButton->setImages (normalD.get(), hoverD.get(), downD.get());
+        // Transparent background — it's an icon in the header, not a regular button.
+        settingsButton->setColour (juce::DrawableButton::backgroundColourId,
+                                   juce::Colours::transparentBlack);
+        settingsButton->setColour (juce::DrawableButton::backgroundOnColourId,
+                                   juce::Colours::transparentBlack);
+        settingsButton->setTooltip ("Audio/MIDI Settings");
+        settingsButton->onClick = []()
+        {
+            if (auto* holder = juce::StandalonePluginHolder::getInstance())
+                holder->showAudioSettingsDialog();
+        };
+        addAndMakeVisible (*settingsButton);
+    }
+#endif
 
     // "Kit:" prefix — subdued
     kitBrowserLabel.setText("Kit:", juce::dontSendNotification);
@@ -845,13 +954,13 @@ FlamAudioProcessorEditor::FlamAudioProcessorEditor(FlamAudioProcessor& p)
 
     // Tab 1: Drum Pads (full width)
     mainTab = std::make_unique<MainTabComponent>(&drumPadsGroup, &drumPads);
-    mixerTabs->addTab("Main", juce::Colours::darkgrey, mainTab.get(), false);
+    mixerTabs->addTab("Main", juce::Colour(FlamColors::Surface), mainTab.get(), false);
 
     // Tab 2: Mixer (full width)
     if (auto* mixer = audioProcessor.getMixer())
     {
         perChannelMixerPanel = std::make_unique<MixerPanel>(*mixer);
-        mixerTabs->addTab("Mixer", juce::Colours::darkgrey, perChannelMixerPanel.get(), false);
+        mixerTabs->addTab("Mixer", juce::Colour(FlamColors::Surface), perChannelMixerPanel.get(), false);
     }
 
     addAndMakeVisible(mixerTabs.get());
@@ -877,14 +986,19 @@ void FlamAudioProcessorEditor::paint(juce::Graphics& g)
     // Base background
     g.fillAll(juce::Colour(FlamColors::Background));
 
-    // Header bar — Surface tone with accent bottom border
+    // Header — subtle top-to-bottom gradient for depth
     auto headerBounds = getLocalBounds().removeFromTop(100).toFloat();
-    g.setColour(juce::Colour(FlamColors::Surface));
-    g.fillRect(headerBounds);
+    FlamLookAndFeel::paintGradientFill (g, headerBounds,
+        juce::Colour (FlamColors::Surface).brighter (0.06f),
+        juce::Colour (FlamColors::Surface));
 
-    // Accent border at the bottom of the header
-    g.setColour(juce::Colour(FlamColors::AccentBlue).withAlpha(0.5f));
-    g.fillRect(headerBounds.removeFromBottom(1.0f));
+    // Single-pixel white sheen at the very top (premium gloss feel)
+    g.setColour (juce::Colours::white.withAlpha (0.04f));
+    g.fillRect (headerBounds.removeFromTop (1.0f));
+
+    // 2 px accent bar at the bottom of the header
+    g.setColour (juce::Colour (FlamColors::AccentBlue).withAlpha (0.7f));
+    g.fillRect (headerBounds.removeFromBottom (2.0f));
 }
 
 void FlamAudioProcessorEditor::resized()
@@ -894,9 +1008,13 @@ void FlamAudioProcessorEditor::resized()
     // 100px header: first 50px = title row, next 50px = kit row
     auto headerArea = bounds.removeFromTop(100).reduced(16, 0);
 
-    // Title row: FLAMKIT wordmark on left
+    // Title row: FLAMKIT wordmark on left; gear settings button on right (standalone only)
     auto titleRow = headerArea.removeFromTop(50);
-    titleLabel.setBounds(titleRow.removeFromLeft(120));
+#if JucePlugin_Build_Standalone
+    if (settingsButton)
+        settingsButton->setBounds (titleRow.removeFromRight(44).withSizeKeepingCentre(28, 28));
+#endif
+    titleLabel.setBounds(titleRow.removeFromLeft(140));
 
     // Kit row: "Kit:" | kit name | [Browse] button
     auto kitRow = headerArea.removeFromTop(44);
