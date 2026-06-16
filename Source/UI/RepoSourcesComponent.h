@@ -31,7 +31,7 @@ public:
     {
         // ── Header labels ─────────────────────────────────────────────────────
         headerLabel_.setText ("Repository Sources", juce::dontSendNotification);
-        headerLabel_.setFont (juce::Font (14.0f, juce::Font::bold));
+        headerLabel_.setFont (FlamType::bodyBold());
         headerLabel_.setColour (juce::Label::textColourId, juce::Colour (FlamColors::TextPrimary));
         addAndMakeVisible (headerLabel_);
 
@@ -49,7 +49,7 @@ public:
         addAndMakeVisible (urlList_);
 
         // ── URL input + Add button ────────────────────────────────────────────
-        urlInput_.setFont (juce::Font (12.0f));
+        urlInput_.setFont (FlamType::caption());
         urlInput_.setColour (juce::TextEditor::backgroundColourId,  juce::Colour (FlamColors::Elevated));
         urlInput_.setColour (juce::TextEditor::textColourId,        juce::Colour (FlamColors::TextPrimary));
         urlInput_.setColour (juce::TextEditor::outlineColourId,     juce::Colour (FlamColors::BorderSubtle));
@@ -65,13 +65,13 @@ public:
 
         // ── Inline error label ────────────────────────────────────────────────
         errorLabel_.setText ("", juce::dontSendNotification);
-        errorLabel_.setFont (juce::Font (11.0f));
+        errorLabel_.setFont (FlamType::caption());
         errorLabel_.setColour (juce::Label::textColourId, juce::Colour (FlamColors::AccentRed));
         addAndMakeVisible (errorLabel_);
 
         // ── Status label ──────────────────────────────────────────────────────
         statusLabel_.setText ("Not yet refreshed", juce::dontSendNotification);
-        statusLabel_.setFont (juce::Font (11.0f));
+        statusLabel_.setFont (FlamType::caption());
         statusLabel_.setColour (juce::Label::textColourId, juce::Colour (FlamColors::TextSecondary));
         addAndMakeVisible (statusLabel_);
 
@@ -201,7 +201,7 @@ private:
     // Internal helpers
     // -------------------------------------------------------------------------
     static constexpr const char* kOfficialRepoUrl =
-        "https://raw.githubusercontent.com/flam-drum-machine/flam-drum-machine/main/repo/index.json";
+        "https://raw.githubusercontent.com/therecluse26/flam-drum-machine/main/repo/index.json";
 
     void reloadUrls()
     {
@@ -276,11 +276,11 @@ private:
     public:
         explicit RowComponent (RepoSourcesComponent& owner) : owner_ (owner)
         {
-            urlLabel_.setFont (juce::Font (12.0f));
+            urlLabel_.setFont (FlamType::caption());
             urlLabel_.setColour (juce::Label::textColourId, juce::Colour (FlamColors::TextPrimary));
             addAndMakeVisible (urlLabel_);
 
-            suffixLabel_.setFont (juce::Font (11.0f));
+            suffixLabel_.setFont (FlamType::caption());
             suffixLabel_.setColour (juce::Label::textColourId, juce::Colour (FlamColors::TextSecondary));
             addAndMakeVisible (suffixLabel_);
 

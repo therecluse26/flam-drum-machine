@@ -42,6 +42,31 @@ struct FlamColors
     static constexpr juce::uint32 MeterClip     = 0xFFD42020; // Red zone / clip
 };
 
+// === Typography Scale ===
+// Named tiers → concrete pixel sizes and weights. Single source of truth for every
+// font literal. Floor rule: native-widget surfaces must be ≥ 12 px (Caption).
+// Custom-paint small labels (meters, tick marks, tails) are exempt and owned by
+// sub-issues 108.3–108.5.
+struct FlamType
+{
+    static juce::Font display()     { return juce::Font(20.0f, juce::Font::bold);  }
+
+    static juce::Font title()       { return juce::Font(16.0f, juce::Font::plain); }
+    static juce::Font titleBold()   { return juce::Font(16.0f, juce::Font::bold);  }
+
+    static juce::Font body()        { return juce::Font(14.0f, juce::Font::plain); }
+    static juce::Font bodyBold()    { return juce::Font(14.0f, juce::Font::bold);  }
+
+    static juce::Font label()       { return juce::Font(13.0f, juce::Font::plain); }
+    static juce::Font labelBold()   { return juce::Font(13.0f, juce::Font::bold);  }
+
+    static juce::Font caption()     { return juce::Font(12.0f, juce::Font::plain); }
+    static juce::Font captionBold() { return juce::Font(12.0f, juce::Font::bold);  }
+
+    // Micro maps to Caption (12 px) — the ≥12 px legibility floor
+    static juce::Font micro()       { return juce::Font(12.0f, juce::Font::plain); }
+};
+
 // === Central LookAndFeel ===
 // Subclass of LookAndFeel_V4 that overrides all JUCE-native widget rendering.
 // Use instance() to share one copy across components that are off the tree.
@@ -112,7 +137,38 @@ public:
         setColour(juce::AlertWindow::outlineColourId,             juce::Colour(FlamColors::BorderActive));
     }
 
-    // --- Tab bar: flat with blue bottom accent line on active tab ---
+    // -------------------------------------------------------------------------
+    // Font accessors — native widgets pick up FlamType with no per-call-site setFont
+    // -------------------------------------------------------------------------
+
+    juce::Font getLabelFont(juce::Label&) override
+    {
+        return FlamType::body();
+    }
+
+    juce::Font getTextButtonFont(juce::TextButton&, int) override
+    {
+        return FlamType::labelBold();
+    }
+
+    juce::Font getComboBoxFont(juce::ComboBox&) override
+    {
+        return FlamType::caption();
+    }
+
+    juce::Font getPopupMenuFont() override
+    {
+        return FlamType::body();
+    }
+
+    juce::Font getSliderPopupFont(juce::Slider&) override
+    {
+        return FlamType::caption();
+    }
+
+    // -------------------------------------------------------------------------
+    // Tab bar: flat with blue bottom accent line on active tab
+    // -------------------------------------------------------------------------
 
     void drawTabButton(juce::TabBarButton& button, juce::Graphics& g,
                        bool isMouseOver, bool isMouseDown) override
@@ -134,7 +190,7 @@ public:
             g.fillRect(bounds);
         }
 
-        g.setFont(juce::Font(12.0f, isActive ? juce::Font::bold : juce::Font::plain));
+        g.setFont(isActive ? FlamType::captionBold() : FlamType::caption());
         g.setColour(isActive ? juce::Colour(FlamColors::TextPrimary)
                              : juce::Colour(FlamColors::TextSecondary));
         g.drawText(button.getButtonText(), button.getTextArea(), juce::Justification::centred);
@@ -142,7 +198,7 @@ public:
 
     int getTabButtonBestWidth(juce::TabBarButton& button, int) override
     {
-        const auto font = juce::Font(13.0f, juce::Font::bold);
+        const auto font = FlamType::labelBold();
         return juce::jmax(80, font.getStringWidth(button.getButtonText()) + 36);
     }
 
@@ -153,7 +209,9 @@ public:
         g.fillRect(0, h - 1, w, 1);
     }
 
-    // --- Buttons ---
+    // -------------------------------------------------------------------------
+    // Buttons
+    // -------------------------------------------------------------------------
 
     void drawButtonBackground(juce::Graphics& g, juce::Button& button,
                               const juce::Colour& bgColour,
@@ -162,18 +220,18 @@ public:
         auto bounds = button.getLocalBounds().toFloat();
         const bool isOn = button.getToggleState();
 
-        juce::Colour fill;
+        juce::Colour base;
         if (isOn)
-            fill = bgColour;
+            base = bgColour;
         else if (isButtonDown)
-            fill = juce::Colour(FlamColors::Interactive).brighter(0.15f);
+            base = juce::Colour(FlamColors::Interactive).brighter(0.15f);
         else if (isMouseOver)
-            fill = juce::Colour(FlamColors::Interactive);
+            base = juce::Colour(FlamColors::Interactive);
         else
-            fill = juce::Colour(FlamColors::Elevated);
+            base = juce::Colour(FlamColors::Elevated);
 
-        g.setColour(fill);
-        g.fillRoundedRectangle(bounds, 3.0f);
+        // Subtle gradient gives buttons a premium raised feel
+        paintGradientFill(g, bounds, base.brighter(0.08f), base.darker(0.08f), 3.0f);
 
         g.setColour(isOn ? bgColour.brighter(0.4f) : juce::Colour(FlamColors::BorderSubtle));
         g.drawRoundedRectangle(bounds.reduced(0.5f), 3.0f, 1.0f);
@@ -182,16 +240,18 @@ public:
     void drawButtonText(juce::Graphics& g, juce::TextButton& button,
                         bool, bool) override
     {
-        g.setFont(juce::Font(12.0f, juce::Font::bold));
+        g.setFont(FlamType::captionBold());
         g.setColour(button.getToggleState() ? juce::Colour(FlamColors::Background)
                                             : juce::Colour(FlamColors::TextPrimary));
         g.drawText(button.getButtonText(), button.getLocalBounds(),
                    juce::Justification::centred, true);
     }
 
-    // --- Sliders ---
+    // -------------------------------------------------------------------------
+    // Sliders
     // Horizontal: left-to-thumb accent fill. Vertical: bipolar center fill for EQ,
     // bottom-to-thumb fill for gain-style parameters.
+    // -------------------------------------------------------------------------
 
     void drawLinearSlider(juce::Graphics& g, int x, int y, int width, int height,
                           float sliderPos, float minSliderPos, float maxSliderPos,
@@ -212,7 +272,9 @@ public:
         }
     }
 
-    // --- ComboBox ---
+    // -------------------------------------------------------------------------
+    // ComboBox
+    // -------------------------------------------------------------------------
 
     void drawComboBox(juce::Graphics& g, int width, int height, bool,
                       int, int, int, int, juce::ComboBox&) override
@@ -238,10 +300,12 @@ public:
     void positionComboBoxText(juce::ComboBox& box, juce::Label& label) override
     {
         label.setBounds(6, 0, box.getWidth() - 22, box.getHeight());
-        label.setFont(juce::Font(12.0f));
+        label.setFont(FlamType::caption());
     }
 
-    // --- GroupComponent ---
+    // -------------------------------------------------------------------------
+    // GroupComponent
+    // -------------------------------------------------------------------------
 
     void drawGroupComponentOutline(juce::Graphics& g, int width, int height,
                                    const juce::String& text,
@@ -253,7 +317,7 @@ public:
         const float indent     = 3.0f;
         const float gap        = 6.0f;
 
-        auto font = juce::Font(11.0f);
+        auto font = FlamType::caption();
         const float labelW = text.isEmpty() ? 0.0f
                                             : font.getStringWidthFloat(text) + gap * 2.0f;
 
@@ -299,7 +363,9 @@ public:
         }
     }
 
-    // --- ScrollBar ---
+    // -------------------------------------------------------------------------
+    // ScrollBar
+    // -------------------------------------------------------------------------
 
     int getScrollbarButtonSize(juce::ScrollBar&) override { return 0; }
 
@@ -325,6 +391,73 @@ public:
                                                    : juce::Colour(FlamColors::Interactive));
             g.fillRoundedRectangle(thumb, 3.0f);
         }
+    }
+
+    // -------------------------------------------------------------------------
+    // Shared paint helpers — reused by per-surface polish in 108.2–108.5
+    // -------------------------------------------------------------------------
+
+    // Vertical linear gradient fill. Pass cornerRadius > 0 for rounded rects.
+    static void paintGradientFill(juce::Graphics& g,
+                                   juce::Rectangle<float> bounds,
+                                   juce::Colour topColour,
+                                   juce::Colour bottomColour,
+                                   float cornerRadius = 0.0f)
+    {
+        juce::ColourGradient grad(topColour,    bounds.getX(), bounds.getY(),
+                                   bottomColour, bounds.getX(), bounds.getBottom(),
+                                   false);
+        g.setGradientFill(grad);
+        if (cornerRadius > 0.0f)
+            g.fillRoundedRectangle(bounds, cornerRadius);
+        else
+            g.fillRect(bounds);
+    }
+
+    // Inward shadow at the top/edges of a recessed surface.
+    static void paintInnerShadow(juce::Graphics& g,
+                                  juce::Rectangle<float> bounds,
+                                  juce::Colour shadowColour,
+                                  float depth        = 4.0f,
+                                  float cornerRadius = 0.0f)
+    {
+        const int steps = static_cast<int>(depth);
+        for (int i = 0; i < steps; ++i)
+        {
+            const float t = 1.0f - static_cast<float>(i) / static_cast<float>(steps);
+            g.setColour(shadowColour.withMultipliedAlpha(t * t));
+            g.drawRoundedRectangle(bounds.reduced(static_cast<float>(i) * 0.5f),
+                                   juce::jmax(0.0f, cornerRadius - static_cast<float>(i) * 0.25f),
+                                   0.75f);
+        }
+    }
+
+    // Soft outer glow around a control's bounds (active / selected state).
+    static void paintAccentGlow(juce::Graphics& g,
+                                 juce::Rectangle<float> bounds,
+                                 juce::Colour accentColour,
+                                 float glowRadius = 6.0f)
+    {
+        const int steps = static_cast<int>(glowRadius);
+        for (int i = steps; i >= 0; --i)
+        {
+            const float t = (glowRadius - static_cast<float>(i)) / glowRadius;
+            g.setColour(accentColour.withAlpha(t * t * 0.35f));
+            g.drawRoundedRectangle(bounds.expanded(static_cast<float>(i)),
+                                   3.0f + static_cast<float>(i),
+                                   1.5f);
+        }
+    }
+
+    // Crisp accent-coloured border stroke (focus ring, active state).
+    static void paintAccentOutline(juce::Graphics& g,
+                                    juce::Rectangle<float> bounds,
+                                    juce::Colour accentColour,
+                                    float cornerRadius = 3.0f,
+                                    float lineWidth    = 1.0f)
+    {
+        g.setColour(accentColour);
+        g.drawRoundedRectangle(bounds.reduced(lineWidth * 0.5f), cornerRadius, lineWidth);
     }
 
 private:
