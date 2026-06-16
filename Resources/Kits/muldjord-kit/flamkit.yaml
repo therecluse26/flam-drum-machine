@@ -10,6 +10,8 @@ description: >-
   2 rides (+ bells) and a china, with deep velocity layering and random
   round-robin. Licensed CC-BY 4.0 — attribution REQUIRED (see LICENSE.txt).
 version: "1.0"
+license: CC-BY-4.0
+siteUrl: https://freepats.zenvoid.org/Percussion/acoustic-drum-kit.html
 sampleRate: 44100
 bitDepth: 24
 tags: ["acoustic", "rock", "metal", "stereo", "tama"]

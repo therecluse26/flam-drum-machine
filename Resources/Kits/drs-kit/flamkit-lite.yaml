@@ -2,6 +2,8 @@ name: DRSKit Lite
 author: The DrumGizmo team
 description: DRSKit2 full
 version: '1.0'
+license: CC-BY-4.0
+siteUrl: https://drumgizmo.org/
 tags:
 - acoustic
 - rock
