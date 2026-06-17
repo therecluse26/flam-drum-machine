@@ -233,13 +233,8 @@ public:
         destPathEditor.onFocusLost = [this] { persistDestPath(); };
         addAndMakeVisible (destPathEditor);
 
-        // Browse is shown only when a native folder dialog backend exists
-        // (zenity or kdialog on Linux). Without one, the TextEditor is the sole
-        // input path — no unreachable modal can appear.
         configureButton (browseBtn, "Browse...");
         browseBtn.onClick = [this] { onBrowse(); };
-        if (! juce::FileChooser::isPlatformDialogAvailable())
-            browseBtn.setVisible (false);
 
         configureButton (exportBtn, "Export kit  (flamkit.yaml + samples)");
         exportBtn.onClick = [this] { onExport(); };
