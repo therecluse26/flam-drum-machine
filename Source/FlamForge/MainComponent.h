@@ -14,6 +14,7 @@
 
 #include <array>
 #include <cmath>
+#include <thread>
 #include <vector>
 
 namespace flamforge
@@ -526,20 +527,88 @@ private:
                                    ? juce::File (pathText)
                                    : buildDefaultDest();
 
-        chooser = std::make_unique<juce::FileChooser> (
-            "Choose export destination folder", startDir, "");
+        if (juce::FileChooser::isPlatformDialogAvailable())
+        {
+            // Native dialog available (macOS, Windows, Linux with zenity/kdialog).
+            chooser = std::make_unique<juce::FileChooser> (
+                "Choose export destination folder", startDir, "");
 
-        chooser->launchAsync (
-            juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectDirectories,
-            [this] (const juce::FileChooser& fc)
-            {
-                const auto results = fc.getResults();
-                if (! results.isEmpty() && results[0].isDirectory())
+            chooser->launchAsync (
+                juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectDirectories,
+                [this] (const juce::FileChooser& fc)
                 {
-                    destPathEditor.setText (results[0].getFullPathName(), false);
-                    persistDestPath();
+                    const auto results = fc.getResults();
+                    if (! results.isEmpty() && results[0].isDirectory())
+                    {
+                        destPathEditor.setText (results[0].getFullPathName(), false);
+                        persistDestPath();
+                    }
+                });
+            return;
+        }
+
+        // No native dialog backend detected (Linux without zenity/kdialog in PATH).
+        // Invoke zenity or kdialog directly as a subprocess to avoid JUCE's own
+        // FileChooserDialogBox, which opens as an unfocused X11 window on minimal WMs.
+        browseBtn.setEnabled (false);
+        setStatus ("Opening folder picker...");
+
+        juce::Component::SafePointer<ForgeContent> safeThis = this;
+        const juce::String startPath = startDir.getFullPathName();
+
+        std::thread ([startPath, safeThis]
+        {
+            const juce::String result = runNativeFolderDialog (startPath);
+
+            juce::MessageManager::callAsync ([safeThis, result]
+            {
+                if (auto* self = safeThis.getComponent())
+                {
+                    self->browseBtn.setEnabled (true);
+                    if (result == "__no_picker__")
+                        self->setStatus ("Install zenity (sudo apt install zenity) to enable Browse, or type a path above.");
+                    else if (result.isNotEmpty())
+                    {
+                        self->destPathEditor.setText (result, false);
+                        self->persistDestPath();
+                    }
+                    // else: user cancelled — keep current path
                 }
             });
+        }).detach();
+    }
+
+    // Invokes zenity or kdialog as a subprocess (bypassing JUCE's dialog fallback).
+    // Returns the chosen path, "" on cancel, or "__no_picker__" if neither tool is found.
+    static juce::String runNativeFolderDialog (const juce::String& startPath)
+    {
+        // Try zenity (GTK)
+        {
+            juce::ChildProcess proc;
+            if (proc.start (juce::StringArray { "zenity", "--file-selection", "--directory",
+                                                "--title=Choose export destination",
+                                                "--filename=" + startPath + "/" },
+                            juce::ChildProcess::wantStdOut))
+            {
+                proc.waitForProcessToFinish (120000);
+                if (proc.getExitCode() == 0)
+                    return proc.readAllProcessOutput().trim();
+                return {};   // user cancelled
+            }
+        }
+        // Try kdialog (KDE)
+        {
+            juce::ChildProcess proc;
+            if (proc.start (juce::StringArray { "kdialog", "--getexistingdirectory", startPath },
+                            juce::ChildProcess::wantStdOut))
+            {
+                proc.waitForProcessToFinish (120000);
+                if (proc.getExitCode() == 0)
+                    return proc.readAllProcessOutput().trim();
+                return {};   // user cancelled
+            }
+        }
+        return "__no_picker__";
     }
 
     juce::AudioDeviceManager deviceManager;
