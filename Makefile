@@ -1,7 +1,8 @@
 .PHONY: all configure build clean rebuild install run help \
         nix-configure nix-build nix-install \
         test test-unit test-golden test-determinism golden-update \
-        test-pluginval test-sanitize test-all standalone
+        test-pluginval test-sanitize test-all standalone \
+        flamforge run-forge
 
 # ---------------------------------------------------------------------------
 # Platform indirection (auto-detected)
@@ -120,6 +121,19 @@ run: standalone
 	$(RUN) "$(BUILD_DIR)/FLAM_artefacts/$(CONFIG)/Standalone/FLAM"
 
 # ---------------------------------------------------------------------------
+# FlamForge — standalone kit-recording companion app (FLA-119)
+# ---------------------------------------------------------------------------
+
+# Build only the FlamForge app.
+flamforge: configure
+	$(RUN) "cmake --build $(BUILD_DIR) --target FlamForge --parallel"
+
+# Build + launch FlamForge. Linux needs a live display; for headless use an
+# Xvfb session, e.g.  Xvfb :99 & DISPLAY=:99 make run-forge
+run-forge: flamforge
+	$(RUN) "$(BUILD_DIR)/FlamForge_artefacts/$(CONFIG)/FlamForge"
+
+# ---------------------------------------------------------------------------
 # Housekeeping / back-compat
 # ---------------------------------------------------------------------------
 
@@ -150,6 +164,8 @@ help:
 	@echo "    make build            Build plugin + tests (default)"
 	@echo "    make standalone       Build only the Standalone app"
 	@echo "    make run              Build + launch the Standalone app (no DAW)"
+	@echo "    make flamforge        Build only the FlamForge kit-recording app"
+	@echo "    make run-forge        Build + launch FlamForge"
 	@echo "    make clean            Remove build/, build_sanitized/, build_verify/"
 	@echo "    make rebuild          clean + build"
 	@echo ""

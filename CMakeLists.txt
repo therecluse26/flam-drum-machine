@@ -256,6 +256,59 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
         ${X11_Xcursor_LIB})
 endif()
 
+# ============================================================
+# FlamForge — standalone kit-recording companion app (FLA-119)
+#
+# A separate gui_app executable (NOT a plugin): it owns the audio device,
+# guides the user through "fingerprint" velocity-layer capture, and exports a
+# complete flamkit.yaml. This is the launchable skeleton; capture/synthesis/
+# export stages (FLA-120/121/122/124) wire into it as they land. It will share
+# engine/format code with FLAM via FlamCore (FLA-116) once extracted.
+# ============================================================
+juce_add_gui_app(FlamForge
+    PRODUCT_NAME "FlamForge"
+    COMPANY_NAME "FLAM")
+
+target_sources(FlamForge
+    PRIVATE
+        Source/FlamForge/Main.cpp)
+
+target_include_directories(FlamForge
+    PRIVATE
+        Source)
+
+target_compile_definitions(FlamForge
+    PRIVATE
+        JUCE_DISPLAY_SPLASH_SCREEN=0
+        JUCE_WEB_BROWSER=0
+        JUCE_USE_CURL=0)
+
+target_link_libraries(FlamForge
+    PRIVATE
+        juce::juce_audio_basics
+        juce::juce_audio_devices
+        juce::juce_audio_formats
+        juce::juce_audio_utils
+        juce::juce_core
+        juce::juce_data_structures
+        juce::juce_events
+        juce::juce_graphics
+        juce::juce_gui_basics
+        juce::juce_gui_extra
+    PUBLIC
+        juce::juce_recommended_config_flags
+        juce::juce_recommended_lto_flags
+        juce::juce_recommended_warning_flags)
+
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    target_link_libraries(FlamForge PRIVATE
+        ${X11_LIBRARIES}
+        ${X11_Xrandr_LIB}
+        ${X11_Xinerama_LIB}
+        ${X11_Xext_LIB}
+        ${X11_Xcursor_LIB})
+endif()
+
 if(BUILD_TESTING)
     # L1Tests/ is intentionally different from tests/ — on case-insensitive
     # filesystems (macOS HFS+, Windows NTFS) `tests` and `Tests` mapped to the
