@@ -162,6 +162,7 @@ public:
     static constexpr int kCoverageH= 58;
     static constexpr int kExportH  = 44;
     static constexpr int kStatusH  = 22;
+    static constexpr int kRevealH  = 28;
     static constexpr int kGap      = 12;
 
     ForgeContent()
@@ -212,8 +213,23 @@ public:
         addAndMakeVisible (stats);
         addAndMakeVisible (coverage);
 
+        // Persist export destination across sessions.
+        juce::PropertiesFile::Options propOpts;
+        propOpts.applicationName     = "FlamForge";
+        propOpts.filenameSuffix      = ".settings";
+        propOpts.osxLibrarySubFolder = "Application Support";
+        appProps.setStorageParameters (propOpts);
+
         configureButton (exportBtn, "Export kit  (flamkit.yaml + samples)");
         exportBtn.onClick = [this] { onExport(); };
+
+        // Reveal button — hidden until a successful export.
+        configureButton (revealBtn, "Reveal in file manager");
+        revealBtn.setVisible (false);
+        revealBtn.onClick = [this] {
+            if (lastExportedKit != juce::File{})
+                lastExportedKit.revealToUser();
+        };
 
         status.setColour (juce::Label::textColourId, juce::Colours::aquamarine.withAlpha (0.85f));
         status.setJustificationType (juce::Justification::centredLeft);
@@ -243,7 +259,8 @@ public:
              + kStatsH + kGap
              + kCoverageH + kGap
              + kExportH + kGap
-             + kStatusH + kPad;
+             + kStatusH + kGap
+             + kRevealH + kPad;
     }
 
     void paint (juce::Graphics& g) override { g.fillAll (juce::Colour (0xff0d0f12)); }
@@ -281,6 +298,8 @@ public:
         exportBtn.setBounds (area.removeFromTop (kExportH));
         area.removeFromTop (kGap);
         status.setBounds (area.removeFromTop (kStatusH));
+        area.removeFromTop (kGap);
+        revealBtn.setBounds (area.removeFromTop (kRevealH));
     }
 
 private:
@@ -423,11 +442,48 @@ private:
         auto musicDir = juce::File::getSpecialLocation (juce::File::userMusicDirectory);
         if (! musicDir.isDirectory())
             musicDir = juce::File::getSpecialLocation (juce::File::userHomeDirectory);
-        const juce::File destDir = musicDir.getChildFile ("FlamForgeKits");
+        const juce::File defaultDest = musicDir.getChildFile ("FlamForgeKits");
 
-        setStatus ("Exporting \"" + kitName + "\" to " + destDir.getFullPathName() + " ...");
-        const ExportResult result = exportKit (kitName, captures, options, destDir);
-        setStatus (result.message);
+        // Use the last-chosen directory as the starting point if still valid.
+        juce::File startDir = defaultDest;
+        if (auto* props = appProps.getUserSettings())
+        {
+            const juce::String last = props->getValue ("lastExportDir");
+            if (last.isNotEmpty())
+            {
+                const juce::File lastDir (last);
+                if (lastDir.isDirectory())
+                    startDir = lastDir;
+            }
+        }
+
+        chooser = std::make_unique<juce::FileChooser> (
+            "Choose export destination folder", startDir, "");
+
+        chooser->launchAsync (
+            juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectDirectories,
+            [this, defaultDest] (const juce::FileChooser& fc)
+            {
+                // If the user cancelled, fall back to the default destination.
+                juce::File destDir = defaultDest;
+                const auto results = fc.getResults();
+                if (! results.isEmpty() && results[0].isDirectory())
+                {
+                    destDir = results[0];
+                    if (auto* props = appProps.getUserSettings())
+                        props->setValue ("lastExportDir", destDir.getFullPathName());
+                }
+
+                setStatus ("Exporting to " + destDir.getFullPathName() + " ...");
+                const ExportResult res = exportKit (kitName, captures, options, destDir);
+                setStatus (res.message);
+
+                if (res.ok)
+                {
+                    lastExportedKit = res.kitYaml.getParentDirectory();
+                    revealBtn.setVisible (true);
+                }
+            });
     }
 
     juce::AudioDeviceManager deviceManager;
@@ -435,7 +491,7 @@ private:
 
     juce::Label       title, subtitle, pieceLabel, pieceCount, status;
     juce::TextEditor  pieceName;
-    juce::TextButton  prevBtn, nextBtn, addBtn, recordBtn, exportBtn;
+    juce::TextButton  prevBtn, nextBtn, addBtn, recordBtn, exportBtn, revealBtn;
     StatsPanel        stats;
     CoverageMeter     coverage;
 
@@ -444,6 +500,10 @@ private:
     int                       currentPieceIndex = 0;
     SynthOptions              options;
     juce::String              kitName = "FlamForge Kit";
+
+    std::unique_ptr<juce::FileChooser> chooser;
+    juce::ApplicationProperties        appProps;
+    juce::File                         lastExportedKit;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ForgeContent)
 };
