@@ -271,11 +271,21 @@ juce_add_gui_app(FlamForge
 
 target_sources(FlamForge
     PRIVATE
-        Source/FlamForge/Main.cpp)
+        Source/FlamForge/Main.cpp
+        Source/FlamForge/CaptureEngine.cpp
+        Source/FlamForge/LayerSynth.cpp
+        Source/FlamForge/KitExporter.cpp
+        Source/Formats/FlamKitLoader.cpp)
 
 target_include_directories(FlamForge
     PRIVATE
         Source)
+
+# yaml-cpp is required by FlamKitLoader (saveKit/loadKit round-trip on export).
+if(YAML_CPP_FOUND)
+    target_include_directories(FlamForge PRIVATE ${YAML_CPP_INCLUDE_DIRS})
+    target_compile_definitions(FlamForge PRIVATE FLAM_YAML_SUPPORT=1)
+endif()
 
 target_compile_definitions(FlamForge
     PRIVATE
@@ -299,6 +309,15 @@ target_link_libraries(FlamForge
         juce::juce_recommended_config_flags
         juce::juce_recommended_lto_flags
         juce::juce_recommended_warning_flags)
+
+# Link yaml-cpp if found (system pkg → ${YAML_CPP_LIBRARIES}; FetchContent → CMake target)
+if(YAML_CPP_FOUND)
+    if(DEFINED YAML_CPP_FETCHED)
+        target_link_libraries(FlamForge PRIVATE yaml-cpp::yaml-cpp)
+    else()
+        target_link_libraries(FlamForge PRIVATE ${YAML_CPP_LIBRARIES})
+    endif()
+endif()
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     target_link_libraries(FlamForge PRIVATE
