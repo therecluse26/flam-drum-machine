@@ -160,6 +160,7 @@ public:
     static constexpr int kRecordH  = 56;
     static constexpr int kStatsH   = 104;
     static constexpr int kCoverageH= 58;
+    static constexpr int kDestH    = 28;   // destination row (path editor + Browse)
     static constexpr int kExportH  = 44;
     static constexpr int kStatusH  = 22;
     static constexpr int kRevealH  = 28;
@@ -220,6 +221,26 @@ public:
         propOpts.osxLibrarySubFolder = "Application Support";
         appProps.setStorageParameters (propOpts);
 
+        // --- destination row (always visible — no modal dependency) ---------------
+        destLabel.setText ("Export to:", juce::dontSendNotification);
+        destLabel.setColour (juce::Label::textColourId, juce::Colours::white.withAlpha (0.7f));
+        addAndMakeVisible (destLabel);
+
+        destPathEditor.setText (loadPersistedDest().getFullPathName(), false);
+        destPathEditor.setColour (juce::TextEditor::backgroundColourId, juce::Colour (0xff1b1f25));
+        destPathEditor.setTooltip ("Type or paste the export destination folder path");
+        destPathEditor.onReturnKey = [this] { persistDestPath(); };
+        destPathEditor.onFocusLost = [this] { persistDestPath(); };
+        addAndMakeVisible (destPathEditor);
+
+        // Browse is shown only when a native folder dialog backend exists
+        // (zenity or kdialog on Linux). Without one, the TextEditor is the sole
+        // input path — no unreachable modal can appear.
+        configureButton (browseBtn, "Browse...");
+        browseBtn.onClick = [this] { onBrowse(); };
+        if (! juce::FileChooser::isPlatformDialogAvailable())
+            browseBtn.setVisible (false);
+
         configureButton (exportBtn, "Export kit  (flamkit.yaml + samples)");
         exportBtn.onClick = [this] { onExport(); };
 
@@ -258,6 +279,7 @@ public:
              + kRecordH + kGap
              + kStatsH + kGap
              + kCoverageH + kGap
+             + kDestH + kGap
              + kExportH + kGap
              + kStatusH + kGap
              + kRevealH + kPad;
@@ -294,6 +316,18 @@ public:
         stats.setBounds (area.removeFromTop (kStatsH));
         area.removeFromTop (kGap);
         coverage.setBounds (area.removeFromTop (kCoverageH));
+        area.removeFromTop (kGap);
+        {
+            auto row = area.removeFromTop (kDestH);
+            destLabel.setBounds (row.removeFromLeft (80));
+            row.removeFromLeft (4);
+            if (browseBtn.isVisible())
+            {
+                browseBtn.setBounds (row.removeFromRight (80));
+                row.removeFromRight (4);
+            }
+            destPathEditor.setBounds (row);
+        }
         area.removeFromTop (kGap);
         exportBtn.setBounds (area.removeFromTop (kExportH));
         area.removeFromTop (kGap);
@@ -439,49 +473,76 @@ private:
             if (! p.hits.empty()) { anyHits = true; break; }
         if (! anyHits) { setStatus ("Nothing to export yet - record some hits first."); return; }
 
+        const juce::String pathText = destPathEditor.getText().trim();
+        juce::File destDir = pathText.isNotEmpty() ? juce::File (pathText) : buildDefaultDest();
+
+        if (! destDir.isDirectory() && ! destDir.createDirectory())
+        {
+            setStatus ("Cannot create folder: " + destDir.getFullPathName());
+            return;
+        }
+
+        persistDestPath();
+
+        setStatus ("Exporting to " + destDir.getFullPathName() + " ...");
+        const ExportResult res = exportKit (kitName, captures, options, destDir);
+        setStatus (res.message);
+
+        if (res.ok)
+        {
+            lastExportedKit = res.kitYaml.getParentDirectory();
+            revealBtn.setVisible (true);
+        }
+    }
+
+    juce::File buildDefaultDest()
+    {
         auto musicDir = juce::File::getSpecialLocation (juce::File::userMusicDirectory);
         if (! musicDir.isDirectory())
             musicDir = juce::File::getSpecialLocation (juce::File::userHomeDirectory);
-        const juce::File defaultDest = musicDir.getChildFile ("FlamForgeKits");
+        return musicDir.getChildFile ("FlamForgeKits");
+    }
 
-        // Use the last-chosen directory as the starting point if still valid.
-        juce::File startDir = defaultDest;
+    juce::File loadPersistedDest()
+    {
         if (auto* props = appProps.getUserSettings())
         {
             const juce::String last = props->getValue ("lastExportDir");
             if (last.isNotEmpty())
             {
-                const juce::File lastDir (last);
-                if (lastDir.isDirectory())
-                    startDir = lastDir;
+                juce::File f (last);
+                if (f.isDirectory())
+                    return f;
             }
         }
+        return buildDefaultDest();
+    }
+
+    void persistDestPath()
+    {
+        if (auto* props = appProps.getUserSettings())
+            props->setValue ("lastExportDir", destPathEditor.getText().trim());
+    }
+
+    void onBrowse()
+    {
+        const juce::String pathText = destPathEditor.getText().trim();
+        const juce::File startDir = pathText.isNotEmpty() && juce::File (pathText).isDirectory()
+                                   ? juce::File (pathText)
+                                   : buildDefaultDest();
 
         chooser = std::make_unique<juce::FileChooser> (
             "Choose export destination folder", startDir, "");
 
         chooser->launchAsync (
             juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectDirectories,
-            [this, defaultDest] (const juce::FileChooser& fc)
+            [this] (const juce::FileChooser& fc)
             {
-                // If the user cancelled, fall back to the default destination.
-                juce::File destDir = defaultDest;
                 const auto results = fc.getResults();
                 if (! results.isEmpty() && results[0].isDirectory())
                 {
-                    destDir = results[0];
-                    if (auto* props = appProps.getUserSettings())
-                        props->setValue ("lastExportDir", destDir.getFullPathName());
-                }
-
-                setStatus ("Exporting to " + destDir.getFullPathName() + " ...");
-                const ExportResult res = exportKit (kitName, captures, options, destDir);
-                setStatus (res.message);
-
-                if (res.ok)
-                {
-                    lastExportedKit = res.kitYaml.getParentDirectory();
-                    revealBtn.setVisible (true);
+                    destPathEditor.setText (results[0].getFullPathName(), false);
+                    persistDestPath();
                 }
             });
     }
@@ -489,9 +550,9 @@ private:
     juce::AudioDeviceManager deviceManager;
     std::unique_ptr<juce::AudioDeviceSelectorComponent> deviceSelector;
 
-    juce::Label       title, subtitle, pieceLabel, pieceCount, status;
-    juce::TextEditor  pieceName;
-    juce::TextButton  prevBtn, nextBtn, addBtn, recordBtn, exportBtn, revealBtn;
+    juce::Label       title, subtitle, pieceLabel, pieceCount, status, destLabel;
+    juce::TextEditor  pieceName, destPathEditor;
+    juce::TextButton  prevBtn, nextBtn, addBtn, recordBtn, exportBtn, revealBtn, browseBtn;
     StatsPanel        stats;
     CoverageMeter     coverage;
 
