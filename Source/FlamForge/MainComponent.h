@@ -13,40 +13,50 @@
 #include "KitExporter.h"
 
 #include <array>
+#include <cmath>
 #include <vector>
 
 namespace flamforge
 {
 
+// Map a measured peak (dBFS) to a MIDI velocity 1..127 against an observed
+// soft/loud range. This is the "retroactive calibration": the range is derived
+// from the hits already recorded, so there is no separate calibrate step.
+inline int mapPeakToVelocity (float db, float softDb, float loudDb)
+{
+    if (loudDb <= softDb)
+        return 100;
+    const float t = juce::jlimit (0.0f, 1.0f, (db - softDb) / (loudDb - softDb));
+    return juce::jlimit (1, 127, (int) std::round (1.0f + t * 126.0f));
+}
+
 // ---------------------------------------------------------------------------
-// CoverageMeter — the "fingerprint registration" coverage view.
+// CoverageMeter — the "fingerprint registration" view.
 //
-// Every captured hit is bucketed into one of kNumBins velocity bins (1..127
-// split into equal ranges). Each bin is coloured by how many hits landed in it:
-//   red    0-1 hits  (insufficient)
-//   yellow 2-5 hits  (usable)
-//   green  6+  hits  (ideal round-robin depth)
-// Call setHits() from the capture timer with the live per-hit MIDI velocities.
+// Each captured hit is bucketed into one of kNumBins velocity bins (1..127).
+// Bins are coloured by how many hits landed in them:
+//   red 1, yellow 2-5, green 6+ (ideal round-robin depth); empty = grey.
 // ---------------------------------------------------------------------------
 class CoverageMeter : public juce::Component
 {
 public:
     static constexpr int kNumBins = 16;
 
-    // Feed the meter the current set of captured velocities (1..127). Recomputes
-    // per-bin counts and repaints. Cheap to call at timer rate.
     void setHits (const std::vector<int>& velocities)
     {
         counts.fill (0);
+        filled = 0;
         for (int v : velocities)
         {
-            const int clamped = juce::jlimit (1, 127, v);
-            int bin = (clamped - 1) * kNumBins / 127;
+            int bin = (juce::jlimit (1, 127, v) - 1) * kNumBins / 127;
             bin = juce::jlimit (0, kNumBins - 1, bin);
             ++counts[(size_t) bin];
         }
+        for (int n : counts) if (n > 0) ++filled;
         repaint();
     }
+
+    int binsFilled() const { return filled; }
 
     void paint (juce::Graphics& g) override
     {
@@ -61,7 +71,6 @@ public:
         for (int i = 0; i < kNumBins; ++i)
         {
             auto bin = juce::Rectangle<float> (r.getX() + i * (binW + gap), r.getY(), binW, r.getHeight());
-
             const int n = counts[(size_t) i];
             total += n;
 
@@ -70,7 +79,6 @@ public:
             else if (n >= 2) c = juce::Colour (0xffe0b341);   // yellow — usable
             else if (n >= 1) c = juce::Colour (0xffd0473f);   // red    — thin
             else             c = juce::Colour (0xff23272e);   // empty
-
             g.setColour (c);
             g.fillRoundedRectangle (bin, 2.0f);
         }
@@ -79,90 +87,144 @@ public:
         {
             g.setColour (juce::Colours::white.withAlpha (0.35f));
             g.setFont (juce::Font (juce::FontOptions (12.0f)));
-            g.drawText ("velocity coverage (no hits yet)",
+            g.drawText ("soft  <  velocity coverage  >  hard   (play hits to fill)",
                         getLocalBounds(), juce::Justification::centred);
         }
     }
 
 private:
     std::array<int, kNumBins> counts { {} };
+    int filled = 0;
+};
+
+// ---------------------------------------------------------------------------
+// StatsPanel — live, automatically-derived readouts. Everything here is
+// computed from the captured hits, not entered by the user.
+// ---------------------------------------------------------------------------
+class StatsPanel : public juce::Component
+{
+public:
+    void setStats (int hits, bool hasRange, float softDb, float loudDb,
+                   int layers, int rr, int binsFilled, int numBins)
+    {
+        lines.clear();
+        lines.add ("Hits captured:     " + juce::String (hits));
+        lines.add ("Dynamic range:     " + (hasRange
+                      ? juce::String (softDb, 1) + " .. " + juce::String (loudDb, 1) + " dBFS  (auto)"
+                      : juce::String ("play 2+ hits to detect")));
+        lines.add ("Velocity layers:   " + (layers > 0
+                      ? juce::String (layers) + "  x up to " + juce::String (rr) + " round-robins"
+                      : juce::String ("--")));
+        lines.add ("Coverage:          " + juce::String (binsFilled) + " / " + juce::String (numBins)
+                      + " bins"  + (binsFilled >= numBins ? "  (full)" : ""));
+        repaint();
+    }
+
+    void paint (juce::Graphics& g) override
+    {
+        auto r = getLocalBounds().toFloat();
+        g.setColour (juce::Colour (0xff14171c));
+        g.fillRoundedRectangle (r, 6.0f);
+
+        g.setColour (juce::Colours::white.withAlpha (0.85f));
+        g.setFont (juce::Font (juce::FontOptions (14.0f).withStyle ("Monospaced")));
+
+        auto area = getLocalBounds().reduced (14, 10);
+        const int lh = area.getHeight() / juce::jmax (1, lines.size());
+        for (auto& l : lines)
+            g.drawText (l, area.removeFromTop (lh), juce::Justification::centredLeft);
+    }
+
+private:
+    juce::StringArray lines;
 };
 
 // ---------------------------------------------------------------------------
 // ForgeContent — the scrolled content column.
 //
-// Laid out top-to-bottom with FIXED row heights and a known natural height, so
-// it can live inside a Viewport. This matters because JUCE's
-// AudioDeviceSelectorComponent positions its rows at absolute offsets and does
-// not clip to its bounds — give it too little height and its lower rows draw
-// on top of whatever follows. Reserving its true height + scrolling the column
-// is what keeps the layout from colliding.
+// Record-centric flow: pick a piece, hit Record, play. Calibration (dynamic
+// range) and velocity-layer synthesis are derived automatically and shown live
+// in the StatsPanel + CoverageMeter; the only explicit actions are Record and
+// Export. Lives inside a Viewport because the AudioDeviceSelectorComponent
+// positions its rows absolutely and does not clip to its bounds.
 // ---------------------------------------------------------------------------
 class ForgeContent : public juce::Component,
                      private juce::Timer
 {
 public:
-    // Row heights (px). kDeviceH is generous enough for the default 2 device
-    // rows + 2 channel list-boxes + sample-rate + buffer-size rows.
-    static constexpr int kPad      = 24;
-    static constexpr int kTitleH   = 44;
-    static constexpr int kSubH     = 22;
-    static constexpr int kDeviceH  = 360;
-    static constexpr int kStepH    = 44;
-    static constexpr int kCoverageH= 46;
-    static constexpr int kStatusH  = 24;
-    static constexpr int kGap      = 10;
+    static constexpr int kPad      = 22;
+    static constexpr int kTitleH   = 38;
+    static constexpr int kSubH     = 20;
+    static constexpr int kDeviceH  = 210;   // input device + input channels (advanced/output hidden)
+    static constexpr int kPieceH   = 34;
+    static constexpr int kRecordH  = 56;
+    static constexpr int kStatsH   = 104;
+    static constexpr int kCoverageH= 58;
+    static constexpr int kExportH  = 44;
+    static constexpr int kStatusH  = 22;
+    static constexpr int kGap      = 12;
 
     ForgeContent()
     {
-        deviceManager.initialiseWithDefaultDevices (/*inputs=*/2, /*outputs=*/2);
-
+        // Recorder: we need inputs, not outputs. Hiding output + advanced rows
+        // keeps the device panel compact so the window isn't dominated by it.
+        deviceManager.initialiseWithDefaultDevices (/*inputs=*/2, /*outputs=*/0);
         deviceSelector = std::make_unique<juce::AudioDeviceSelectorComponent> (
             deviceManager,
             /*minInput=*/1, /*maxInput=*/16,
-            /*minOutput=*/0, /*maxOutput=*/2,
+            /*minOutput=*/0, /*maxOutput=*/0,
             /*showMidiIn=*/false, /*showMidiOut=*/false,
-            /*stereoPairs=*/false, /*hideAdvanced=*/false);
+            /*stereoPairs=*/false, /*hideAdvanced=*/true);
         addAndMakeVisible (*deviceSelector);
 
         title.setText ("FlamForge", juce::dontSendNotification);
-        title.setFont (juce::Font (juce::FontOptions (34.0f, juce::Font::bold)));
+        title.setFont (juce::Font (juce::FontOptions (32.0f, juce::Font::bold)));
         title.setColour (juce::Label::textColourId, juce::Colours::white);
         addAndMakeVisible (title);
 
-        subtitle.setText ("Kit Recording Tool - record a complete flamkit by playing it",
+        subtitle.setText ("Play each drum from soft to hard - layers build themselves.",
                           juce::dontSendNotification);
         subtitle.setColour (juce::Label::textColourId, juce::Colours::white.withAlpha (0.6f));
         addAndMakeVisible (subtitle);
 
+        // --- piece bar -----------------------------------------------------
+        pieceLabel.setText ("Drum piece:", juce::dontSendNotification);
+        pieceLabel.setColour (juce::Label::textColourId, juce::Colours::white.withAlpha (0.7f));
+        addAndMakeVisible (pieceLabel);
+
+        pieceName.setText ("Kick", juce::dontSendNotification);
+        pieceName.setColour (juce::TextEditor::backgroundColourId, juce::Colour (0xff1b1f25));
+        pieceName.onTextChange = [this] { currentPiece().name = pieceName.getText(); };
+        addAndMakeVisible (pieceName);
+
+        configureButton (prevBtn, "<");      prevBtn.onClick = [this] { switchPiece (-1); };
+        configureButton (nextBtn, ">");      nextBtn.onClick = [this] { switchPiece (+1); };
+        configureButton (addBtn,  "+ Add");  addBtn.onClick  = [this] { addPiece(); };
+
+        pieceCount.setJustificationType (juce::Justification::centred);
+        pieceCount.setColour (juce::Label::textColourId, juce::Colours::white.withAlpha (0.7f));
+        addAndMakeVisible (pieceCount);
+
+        // --- record / export ----------------------------------------------
+        recordBtn.onClick = [this] { toggleRecord(); };
+        addAndMakeVisible (recordBtn);
+
+        addAndMakeVisible (stats);
         addAndMakeVisible (coverage);
 
-        // Step buttons — each drives a real stage of the capture pipeline.
-        configureButton (calibrateBtn, "1.  Calibrate dynamic range   -   Strike softest, then hardest");
-        calibrateBtn.onClick = [this] { onCalibrate(); };
-
-        configureButton (recordBtn, "2.  Record hits   -   Play freely; hits auto-bin by loudness");
-        recordBtn.onClick = [this] { onRecord(); };
-
-        configureButton (synthBtn, "3.  Build velocity layers   -   Layer synthesis + round-robin");
-        synthBtn.onClick = [this] { onSynth(); };
-
-        configureButton (exportBtn, "4.  Export flamkit.yaml   -   Round-tripped through FlamKitLoader");
+        configureButton (exportBtn, "Export kit  (flamkit.yaml + samples)");
         exportBtn.onClick = [this] { onExport(); };
 
-        status.setText ("Ready. Select an input device above, then Calibrate.",
-                        juce::dontSendNotification);
         status.setColour (juce::Label::textColourId, juce::Colours::aquamarine.withAlpha (0.85f));
         status.setJustificationType (juce::Justification::centredLeft);
         addAndMakeVisible (status);
 
-        // The capture engine owns the input side. Register it as the device
-        // callback so it receives audio whenever a device is open.
         deviceManager.addAudioCallback (&engine);
+        captures.push_back ({});            // first piece
+        captures[0].name = "Kick";
 
-        // Start with a single piece to capture into.
-        captures.push_back ({});
-
+        refreshAll();
+        setStatus ("Ready. Choose your input above, name the drum, then Record.");
         startTimerHz (30);
     }
 
@@ -172,15 +234,16 @@ public:
         deviceManager.removeAudioCallback (&engine);
     }
 
-    // Total height this column needs — used by MainComponent to size the
-    // viewport's content so the whole layout is reachable by scrolling.
     int naturalHeight() const
     {
         return kPad + kTitleH + kSubH + kGap
              + kDeviceH + kGap
-             + 4 * (kStepH + 8)
-             + kGap + kCoverageH + kGap + kStatusH
-             + kPad;
+             + kPieceH + kGap
+             + kRecordH + kGap
+             + kStatsH + kGap
+             + kCoverageH + kGap
+             + kExportH + kGap
+             + kStatusH + kPad;
     }
 
     void paint (juce::Graphics& g) override { g.fillAll (juce::Colour (0xff0d0f12)); }
@@ -189,21 +252,33 @@ public:
     {
         auto area = getLocalBounds().reduced (kPad, kPad);
 
-        title.setBounds (area.removeFromTop (kTitleH));
+        title.setBounds    (area.removeFromTop (kTitleH));
         subtitle.setBounds (area.removeFromTop (kSubH));
         area.removeFromTop (kGap);
 
         deviceSelector->setBounds (area.removeFromTop (kDeviceH));
         area.removeFromTop (kGap);
 
-        for (auto* b : { &calibrateBtn, &recordBtn, &synthBtn, &exportBtn })
         {
-            b->setBounds (area.removeFromTop (kStepH));
-            area.removeFromTop (8);
+            auto row = area.removeFromTop (kPieceH);
+            pieceLabel.setBounds (row.removeFromLeft (84));
+            addBtn.setBounds     (row.removeFromRight (70));
+            row.removeFromRight (6);
+            nextBtn.setBounds    (row.removeFromRight (34));
+            pieceCount.setBounds (row.removeFromRight (90));
+            prevBtn.setBounds    (row.removeFromRight (34));
+            row.removeFromRight (8);
+            pieceName.setBounds  (row);
         }
+        area.removeFromTop (kGap);
 
-        area.removeFromTop (kGap - 8);
+        recordBtn.setBounds (area.removeFromTop (kRecordH));
+        area.removeFromTop (kGap);
+        stats.setBounds (area.removeFromTop (kStatsH));
+        area.removeFromTop (kGap);
         coverage.setBounds (area.removeFromTop (kCoverageH));
+        area.removeFromTop (kGap);
+        exportBtn.setBounds (area.removeFromTop (kExportH));
         area.removeFromTop (kGap);
         status.setBounds (area.removeFromTop (kStatusH));
     }
@@ -215,163 +290,142 @@ private:
         addAndMakeVisible (b);
     }
 
-    // --- the current piece being captured ---------------------------------
     PieceCapture& currentPiece() { return captures[(size_t) currentPieceIndex]; }
 
-    void setStatus (const juce::String& text)
+    void setStatus (const juce::String& t) { status.setText (t, juce::dontSendNotification); }
+
+    bool isRecording() const { return engine.getMode() == CaptureEngine::Mode::Recording; }
+
+    // --- piece management --------------------------------------------------
+    void addPiece()
     {
-        status.setText (text, juce::dontSendNotification);
+        stopRecording();
+        captures.push_back ({});
+        captures.back().name = "Piece " + juce::String ((int) captures.size());
+        currentPieceIndex = (int) captures.size() - 1;
+        refreshAll();
     }
 
-    // --- live capture pump (message thread, ~30Hz) ------------------------
+    void switchPiece (int delta)
+    {
+        stopRecording();
+        currentPieceIndex = juce::jlimit (0, (int) captures.size() - 1, currentPieceIndex + delta);
+        refreshAll();
+    }
+
+    void refreshAll()
+    {
+        pieceName.setText (currentPiece().name, juce::dontSendNotification);
+        pieceCount.setText (juce::String (currentPieceIndex + 1) + " / "
+                            + juce::String ((int) captures.size()), juce::dontSendNotification);
+        updateRecordButton();
+        recompute();
+    }
+
+    // --- record toggle -----------------------------------------------------
+    void toggleRecord()
+    {
+        if (isRecording()) stopRecording();
+        else
+        {
+            engine.setMode (CaptureEngine::Mode::Recording);
+            updateRecordButton();
+            setStatus ("Recording \"" + currentPiece().name + "\" - play it soft to hard.");
+        }
+    }
+
+    void stopRecording()
+    {
+        if (isRecording())
+        {
+            engine.setMode (CaptureEngine::Mode::Idle);
+            setStatus ("Stopped. \"" + currentPiece().name + "\" has "
+                       + juce::String ((int) currentPiece().hits.size()) + " hits.");
+        }
+        updateRecordButton();
+    }
+
+    void updateRecordButton()
+    {
+        const bool rec = isRecording();
+        recordBtn.setButtonText (rec ? "STOP recording" : "RECORD  -  play this drum");
+        recordBtn.setColour (juce::TextButton::buttonColourId,
+                             rec ? juce::Colour (0xffd0473f) : juce::Colour (0xff2f7d4f));
+    }
+
+    // --- live pump (30Hz): drain hits, re-derive everything ----------------
     void timerCallback() override
     {
         auto newHits = engine.drainNewHits();
-
-        const auto mode = engine.getMode();
-
-        if (mode == CaptureEngine::Mode::Recording && ! newHits.empty())
+        if (isRecording() && ! newHits.empty())
         {
             auto& piece = currentPiece();
             for (auto& h : newHits)
                 piece.hits.push_back (std::move (h));
-
-            setStatus ("Recording \"" + piece.name + "\" - captured "
-                       + juce::String ((int) piece.hits.size()) + " hits.");
         }
-        else if (mode == CaptureEngine::Mode::CalibrateSoft
-              || mode == CaptureEngine::Mode::CalibrateLoud)
-        {
-            // Live feedback of the measured peak while calibrating.
-            const float db = engine.lastCalibratedDb();
-            const juce::String which = (mode == CaptureEngine::Mode::CalibrateSoft)
-                                           ? "softest" : "loudest";
-            if (db > -99.0f)
-                setStatus ("Calibrating " + which + " - peak "
-                           + juce::String (db, 1) + " dBFS. Click Calibrate when ready.");
-        }
-
-        refreshCoverage();
+        recompute();
     }
 
-    void refreshCoverage()
+    // Recompute retroactive calibration + velocities + live layer preview.
+    void recompute()
     {
-        std::vector<int> vels;
-        const auto& piece = currentPiece();
-        vels.reserve (piece.hits.size());
+        auto& piece = currentPiece();
+
+        float softDb = 1.0e9f, loudDb = -1.0e9f;
         for (const auto& h : piece.hits)
-            vels.push_back (h.midiVelocity);
-        coverage.setHits (vels);
-    }
-
-    // --- step 1: Calibrate ------------------------------------------------
-    // Cycles CalibrateSoft -> CalibrateLoud -> Idle. After the loud pass the
-    // calibration is marked valid so recorded hits map to real velocities.
-    void onCalibrate()
-    {
-        switch (engine.getMode())
         {
-            case CaptureEngine::Mode::Idle:
-            case CaptureEngine::Mode::Recording:
-                engine.setMode (CaptureEngine::Mode::CalibrateSoft);
-                setStatus ("Calibrating SOFTEST hit - strike the drum as quietly as you will play, "
-                           "then click Calibrate again.");
-                break;
+            softDb = juce::jmin (softDb, h.peakDb);
+            loudDb = juce::jmax (loudDb, h.peakDb);
+        }
+        const bool hasRange = piece.hits.size() >= 2 && loudDb > softDb;
 
-            case CaptureEngine::Mode::CalibrateSoft:
-                engine.setMode (CaptureEngine::Mode::CalibrateLoud);
-                setStatus ("Soft = " + juce::String (engine.calibration().softestDb, 1)
-                           + " dBFS. Now strike the HARDEST hit, then click Calibrate again.");
-                break;
+        // Retroactive velocity assignment from the observed range.
+        for (auto& h : piece.hits)
+            h.midiVelocity = hasRange ? mapPeakToVelocity (h.peakDb, softDb, loudDb) : 100;
 
-            case CaptureEngine::Mode::CalibrateLoud:
-            default:
+        std::vector<int> vels;
+        vels.reserve (piece.hits.size());
+        for (const auto& h : piece.hits) vels.push_back (h.midiVelocity);
+        coverage.setHits (vels);
+
+        int layers = 0, rr = 0;
+        if (! piece.hits.empty())
+        {
+            const auto out = synthesizePiece (piece, options);
+            if (! out.articulations.empty())
             {
-                auto& c = engine.calibration();
-                if (c.loudestDb > c.softestDb)
-                    c.valid = true;
-                engine.setMode (CaptureEngine::Mode::Idle);
-                setStatus (c.valid
-                    ? ("Calibrated: " + juce::String (c.softestDb, 1) + " .. "
-                       + juce::String (c.loudestDb, 1) + " dBFS. Ready to Record.")
-                    : juce::String ("Calibration incomplete (loud must exceed soft). Try Calibrate again."));
-                break;
+                const auto& L = out.articulations[0].layers;
+                layers = (int) L.size();
+                int m = -1;
+                for (const auto& l : L) m = juce::jmax (m, l.roundRobinGroup);
+                rr = m + 1;
             }
         }
+
+        stats.setStats ((int) piece.hits.size(), hasRange, softDb, loudDb,
+                        layers, rr, coverage.binsFilled(), CoverageMeter::kNumBins);
+
+        if (isRecording())
+            setStatus ("Recording \"" + piece.name + "\" - "
+                       + juce::String ((int) piece.hits.size()) + " hits. Click STOP when coverage looks good.");
     }
 
-    // --- step 2: Record ---------------------------------------------------
-    void onRecord()
-    {
-        if (engine.getMode() == CaptureEngine::Mode::Recording)
-        {
-            engine.setMode (CaptureEngine::Mode::Idle);
-            setStatus ("Stopped. \"" + currentPiece().name + "\" has "
-                       + juce::String ((int) currentPiece().hits.size()) + " hits captured.");
-        }
-        else
-        {
-            if (! engine.calibration().valid)
-                setStatus ("Recording without calibration - velocities default to mid. "
-                           "Calibrate first for accurate mapping.");
-            engine.setMode (CaptureEngine::Mode::Recording);
-        }
-    }
-
-    // --- step 3: Build velocity layers ------------------------------------
-    void onSynth()
-    {
-        const auto& piece = currentPiece();
-        if (piece.hits.empty())
-        {
-            setStatus ("No hits captured for \"" + piece.name + "\" yet - Record some first.");
-            return;
-        }
-
-        const flam::DrumPiece out = synthesizePiece (piece, options);
-
-        int layerCount = 0;
-        int rrGroups   = 0;
-        if (! out.articulations.empty())
-        {
-            const auto& layers = out.articulations[0].layers;
-            layerCount = (int) layers.size();
-            int maxRr = -1;
-            for (const auto& l : layers)
-                maxRr = juce::jmax (maxRr, l.roundRobinGroup);
-            rrGroups = maxRr + 1;
-        }
-
-        if (layerCount == 0)
-            setStatus ("Synthesis dropped all " + juce::String ((int) piece.hits.size())
-                       + " hits as duds. Capture stronger, more varied hits.");
-        else
-            setStatus ("Built " + juce::String (layerCount) + " velocity layers (up to "
-                       + juce::String (rrGroups) + " round-robins) from "
-                       + juce::String ((int) piece.hits.size()) + " hits.");
-    }
-
-    // --- step 4: Export ---------------------------------------------------
+    // --- export (the one remaining explicit action besides Record) ---------
     void onExport()
     {
-        // Only export pieces that actually have hits.
+        stopRecording();
+
         bool anyHits = false;
         for (const auto& p : captures)
             if (! p.hits.empty()) { anyHits = true; break; }
-
-        if (! anyHits)
-        {
-            setStatus ("Nothing to export - no hits captured yet.");
-            return;
-        }
+        if (! anyHits) { setStatus ("Nothing to export yet - record some hits first."); return; }
 
         auto musicDir = juce::File::getSpecialLocation (juce::File::userMusicDirectory);
         if (! musicDir.isDirectory())
             musicDir = juce::File::getSpecialLocation (juce::File::userHomeDirectory);
         const juce::File destDir = musicDir.getChildFile ("FlamForgeKits");
 
-        setStatus ("Exporting kit \"" + kitName + "\" to " + destDir.getFullPathName() + " ...");
-
+        setStatus ("Exporting \"" + kitName + "\" to " + destDir.getFullPathName() + " ...");
         const ExportResult result = exportKit (kitName, captures, options, destDir);
         setStatus (result.message);
     }
@@ -379,13 +433,14 @@ private:
     juce::AudioDeviceManager deviceManager;
     std::unique_ptr<juce::AudioDeviceSelectorComponent> deviceSelector;
 
-    juce::Label title, subtitle, status;
-    juce::TextButton calibrateBtn, recordBtn, synthBtn, exportBtn;
-    CoverageMeter coverage;
+    juce::Label       title, subtitle, pieceLabel, pieceCount, status;
+    juce::TextEditor  pieceName;
+    juce::TextButton  prevBtn, nextBtn, addBtn, recordBtn, exportBtn;
+    StatsPanel        stats;
+    CoverageMeter     coverage;
 
-    // --- capture / synthesis / export state -------------------------------
-    CaptureEngine            engine;
-    std::vector<PieceCapture> captures;       // one per drum piece
+    CaptureEngine             engine;
+    std::vector<PieceCapture> captures;
     int                       currentPieceIndex = 0;
     SynthOptions              options;
     juce::String              kitName = "FlamForge Kit";
@@ -394,18 +449,19 @@ private:
 };
 
 // ---------------------------------------------------------------------------
-// MainComponent — hosts the content column in a scrolling Viewport so the UI
-// stays correct (no overlap) at any window size.
+// MainComponent — hosts the content in a Viewport, sized so the whole layout
+// is visible on open (no cut-off); the viewport only scrolls on small screens.
 // ---------------------------------------------------------------------------
 class MainComponent : public juce::Component
 {
 public:
     MainComponent()
     {
-        viewport.setViewedComponent (&content, false);  // content not owned (member)
+        viewport.setViewedComponent (&content, false);
         viewport.setScrollBarsShown (true, false);
         addAndMakeVisible (viewport);
-        setSize (820, 700);
+        // Open tall enough to show everything (clamped so it fits typical screens).
+        setSize (760, juce::jmin (content.naturalHeight(), 940));
     }
 
     void paint (juce::Graphics& g) override { g.fillAll (juce::Colour (0xff0d0f12)); }
@@ -413,8 +469,6 @@ public:
     void resized() override
     {
         viewport.setBounds (getLocalBounds());
-        // Fill the viewport width (minus the scrollbar); reserve full natural
-        // height so every row is reachable by scrolling.
         const int w = viewport.getMaximumVisibleWidth();
         content.setSize (w, juce::jmax (content.naturalHeight(), viewport.getHeight()));
     }
