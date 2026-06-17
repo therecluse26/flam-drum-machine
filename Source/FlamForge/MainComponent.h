@@ -547,68 +547,77 @@ private:
             return;
         }
 
-        // No native dialog backend detected (Linux without zenity/kdialog in PATH).
-        // Invoke zenity or kdialog directly as a subprocess to avoid JUCE's own
-        // FileChooserDialogBox, which opens as an unfocused X11 window on minimal WMs.
+        // isPlatformDialogAvailable() returned false (no zenity/kdialog in PATH).
+        // Pre-flight check: find zenity or kdialog on disk before spawning any thread.
+        // This avoids juce::ChildProcess::start() returning true (fork succeeds) even
+        // when execvp fails, which previously left status stuck at "Opening folder picker...".
+        const juce::File pickerExe = findSystemPicker();
+        if (pickerExe == juce::File{})
+        {
+            setStatus ("No folder picker found. Install zenity (sudo apt install zenity) or type a path above.");
+            return;
+        }
+
+        // Picker binary confirmed on disk — invoke it as a subprocess on a background thread.
         browseBtn.setEnabled (false);
         setStatus ("Opening folder picker...");
 
         juce::Component::SafePointer<ForgeContent> safeThis = this;
         const juce::String startPath = startDir.getFullPathName();
+        const juce::String exePath   = pickerExe.getFullPathName();
+        const bool isZenity          = pickerExe.getFileName() == "zenity";
 
-        std::thread ([startPath, safeThis]
+        std::thread ([startPath, exePath, isZenity, safeThis]
         {
-            const juce::String result = runNativeFolderDialog (startPath);
+            juce::StringArray args;
+            if (isZenity)
+                args = { exePath, "--file-selection", "--directory",
+                         "--title=Choose export destination",
+                         "--filename=" + startPath + "/" };
+            else
+                args = { exePath, "--getexistingdirectory", startPath };
 
-            juce::MessageManager::callAsync ([safeThis, result]
+            juce::ChildProcess proc;
+            juce::String chosen;
+            if (proc.start (args, juce::ChildProcess::wantStdOut))
+            {
+                proc.waitForProcessToFinish (300000);
+                if (proc.getExitCode() == 0)
+                    chosen = proc.readAllProcessOutput().trim();
+            }
+
+            juce::MessageManager::callAsync ([safeThis, chosen]
             {
                 if (auto* self = safeThis.getComponent())
                 {
                     self->browseBtn.setEnabled (true);
-                    if (result == "__no_picker__")
-                        self->setStatus ("Install zenity (sudo apt install zenity) to enable Browse, or type a path above.");
-                    else if (result.isNotEmpty())
+                    if (chosen.isNotEmpty())
                     {
-                        self->destPathEditor.setText (result, false);
+                        self->destPathEditor.setText (chosen, false);
                         self->persistDestPath();
+                        self->setStatus ("Destination: " + chosen);
                     }
-                    // else: user cancelled — keep current path
+                    else
+                    {
+                        self->setStatus ("No folder selected.");
+                    }
                 }
             });
         }).detach();
     }
 
-    // Invokes zenity or kdialog as a subprocess (bypassing JUCE's dialog fallback).
-    // Returns the chosen path, "" on cancel, or "__no_picker__" if neither tool is found.
-    static juce::String runNativeFolderDialog (const juce::String& startPath)
+    // Check common binary locations for zenity/kdialog without relying on PATH lookup.
+    // Returns the first found executable, or juce::File{} if neither is available.
+    static juce::File findSystemPicker()
     {
-        // Try zenity (GTK)
-        {
-            juce::ChildProcess proc;
-            if (proc.start (juce::StringArray { "zenity", "--file-selection", "--directory",
-                                                "--title=Choose export destination",
-                                                "--filename=" + startPath + "/" },
-                            juce::ChildProcess::wantStdOut))
+        for (const char* name : { "zenity", "kdialog" })
+            for (const char* dir : { "/usr/bin", "/usr/local/bin", "/bin", "/snap/bin" })
             {
-                proc.waitForProcessToFinish (120000);
-                if (proc.getExitCode() == 0)
-                    return proc.readAllProcessOutput().trim();
-                return {};   // user cancelled
+                juce::File f { juce::String (dir) + "/" + name };
+                if (f.existsAsFile())
+                    return f;
             }
-        }
-        // Try kdialog (KDE)
-        {
-            juce::ChildProcess proc;
-            if (proc.start (juce::StringArray { "kdialog", "--getexistingdirectory", startPath },
-                            juce::ChildProcess::wantStdOut))
-            {
-                proc.waitForProcessToFinish (120000);
-                if (proc.getExitCode() == 0)
-                    return proc.readAllProcessOutput().trim();
-                return {};   // user cancelled
-            }
-        }
-        return "__no_picker__";
+        return {};
     }
 
     juce::AudioDeviceManager deviceManager;
