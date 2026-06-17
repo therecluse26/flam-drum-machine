@@ -248,15 +248,76 @@ std::unique_ptr<DrumKit> FlamKitLoader::parseYamlKit(const juce::String& content
 #endif
 }
 
+namespace {
+    // Quote a scalar so the YAML parser reads it back verbatim. We always
+    // double-quote and escape backslashes/quotes; this is safe for arbitrary
+    // strings (names, descriptions, file paths with spaces, etc.).
+    juce::String yamlQuote(const juce::String& s)
+    {
+        juce::String out = s;
+        out = out.replace("\\", "\\\\").replace("\"", "\\\"");
+        return "\"" + out + "\"";
+    }
+}
+
 juce::String FlamKitLoader::serializeKitToYaml(const DrumKit& kit)
 {
-    // Placeholder YAML serialization
+    // Full YAML serialization matching the schema parseYamlKit() reads back.
     juce::String yaml;
-    yaml << "name: " << kit.name << "\n";
-    yaml << "author: " << kit.author << "\n";
-    yaml << "version: " << kit.version << "\n";
-    yaml << "description: " << kit.description << "\n";
-    
+    yaml << "name: " << yamlQuote(kit.name) << "\n";
+    yaml << "author: " << yamlQuote(kit.author) << "\n";
+    yaml << "version: " << yamlQuote(kit.version) << "\n";
+    yaml << "description: " << yamlQuote(kit.description) << "\n";
+
+    if (!kit.tags.empty())
+    {
+        yaml << "tags:\n";
+        for (const auto& tag : kit.tags)
+            yaml << "  - " << yamlQuote(tag) << "\n";
+    }
+
+    if (!kit.channelNames.empty())
+    {
+        yaml << "channels:\n";
+        for (const auto& ch : kit.channelNames)
+            yaml << "  - name: " << yamlQuote(ch) << "\n";
+    }
+
+    yaml << "settings:\n";
+    yaml << "  masterGain: " << juce::String(kit.settings.masterGain) << "\n";
+    yaml << "  maxPolyphony: " << juce::String(kit.settings.maxPolyphony) << "\n";
+    yaml << "  useRoundRobin: " << (kit.settings.useRoundRobin ? "true" : "false") << "\n";
+    yaml << "  defaultHumanization: " << juce::String(kit.settings.defaultHumanization) << "\n";
+
+    yaml << "pieces:\n";
+    for (const auto& piece : kit.pieces)
+    {
+        yaml << "  - name: " << yamlQuote(piece.name) << "\n";
+        yaml << "    midiNote: " << juce::String(piece.midiNote) << "\n";
+        yaml << "    articulations:\n";
+        for (const auto& art : piece.articulations)
+        {
+            yaml << "      - name: " << yamlQuote(art.name) << "\n";
+            yaml << "        chokeGroup: " << juce::String(art.chokeGroup) << "\n";
+            yaml << "        attackTime: " << juce::String(art.attackTime) << "\n";
+            yaml << "        holdTime: " << juce::String(art.holdTime) << "\n";
+            yaml << "        decayTime: " << juce::String(art.decayTime) << "\n";
+            yaml << "        sustainLevel: " << juce::String(art.sustainLevel) << "\n";
+            yaml << "        releaseTime: " << juce::String(art.releaseTime) << "\n";
+            yaml << "        layers:\n";
+            for (const auto& layer : art.layers)
+            {
+                // Sample paths are stored relative to the kit file's directory
+                // (see KitExporter); resolveRelativePath() re-anchors them on load.
+                yaml << "          - sampleFile: " << yamlQuote(layer.sampleFile.getFullPathName()) << "\n";
+                yaml << "            velocityMin: " << juce::String(layer.velocityMin) << "\n";
+                yaml << "            velocityMax: " << juce::String(layer.velocityMax) << "\n";
+                yaml << "            gain: " << juce::String(layer.gain) << "\n";
+                yaml << "            roundRobinGroup: " << juce::String(layer.roundRobinGroup) << "\n";
+            }
+        }
+    }
+
     return yaml;
 }
 
