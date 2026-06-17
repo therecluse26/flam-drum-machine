@@ -14,7 +14,6 @@
 
 #include <array>
 #include <cmath>
-#include <thread>
 #include <vector>
 
 namespace flamforge
@@ -162,6 +161,7 @@ public:
     static constexpr int kStatsH   = 104;
     static constexpr int kCoverageH= 58;
     static constexpr int kDestH    = 28;   // destination row (path editor + Browse)
+    static constexpr int kBrowserH = 296;  // embedded folder browser (260 list + 4 gap + 32 actions)
     static constexpr int kExportH  = 44;
     static constexpr int kStatusH  = 22;
     static constexpr int kRevealH  = 28;
@@ -237,6 +237,15 @@ public:
         configureButton (browseBtn, "Browse...");
         browseBtn.onClick = [this] { onBrowse(); };
 
+        // Embedded folder browser — appears in-window when no native picker is available.
+        configureButton (chooseFolderBtn, "Use This Folder");
+        chooseFolderBtn.onClick = [this] { onChooseFolder(); };
+        chooseFolderBtn.setVisible (false);
+
+        configureButton (cancelBrowseBtn, "Cancel");
+        cancelBrowseBtn.onClick = [this] { hideBrowser(); };
+        cancelBrowseBtn.setVisible (false);
+
         configureButton (exportBtn, "Export kit  (flamkit.yaml + samples)");
         exportBtn.onClick = [this] { onExport(); };
 
@@ -276,6 +285,7 @@ public:
              + kStatsH + kGap
              + kCoverageH + kGap
              + kDestH + kGap
+             + (browserVisible ? kBrowserH + kGap : 0)
              + kExportH + kGap
              + kStatusH + kGap
              + kRevealH + kPad;
@@ -325,6 +335,16 @@ public:
             destPathEditor.setBounds (row);
         }
         area.removeFromTop (kGap);
+        if (browserVisible && fileBrowser != nullptr)
+        {
+            fileBrowser->setBounds    (area.removeFromTop (kBrowserH - 36));
+            area.removeFromTop (4);
+            auto actRow = area.removeFromTop (32);
+            chooseFolderBtn.setBounds (actRow.removeFromLeft (actRow.getWidth() / 2 - 4));
+            actRow.removeFromLeft (8);
+            cancelBrowseBtn.setBounds (actRow);
+            area.removeFromTop (kGap);
+        }
         exportBtn.setBounds (area.removeFromTop (kExportH));
         area.removeFromTop (kGap);
         status.setBounds (area.removeFromTop (kStatusH));
@@ -522,6 +542,12 @@ private:
 
     void onBrowse()
     {
+        if (browserVisible)
+        {
+            hideBrowser();
+            return;
+        }
+
         const juce::String pathText = destPathEditor.getText().trim();
         const juce::File startDir = pathText.isNotEmpty() && juce::File (pathText).isDirectory()
                                    ? juce::File (pathText)
@@ -547,77 +573,75 @@ private:
             return;
         }
 
-        // isPlatformDialogAvailable() returned false (no zenity/kdialog in PATH).
-        // Pre-flight check: find zenity or kdialog on disk before spawning any thread.
-        // This avoids juce::ChildProcess::start() returning true (fork succeeds) even
-        // when execvp fails, which previously left status stuck at "Opening folder picker...".
-        const juce::File pickerExe = findSystemPicker();
-        if (pickerExe == juce::File{})
+        // No native dialog backend. Show a juce::FileBrowserComponent embedded directly
+        // in this window — zero external dependencies, works on any platform.
+        if (fileBrowser == nullptr)
         {
-            setStatus ("No folder picker found. Install zenity (sudo apt install zenity) or type a path above.");
-            return;
+            fileBrowser = std::make_unique<juce::FileBrowserComponent> (
+                juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectDirectories,
+                startDir, nullptr, nullptr);
+            addAndMakeVisible (*fileBrowser);
+        }
+        else
+        {
+            fileBrowser->setRoot (startDir);
+            fileBrowser->setVisible (true);
         }
 
-        // Picker binary confirmed on disk — invoke it as a subprocess on a background thread.
-        browseBtn.setEnabled (false);
-        setStatus ("Opening folder picker...");
-
-        juce::Component::SafePointer<ForgeContent> safeThis = this;
-        const juce::String startPath = startDir.getFullPathName();
-        const juce::String exePath   = pickerExe.getFullPathName();
-        const bool isZenity          = pickerExe.getFileName() == "zenity";
-
-        std::thread ([startPath, exePath, isZenity, safeThis]
-        {
-            juce::StringArray args;
-            if (isZenity)
-                args = { exePath, "--file-selection", "--directory",
-                         "--title=Choose export destination",
-                         "--filename=" + startPath + "/" };
-            else
-                args = { exePath, "--getexistingdirectory", startPath };
-
-            juce::ChildProcess proc;
-            juce::String chosen;
-            if (proc.start (args, juce::ChildProcess::wantStdOut))
-            {
-                proc.waitForProcessToFinish (300000);
-                if (proc.getExitCode() == 0)
-                    chosen = proc.readAllProcessOutput().trim();
-            }
-
-            juce::MessageManager::callAsync ([safeThis, chosen]
-            {
-                if (auto* self = safeThis.getComponent())
-                {
-                    self->browseBtn.setEnabled (true);
-                    if (chosen.isNotEmpty())
-                    {
-                        self->destPathEditor.setText (chosen, false);
-                        self->persistDestPath();
-                        self->setStatus ("Destination: " + chosen);
-                    }
-                    else
-                    {
-                        self->setStatus ("No folder selected.");
-                    }
-                }
-            });
-        }).detach();
+        chooseFolderBtn.setVisible (true);
+        cancelBrowseBtn.setVisible (true);
+        browseBtn.setButtonText ("Hide Browser");
+        browserVisible = true;
+        updateBrowserLayout();
     }
 
-    // Check common binary locations for zenity/kdialog without relying on PATH lookup.
-    // Returns the first found executable, or juce::File{} if neither is available.
-    static juce::File findSystemPicker()
+    void hideBrowser()
     {
-        for (const char* name : { "zenity", "kdialog" })
-            for (const char* dir : { "/usr/bin", "/usr/local/bin", "/bin", "/snap/bin" })
+        browserVisible = false;
+        if (fileBrowser != nullptr)
+            fileBrowser->setVisible (false);
+        chooseFolderBtn.setVisible (false);
+        cancelBrowseBtn.setVisible (false);
+        browseBtn.setButtonText ("Browse...");
+        updateBrowserLayout();
+    }
+
+    void onChooseFolder()
+    {
+        if (fileBrowser != nullptr)
+        {
+            const juce::File chosen = fileBrowser->getRoot();
+            if (chosen.isDirectory())
             {
-                juce::File f { juce::String (dir) + "/" + name };
-                if (f.existsAsFile())
-                    return f;
+                destPathEditor.setText (chosen.getFullPathName(), false);
+                persistDestPath();
+                setStatus ("Destination: " + chosen.getFullPathName());
             }
-        return {};
+        }
+        hideBrowser();
+    }
+
+    void updateBrowserLayout()
+    {
+        // Trigger parent (MainComponent) to resize the viewport content.
+        if (auto* parent = getParentComponent())
+            parent->resized();
+        resized();
+
+        // When opening the browser, scroll the viewport so the browser is visible.
+        if (browserVisible)
+        {
+            if (auto* vp = dynamic_cast<juce::Viewport*> (getParentComponent()))
+            {
+                constexpr int destRowY = kPad + kTitleH + kSubH + kGap
+                                       + kDeviceH + kGap
+                                       + kPieceH + kGap
+                                       + kRecordH + kGap
+                                       + kStatsH + kGap
+                                       + kCoverageH + kGap;
+                vp->setViewPosition (0, destRowY);
+            }
+        }
     }
 
     juce::AudioDeviceManager deviceManager;
@@ -625,7 +649,8 @@ private:
 
     juce::Label       title, subtitle, pieceLabel, pieceCount, status, destLabel;
     juce::TextEditor  pieceName, destPathEditor;
-    juce::TextButton  prevBtn, nextBtn, addBtn, recordBtn, exportBtn, revealBtn, browseBtn;
+    juce::TextButton  prevBtn, nextBtn, addBtn, recordBtn, exportBtn, revealBtn,
+                      browseBtn, chooseFolderBtn, cancelBrowseBtn;
     StatsPanel        stats;
     CoverageMeter     coverage;
 
@@ -635,9 +660,11 @@ private:
     SynthOptions              options;
     juce::String              kitName = "FlamForge Kit";
 
-    std::unique_ptr<juce::FileChooser> chooser;
-    juce::ApplicationProperties        appProps;
-    juce::File                         lastExportedKit;
+    std::unique_ptr<juce::FileChooser>        chooser;
+    std::unique_ptr<juce::FileBrowserComponent> fileBrowser;
+    juce::ApplicationProperties               appProps;
+    juce::File                                lastExportedKit;
+    bool                                      browserVisible = false;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ForgeContent)
 };
