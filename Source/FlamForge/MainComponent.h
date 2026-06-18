@@ -396,10 +396,9 @@ public:
 
     SetupHeader()
     {
-        title.setFont (juce::Font (juce::FontOptions (32.0f, juce::Font::bold)));
+        title.setFont (juce::Font (juce::FontOptions (32.0f).withStyle ("Bold")));
         title.setColour (juce::Label::textColourId, juce::Colours::white);
-        // U+25BE BLACK DOWN-POINTING SMALL TRIANGLE -- indicates collapsible, open state
-        title.setText ("\xe2\x96\xbe FlamForge", juce::dontSendNotification);
+        title.setText ("FlamForge", juce::dontSendNotification);
         title.setInterceptsMouseClicks (false, false);  // let clicks fall through to SetupHeader
         addAndMakeVisible (title);
 
@@ -410,10 +409,9 @@ public:
         addAndMakeVisible (subtitle);
 
         // Shown only when collapsed; summarises device + channel count + export path.
-        // U+25B8 BLACK RIGHT-POINTING SMALL TRIANGLE
         summaryBar.setFont (juce::Font (juce::FontOptions (13.0f)));
         summaryBar.setColour (juce::Label::textColourId, juce::Colours::white.withAlpha (0.8f));
-        summaryBar.setText ("\xe2\x96\xb8 Setup", juce::dontSendNotification);
+        summaryBar.setText ("> Setup", juce::dontSendNotification);
         summaryBar.setInterceptsMouseClicks (false, false);
         summaryBar.setVisible (false);
         addAndMakeVisible (summaryBar);
@@ -440,8 +438,7 @@ public:
     // Update the one-line summary shown when collapsed, e.g. "Default ALSA * 2 in * ~/Music/..."
     void setSummaryText (const juce::String& t)
     {
-        // U+25B8 prefix retained by caller via xc2xb7 middle-dot separators
-        summaryBar.setText ("\xe2\x96\xb8 " + t, juce::dontSendNotification);
+        summaryBar.setText ("> " + t, juce::dontSendNotification);
     }
 
     // Returns pixel height needed: kBarH when collapsed; full expanded height otherwise.
@@ -499,80 +496,171 @@ private:
 };
 
 // ---------------------------------------------------------------------------
-// PieceRail -- left rail: drum piece navigation.
+// PieceRail -- left rail: all drum pieces shown as a scrollable clickable list.
 //
-// Lays out vertically so it works as a narrow left column. Callbacks wired by
-// ForgeContent; setDisplay() called on every piece switch or state refresh.
+// Layout (top to bottom):
+//   [Drum pieces ▸ scrollable list, each row clickable]
+//   [Name TextEditor — edits the selected piece's name]
+//   [+ Add Piece button]
+//
+// rebuild() is called by ForgeContent::refreshAll() whenever the piece list or
+// selection changes; it recreates the row components from the names vector.
+// onSelectPiece(int index) replaces the old onSwitch(delta) and fires an
+// absolute index rather than a +/-1 delta.
 // ---------------------------------------------------------------------------
 class PieceRail : public juce::Component
 {
 public:
-    std::function<void (int)>                 onSwitch;      // delta: -1 or +1
-    std::function<void()>                     onAdd;
-    std::function<void (const juce::String&)> onNameChanged;
+    std::function<void (int)>                  onSelectPiece;  // absolute index
+    std::function<void()>                      onAdd;
+    std::function<void (const juce::String&)>  onNameChanged;
+
+    static constexpr int kRowH    = 30;
+    static constexpr int kNameH   = 24;
+    static constexpr int kAddH    = 28;
+    static constexpr int kGap     = 4;
 
     PieceRail()
     {
-        pieceLabel.setText ("Drum piece:", juce::dontSendNotification);
-        pieceLabel.setColour (juce::Label::textColourId, juce::Colours::white.withAlpha (0.7f));
-        addAndMakeVisible (pieceLabel);
+        // inner declared before viewport -- reverse-destruction order is safe.
+        viewport.setViewedComponent (&inner, false);
+        viewport.setScrollBarsShown (true, false);
+        addAndMakeVisible (viewport);
 
-        pieceName.setColour (juce::TextEditor::backgroundColourId, juce::Colour (0xff1b1f25));
-        pieceName.setColour (juce::TextEditor::textColourId, juce::Colours::white.withAlpha (0.85f));
-        pieceName.onTextChange = [this] { if (onNameChanged) onNameChanged (pieceName.getText()); };
-        addAndMakeVisible (pieceName);
+        nameEditor.setColour (juce::TextEditor::backgroundColourId, juce::Colour (0xff1b1f25));
+        nameEditor.setColour (juce::TextEditor::textColourId, juce::Colours::white.withAlpha (0.85f));
+        nameEditor.setFont (juce::Font (juce::FontOptions (12.0f)));
+        nameEditor.setTextToShowWhenEmpty ("Piece name...", juce::Colours::white.withAlpha (0.3f));
+        nameEditor.onTextChange = [this]
+        {
+            if (onNameChanged) onNameChanged (nameEditor.getText());
+            // Keep the selected row label in sync without a full rebuild.
+            if (selectedIdx >= 0 && selectedIdx < rows.size())
+            {
+                rows[selectedIdx]->name = nameEditor.getText();
+                rows[selectedIdx]->repaint();
+            }
+        };
+        addAndMakeVisible (nameEditor);
 
-        configureButton (prevBtn, "<");     prevBtn.onClick = [this] { if (onSwitch) onSwitch (-1); };
-        configureButton (nextBtn, ">");     nextBtn.onClick = [this] { if (onSwitch) onSwitch (+1); };
-        configureButton (addBtn, "+ Add");  addBtn.onClick  = [this] { if (onAdd) onAdd(); };
-
-        pieceCount.setJustificationType (juce::Justification::centred);
-        pieceCount.setColour (juce::Label::textColourId, juce::Colours::white.withAlpha (0.7f));
-        addAndMakeVisible (pieceCount);
+        addBtn.setButtonText ("+ Add Piece");
+        addBtn.onClick = [this] { if (onAdd) onAdd(); };
+        addAndMakeVisible (addBtn);
     }
 
-    void setDisplay (int idx, int total, const juce::String& name)
+    // Rebuild the list from the current names vector. selectedIdx is the piece
+    // currently selected in ForgeContent; its name seeds the name editor.
+    void rebuild (int selectedIndex, const std::vector<juce::String>& names)
     {
-        pieceName.setText (name, juce::dontSendNotification);
-        pieceCount.setText (juce::String (idx + 1) + " / " + juce::String (total),
-                            juce::dontSendNotification);
+        selectedIdx = selectedIndex;
+        rows.clear();
+        for (int i = 0; i < (int) names.size(); ++i)
+        {
+            auto* row = rows.add (new PieceRow());
+            row->name     = names[(size_t) i];
+            row->selected = (i == selectedIndex);
+            const int idx = i;
+            row->onClicked = [this, idx] { selectRow (idx); };
+            inner.addAndMakeVisible (row);
+        }
+        layoutInner();
+        if (selectedIndex >= 0 && selectedIndex < (int) names.size())
+            nameEditor.setText (names[(size_t) selectedIndex], juce::dontSendNotification);
+        scrollToSelected();
     }
 
     void resized() override
     {
-        auto b = getLocalBounds().reduced (6, 6);
-        pieceLabel.setBounds (b.removeFromTop (18));
-        b.removeFromTop (4);
-        pieceName.setBounds (b.removeFromTop (24));
-        b.removeFromTop (10);
-        {
-            auto nav = b.removeFromTop (28);
-            const int navW = juce::jlimit (26, 36, nav.getWidth() / 5);
-            prevBtn.setBounds    (nav.removeFromLeft (navW));
-            nav.removeFromLeft (2);
-            nextBtn.setBounds    (nav.removeFromRight (navW));
-            pieceCount.setBounds (nav);
-        }
-        b.removeFromTop (8);
-        addBtn.setBounds (b.removeFromTop (28));
+        auto b = getLocalBounds().reduced (4, 4);
+        addBtn.setBounds  (b.removeFromBottom (kAddH));
+        b.removeFromBottom (kGap);
+        nameEditor.setBounds (b.removeFromBottom (kNameH));
+        b.removeFromBottom (kGap);
+        viewport.setBounds (b);
+        layoutInner();
     }
 
     void paint (juce::Graphics& g) override
     {
         g.setColour (juce::Colour (0xff14171c));
         g.fillRoundedRectangle (getLocalBounds().toFloat(), 4.0f);
+
+        // Section label above the list
+        g.setColour (juce::Colours::white.withAlpha (0.40f));
+        g.setFont (juce::Font (juce::FontOptions (10.0f)));
+        g.drawText ("DRUM PIECES", getLocalBounds().reduced (6, 0).withHeight (14),
+                    juce::Justification::centredLeft);
     }
 
 private:
-    void configureButton (juce::TextButton& b, const juce::String& lbl)
+    // ---------------------------------------------------------------------------
+    // PieceRow -- one clickable row in the piece list.
+    // ---------------------------------------------------------------------------
+    struct PieceRow : juce::Component
     {
-        b.setButtonText (lbl);
-        addAndMakeVisible (b);
+        std::function<void()> onClicked;
+        juce::String name;
+        bool         selected = false;
+        bool         hovered  = false;
+
+        void paint (juce::Graphics& g) override
+        {
+            if (selected)
+            {
+                g.setColour (juce::Colour (0xff2f5c3a));
+                g.fillRoundedRectangle (getLocalBounds().toFloat().reduced (1.0f, 1.0f), 4.0f);
+            }
+            else if (hovered)
+            {
+                g.setColour (juce::Colour (0xff1e2329));
+                g.fillRoundedRectangle (getLocalBounds().toFloat().reduced (1.0f, 1.0f), 4.0f);
+            }
+            g.setColour (selected ? juce::Colours::white : juce::Colours::white.withAlpha (0.75f));
+            g.setFont (juce::Font (juce::FontOptions (13.0f)));
+            g.drawText (name, getLocalBounds().reduced (8, 0), juce::Justification::centredLeft);
+        }
+
+        void mouseUp    (const juce::MouseEvent&) override { if (onClicked) onClicked(); }
+        void mouseEnter (const juce::MouseEvent&) override { hovered = true;  repaint(); }
+        void mouseExit  (const juce::MouseEvent&) override { hovered = false; repaint(); }
+    };
+
+    void selectRow (int idx)
+    {
+        if (selectedIdx >= 0 && selectedIdx < rows.size())
+            rows[selectedIdx]->selected = false;
+        selectedIdx = idx;
+        if (selectedIdx >= 0 && selectedIdx < rows.size())
+        {
+            rows[selectedIdx]->selected = true;
+            nameEditor.setText (rows[selectedIdx]->name, juce::dontSendNotification);
+        }
+        inner.repaint();
+        if (onSelectPiece) onSelectPiece (idx);
     }
 
-    juce::Label      pieceLabel, pieceCount;
-    juce::TextEditor pieceName;
-    juce::TextButton prevBtn, nextBtn, addBtn;
+    void layoutInner()
+    {
+        const int n      = rows.size();
+        const int innerH = juce::jmax (viewport.getHeight(), n * kRowH);
+        inner.setSize (viewport.getWidth(), innerH);
+        for (int i = 0; i < n; ++i)
+            rows[i]->setBounds (0, i * kRowH, inner.getWidth(), kRowH);
+    }
+
+    void scrollToSelected()
+    {
+        if (selectedIdx >= 0 && selectedIdx < rows.size())
+            viewport.setViewPosition (0, selectedIdx * kRowH);
+    }
+
+    // inner before viewport -- safe reverse-destruction order.
+    juce::Component         inner;
+    juce::OwnedArray<PieceRow> rows;
+    juce::Viewport          viewport;
+    juce::TextEditor        nameEditor;
+    juce::TextButton        addBtn;
+    int                     selectedIdx = 0;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PieceRail)
 };
@@ -927,8 +1015,8 @@ public:
         addAndMakeVisible (capturePanel);
 
         // --- PieceRail callbacks ---
-        pieceRail.onSwitch = [this] (int d) { switchPiece (d); };
-        pieceRail.onAdd    = [this]        { addPiece(); };
+        pieceRail.onSelectPiece = [this] (int idx) { switchPieceAbsolute (idx); };
+        pieceRail.onAdd         = [this]            { addPiece(); };
         pieceRail.onNameChanged = [this] (const juce::String& n) { currentPiece().name = n; };
 
         // --- CapturePanel callbacks ---
@@ -1142,16 +1230,20 @@ private:
         refreshAll();
     }
 
-    void switchPiece (int delta)
+    void switchPieceAbsolute (int index)
     {
         stopRecording();
-        currentPieceIndex = juce::jlimit (0, (int) captures.size() - 1, currentPieceIndex + delta);
+        currentPieceIndex = juce::jlimit (0, (int) captures.size() - 1, index);
         refreshAll();
     }
 
     void refreshAll()
     {
-        pieceRail.setDisplay (currentPieceIndex, (int) captures.size(), currentPiece().name);
+        std::vector<juce::String> names;
+        names.reserve (captures.size());
+        for (const auto& p : captures)
+            names.push_back (p.name);
+        pieceRail.rebuild (currentPieceIndex, names);
         capturePanel.setRecordingState (isRecording());
         recompute();
     }
@@ -1280,8 +1372,12 @@ private:
 };
 
 // ---------------------------------------------------------------------------
-// MainComponent -- hosts the content in a Viewport, sized so the whole layout
-// is visible on open (no cut-off); the viewport only scrolls on small screens.
+// MainComponent -- hosts ForgeContent (scrollable viewport) pinned above
+// ExportBar (fixed bottom strip). ExportBar lives outside the viewport so it
+// is always visible even when the device-selector area requires scrolling.
+//
+// Callback wiring between ForgeContent and ExportBar is done here so neither
+// zone owns the other directly.
 // ---------------------------------------------------------------------------
 class MainComponent : public juce::Component
 {
@@ -1291,14 +1387,33 @@ public:
         viewport.setViewedComponent (&content, false);
         viewport.setScrollBarsShown (true, true);
         addAndMakeVisible (viewport);
-        setSize (760, juce::jmin (content.naturalHeight(), 940));
+        addAndMakeVisible (exportBar);
+
+        // --- ForgeContent -> ExportBar ---
+        content.onStatusChanged   = [this] (const juce::String& s) { exportBar.setStatus (s); };
+        content.onExportSucceeded = [this] { exportBar.showReveal(); };
+        content.getExportDestPath = [this] { return exportBar.getDestPath(); };
+
+        // --- ExportBar -> ForgeContent ---
+        exportBar.onExportRequested = [this] { content.onExport(); };
+        exportBar.onRevealRequested = [this] { content.onReveal(); };
+        exportBar.onPathCommitted   = [this] (const juce::String& p) { content.persistDestPath (p); };
+        exportBar.onBrowserVisibilityChanged = [this] (bool) { resized(); };
+
+        exportBar.setDestPath (content.loadPersistedDest().getFullPathName());
+        exportBar.setStatus ("Ready. Choose your input above, name the drum, then Record.");
+
+        setSize (760, juce::jmin (content.naturalHeight() + exportBar.naturalHeight(), 940));
     }
 
     void paint (juce::Graphics& g) override { g.fillAll (juce::Colour (0xff0d0f12)); }
 
     void resized() override
     {
-        viewport.setBounds (getLocalBounds());
+        auto b = getLocalBounds();
+        const int exportH = exportBar.naturalHeight();
+        exportBar.setBounds (b.removeFromBottom (exportH));
+        viewport.setBounds (b);
         const int w = viewport.getMaximumVisibleWidth();
         const int contentW = juce::jmax (640, w);
         content.setSize (contentW, juce::jmax (content.naturalHeight(), viewport.getHeight()));
@@ -1307,6 +1422,7 @@ public:
 private:
     juce::Viewport viewport;
     ForgeContent   content;
+    ExportBar      exportBar;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainComponent)
 };

@@ -205,7 +205,10 @@ public:
     void systemRequestedQuit() override { quit(); }
 
     // A resizable document window hosting the FlamForge MainComponent.
-    class MainWindow : public juce::DocumentWindow
+    // Inherits Timer so we can fire a delayed geometry re-assert after the WM
+    // has finished applying its own show-time restore heuristics.
+    class MainWindow : public juce::DocumentWindow,
+                       private juce::Timer
     {
     public:
         explicit MainWindow (const juce::String& name)
@@ -214,19 +217,82 @@ public:
                                     juce::DocumentWindow::allButtons)
         {
             setUsingNativeTitleBar (true);
-            setContentOwned (new MainComponent(), true);
+
+            auto* mc = new MainComponent();
+            enforcedW = mc->getWidth();
+            enforcedH = mc->getHeight();
+
+            std::cerr << "[MainWindow] mc=" << enforcedW << "x" << enforcedH
+                      << " scale=" << juce::Desktop::getInstance().getGlobalScaleFactor()
+                      << "\n";
+
+            setContentOwned (mc, true);
             setResizable (true, true);
-            setResizeLimits (640, 560, 99999, 99999);
-            centreWithSize (getWidth(), getHeight());
+            setResizeLimits (640, 700, 99999, 99999);
+
+            // Restore our saved window size, enforcing the content minimum.
+            initWindowProps();
+            if (auto* s = windowProps.getUserSettings())
+            {
+                enforcedW = juce::jmax (enforcedW, s->getIntValue ("windowW", enforcedW));
+                enforcedH = juce::jmax (enforcedH, s->getIntValue ("windowH", enforcedH));
+            }
+
+            centreWithSize (enforcedW, enforcedH);
             setVisible (true);
+
+            // The WM applies its stored geometry at show-time, overriding the
+            // centreWithSize above. Fire at 50 ms and 200 ms to re-assert AFTER
+            // the WM has finished. 50 ms catches most WMs; 200 ms catches KDE
+            // Plasma which has a second geometry-restore pass.
+            startTimer (50);
         }
 
         void closeButtonPressed() override
         {
+            initWindowProps();
+            if (auto* s = windowProps.getUserSettings())
+            {
+                s->setValue ("windowW", getWidth());
+                s->setValue ("windowH", getHeight());
+                s->saveIfNeeded();
+            }
             juce::JUCEApplication::getInstance()->systemRequestedQuit();
         }
 
     private:
+        void timerCallback() override
+        {
+            const float scale = juce::Desktop::getInstance().getGlobalScaleFactor();
+            std::cerr << "[FlamForge] timer pass " << timerCount
+                      << " scale=" << scale
+                      << " requestedW=" << enforcedW << " requestedH=" << enforcedH
+                      << " currentW=" << getWidth() << " currentH=" << getHeight() << "\n";
+            centreWithSize (enforcedW, enforcedH);
+            std::cerr << "[FlamForge] after centreWithSize: "
+                      << getWidth() << "x" << getHeight() << "\n";
+
+            if (timerCount == 0) { timerCount = 1; startTimer (500); }   // 500ms for KDE
+            else                 { stopTimer(); }
+        }
+
+        void initWindowProps()
+        {
+            if (windowPropsReady) return;
+            windowPropsReady = true;
+            juce::PropertiesFile::Options opts;
+            opts.applicationName     = "FlamForge";
+            opts.filenameSuffix      = ".settings";
+            opts.osxLibrarySubFolder = "Application Support";
+            windowProps.setStorageParameters (opts);
+        }
+
+        juce::ApplicationProperties windowProps;
+        bool                        windowPropsReady = false;
+        int                         enforcedW = 760;
+        int                         enforcedH = 714;
+        int                         timerCount = 0;
+
         JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainWindow)
     };
 
