@@ -407,62 +407,222 @@ private:
 };
 
 // ---------------------------------------------------------------------------
-// PieceRail — left rail: drum piece navigation.
-//
-// Lays out vertically so it works as a narrow left column. Callbacks wired by
-// ForgeContent; setDisplay() called on every piece switch or state refresh.
+// PieceRowData — compact per-piece summary fed from ForgeContent into PieceRail.
 // ---------------------------------------------------------------------------
-class PieceRail : public juce::Component
+struct PieceRowData
+{
+    juce::String name;
+    int hitCount   = 0;
+    int binsFilled = 0;  // 0..CoverageMeter::kNumBins
+};
+
+// ---------------------------------------------------------------------------
+// PieceRow — one selectable, inline-renameable row in PieceRail.
+//
+// Single-click selects the row. Double-click on the already-selected row
+// opens an inline TextEditor for renaming. The editor is transparent and
+// mouse-transparent when read-only, so all clicks reach PieceRow's handlers.
+//
+// IMPORTANT: onNameCommit must NOT trigger a rail rebuild (setItems) from
+// within the same call — doing so would delete this row while commitName()
+// is still on the stack (use-after-free).
+// ---------------------------------------------------------------------------
+class PieceRow : public juce::Component
 {
 public:
-    std::function<void (int)>                 onSwitch;      // delta: -1 or +1
-    std::function<void()>                     onAdd;
-    std::function<void (const juce::String&)> onNameChanged;
+    std::function<void()>                     onSelect;
+    std::function<void (const juce::String&)> onNameCommit;
 
-    PieceRail()
+    PieceRow()
     {
-        pieceLabel.setText ("Drum piece:", juce::dontSendNotification);
-        pieceLabel.setColour (juce::Label::textColourId, juce::Colours::white.withAlpha (0.7f));
-        addAndMakeVisible (pieceLabel);
-
-        pieceName.setColour (juce::TextEditor::backgroundColourId, juce::Colour (0xff1b1f25));
-        pieceName.setColour (juce::TextEditor::textColourId, juce::Colours::white.withAlpha (0.85f));
-        pieceName.onTextChange = [this] { if (onNameChanged) onNameChanged (pieceName.getText()); };
-        addAndMakeVisible (pieceName);
-
-        configureButton (prevBtn, "<");     prevBtn.onClick = [this] { if (onSwitch) onSwitch (-1); };
-        configureButton (nextBtn, ">");     nextBtn.onClick = [this] { if (onSwitch) onSwitch (+1); };
-        configureButton (addBtn, "+ Add");  addBtn.onClick  = [this] { if (onAdd) onAdd(); };
-
-        pieceCount.setJustificationType (juce::Justification::centred);
-        pieceCount.setColour (juce::Label::textColourId, juce::Colours::white.withAlpha (0.7f));
-        addAndMakeVisible (pieceCount);
+        nameEditor.setColour (juce::TextEditor::backgroundColourId, juce::Colour (0x00000000u));
+        nameEditor.setColour (juce::TextEditor::outlineColourId, juce::Colours::transparentBlack);
+        nameEditor.setColour (juce::TextEditor::focusedOutlineColourId, juce::Colour (0xff3b7dcc));
+        nameEditor.setColour (juce::TextEditor::textColourId, juce::Colours::white.withAlpha (0.88f));
+        nameEditor.setFont (juce::Font (juce::FontOptions (13.0f)));
+        nameEditor.setReadOnly (true);
+        nameEditor.setOpaque (false);
+        nameEditor.setInterceptsMouseClicks (false, false);
+        nameEditor.onReturnKey = [this] { commitName(); };
+        nameEditor.onFocusLost = [this] { commitName(); };
+        addAndMakeVisible (nameEditor);
     }
 
-    void setDisplay (int idx, int total, const juce::String& name)
+    void setData (int index, const PieceRowData& d, bool sel)
     {
-        pieceName.setText (name, juce::dontSendNotification);
-        pieceCount.setText (juce::String (idx + 1) + " / " + juce::String (total),
-                            juce::dontSendNotification);
+        pieceIdx = index;
+        if (! sel && selected && ! nameEditor.isReadOnly())
+        {
+            nameEditor.setReadOnly (true);
+            nameEditor.setInterceptsMouseClicks (false, false);
+        }
+        selected = sel;
+        data     = d;
+        nameEditor.setText (d.name, juce::dontSendNotification);
+        repaint();
+    }
+
+    void mouseDown (const juce::MouseEvent&) override
+    {
+        if (! selected && onSelect)
+            onSelect();
+    }
+
+    void mouseDoubleClick (const juce::MouseEvent&) override
+    {
+        if (selected && nameEditor.isReadOnly())
+        {
+            nameEditor.setReadOnly (false);
+            nameEditor.grabKeyboardFocus();
+            nameEditor.selectAll();
+            repaint();
+        }
     }
 
     void resized() override
     {
-        auto b = getLocalBounds().reduced (6, 6);
-        pieceLabel.setBounds (b.removeFromTop (18));
-        b.removeFromTop (4);
-        pieceName.setBounds (b.removeFromTop (24));
-        b.removeFromTop (10);
+        auto b = getLocalBounds().reduced (4, 3);
+        b.removeFromLeft (18);  // dot (8 px) + gap (10 px)
+        b.removeFromRight (46); // hit-count area
+        nameEditor.setBounds (b);
+    }
+
+    void paint (juce::Graphics& g) override
+    {
+        const auto b = getLocalBounds();
+
+        if (selected)
         {
-            auto nav = b.removeFromTop (28);
-            const int navW = juce::jlimit (26, 36, nav.getWidth() / 5);
-            prevBtn.setBounds    (nav.removeFromLeft (navW));
-            nav.removeFromLeft (2);
-            nextBtn.setBounds    (nav.removeFromRight (navW));
-            pieceCount.setBounds (nav);
+            g.setColour (juce::Colour (0xff2a2e35));
+            g.fillRoundedRectangle (b.toFloat(), 4.0f);
         }
-        b.removeFromTop (8);
-        addBtn.setBounds (b.removeFromTop (28));
+
+        // Coverage dot
+        constexpr float kDot = 8.0f;
+        g.setColour (coverageColour (data.binsFilled));
+        g.fillEllipse ({6.0f, (b.getHeight() - kDot) * 0.5f, kDot, kDot});
+
+        // Hit count (right-aligned)
+        g.setColour (juce::Colours::white.withAlpha (0.4f));
+        g.setFont (juce::Font (juce::FontOptions (10.0f)));
+        g.drawText (juce::String (data.hitCount),
+                    b.withLeft (b.getRight() - 46).reduced (2, 0),
+                    juce::Justification::centredRight);
+
+        // Row separator
+        g.setColour (juce::Colour (0xff1e2227));
+        g.fillRect (juce::Rectangle<float> (0.0f, (float) b.getBottom() - 1.0f,
+                                            (float) b.getWidth(), 1.0f));
+    }
+
+private:
+    static juce::Colour coverageColour (int binsFilled) noexcept
+    {
+        if (binsFilled >= 12)  return juce::Colour (0xff3ecf6b);  // green  — good
+        if (binsFilled >= 5)   return juce::Colour (0xffe0b341);  // yellow — usable
+        if (binsFilled >= 1)   return juce::Colour (0xffd0473f);  // red    — thin
+        return juce::Colour (0xff3a3f47);                          // grey   — empty
+    }
+
+    void commitName()
+    {
+        const juce::String t = nameEditor.getText().trim();
+        nameEditor.setReadOnly (true);
+        nameEditor.setInterceptsMouseClicks (false, false);
+        if (t.isNotEmpty())
+        {
+            data.name = t;
+            if (onNameCommit) onNameCommit (t);
+            return;  // onNameCommit must not rebuild the rail — 'this' must remain valid
+        }
+        nameEditor.setText (data.name, juce::dontSendNotification);
+        repaint();
+    }
+
+    int              pieceIdx = 0;
+    PieceRowData     data;
+    bool             selected = false;
+    juce::TextEditor nameEditor;
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PieceRow)
+};
+
+// ---------------------------------------------------------------------------
+// PieceRail — persistent left rail: scrollable list of all drum pieces.
+//
+// Replaces the old < 1/1 > navigation with a kit-level overview showing
+// coverage dot + name + hit count per piece. ForgeContent calls setItems()
+// on every state refresh; the rail holds no duplicate data.
+// ---------------------------------------------------------------------------
+class PieceRail : public juce::Component
+{
+public:
+    std::function<void (int)>                      onSelect;       // absolute piece index
+    std::function<void()>                          onAdd;
+    std::function<void (int, const juce::String&)> onNameChanged;  // (pieceIdx, newName)
+
+    static constexpr int kRowH    = 32;
+    static constexpr int kHeaderH = 20;
+    static constexpr int kAddH    = 28;
+    static constexpr int kPad     = 5;
+
+    PieceRail()
+    {
+        headerLabel.setText ("PIECES", juce::dontSendNotification);
+        headerLabel.setColour (juce::Label::textColourId, juce::Colours::white.withAlpha (0.45f));
+        headerLabel.setFont (juce::Font (juce::FontOptions (10.0f, juce::Font::bold)));
+        addAndMakeVisible (headerLabel);
+
+        // inner declared before viewport — destroyed after viewport (reverse order).
+        inner.setInterceptsMouseClicks (false, true);
+        viewport.setViewedComponent (&inner, /*ownedByViewport=*/false);
+        viewport.setScrollBarsShown (/*vertical=*/true, /*horizontal=*/false);
+        addAndMakeVisible (viewport);
+
+        addBtn.setButtonText ("+ Add piece");
+        addBtn.onClick = [this] { if (onAdd) onAdd(); };
+        addAndMakeVisible (addBtn);
+    }
+
+    void setItems (int selectedIdx, const std::vector<PieceRowData>& items)
+    {
+        rows.clear();
+        for (int i = 0; i < (int) items.size(); ++i)
+        {
+            auto* row = rows.add (new PieceRow());
+            const int idx = i;
+            row->onSelect     = [this, idx] { if (onSelect) onSelect (idx); };
+            row->onNameCommit = [this, idx] (const juce::String& n)
+            {
+                if (onNameChanged) onNameChanged (idx, n);
+            };
+            row->setData (i, items[(size_t) i], i == selectedIdx);
+            inner.addAndMakeVisible (row);
+        }
+        layoutRows();
+
+        // Scroll to keep selected row visible
+        if (selectedIdx >= 0 && selectedIdx < (int) items.size())
+        {
+            const int y   = selectedIdx * kRowH;
+            const int vpH = viewport.getHeight();
+            const int cur = viewport.getViewPositionY();
+            if (y < cur)
+                viewport.setViewPosition (0, y);
+            else if (y + kRowH > cur + vpH)
+                viewport.setViewPosition (0, juce::jmax (0, y + kRowH - vpH));
+        }
+    }
+
+    void resized() override
+    {
+        auto b = getLocalBounds().reduced (kPad, kPad);
+        headerLabel.setBounds (b.removeFromTop (kHeaderH));
+        b.removeFromTop (2);
+        addBtn.setBounds (b.removeFromBottom (kAddH));
+        b.removeFromBottom (kPad);
+        viewport.setBounds (b);
+        layoutRows();
     }
 
     void paint (juce::Graphics& g) override
@@ -472,15 +632,22 @@ public:
     }
 
 private:
-    void configureButton (juce::TextButton& b, const juce::String& lbl)
+    void layoutRows()
     {
-        b.setButtonText (lbl);
-        addAndMakeVisible (b);
+        const int vpW    = juce::jmax (1, viewport.getMaximumVisibleWidth());
+        const int totalH = rows.size() * kRowH;
+        inner.setSize (vpW, juce::jmax (totalH, viewport.getHeight()));
+        for (int i = 0; i < rows.size(); ++i)
+            rows[i]->setBounds (0, i * kRowH, vpW, kRowH);
     }
 
-    juce::Label      pieceLabel, pieceCount;
-    juce::TextEditor pieceName;
-    juce::TextButton prevBtn, nextBtn, addBtn;
+    // Declare inner before viewport — C++ reverse-destruction ensures
+    // viewport (which holds a raw pointer to inner) is destroyed first.
+    juce::Label              headerLabel;
+    juce::Component          inner;
+    juce::Viewport           viewport;
+    juce::TextButton         addBtn;
+    juce::OwnedArray<PieceRow> rows;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PieceRail)
 };
@@ -805,9 +972,16 @@ public:
         addAndMakeVisible (capturePanel);
 
         // --- PieceRail callbacks ---
-        pieceRail.onSwitch = [this] (int d) { switchPiece (d); };
-        pieceRail.onAdd    = [this]        { addPiece(); };
-        pieceRail.onNameChanged = [this] (const juce::String& n) { currentPiece().name = n; };
+        pieceRail.onSelect = [this] (int idx) { selectPiece (idx); };
+        pieceRail.onAdd    = [this]            { addPiece(); };
+        // Update the data model only — do NOT call setItems()/refreshAll() here;
+        // the ForgeContent callback fires while PieceRow::commitName() is still
+        // on the stack, so rebuilding the rail would delete the row mid-call.
+        pieceRail.onNameChanged = [this] (int idx, const juce::String& n)
+        {
+            if (idx >= 0 && idx < (int) captures.size())
+                captures[(size_t) idx].name = n;
+        };
 
         // --- CapturePanel callbacks ---
         capturePanel.onRecord = [this] { toggleRecord(); };
@@ -885,6 +1059,38 @@ public:
     // --- Public API for MainComponent to call on behalf of ExportBar actions ---
 
     // Triggered by ExportBar's Export button via MainComponent.
+    static int computeBinsFilled (const PieceCapture& piece)
+    {
+        if (piece.hits.empty()) return 0;
+        float softDb = 1.0e9f, loudDb = -1.0e9f;
+        for (const auto& h : piece.hits)
+        {
+            softDb = juce::jmin (softDb, h.peakDb);
+            loudDb = juce::jmax (loudDb, h.peakDb);
+        }
+        const bool hasRange = (int) piece.hits.size() >= 2 && loudDb > softDb;
+        std::array<int, CoverageMeter::kNumBins> counts{};
+        for (const auto& h : piece.hits)
+        {
+            const int v   = hasRange ? mapPeakToVelocity (h.peakDb, softDb, loudDb) : 100;
+            const int bin = juce::jlimit (0, CoverageMeter::kNumBins - 1,
+                                          (juce::jlimit (1, 127, v) - 1) * CoverageMeter::kNumBins / 127);
+            ++counts[(size_t) bin];
+        }
+        int filled = 0;
+        for (int n : counts) if (n > 0) ++filled;
+        return filled;
+    }
+
+    std::vector<PieceRowData> buildRowData() const
+    {
+        std::vector<PieceRowData> out;
+        out.reserve (captures.size());
+        for (const auto& p : captures)
+            out.push_back ({ p.name, (int) p.hits.size(), computeBinsFilled (p) });
+        return out;
+    }
+
     void onExport()
     {
         stopRecording();
@@ -957,16 +1163,16 @@ private:
         refreshAll();
     }
 
-    void switchPiece (int delta)
+    void selectPiece (int idx)
     {
         stopRecording();
-        currentPieceIndex = juce::jlimit (0, (int) captures.size() - 1, currentPieceIndex + delta);
+        currentPieceIndex = juce::jlimit (0, (int) captures.size() - 1, idx);
         refreshAll();
     }
 
     void refreshAll()
     {
-        pieceRail.setDisplay (currentPieceIndex, (int) captures.size(), currentPiece().name);
+        pieceRail.setItems (currentPieceIndex, buildRowData());
         capturePanel.setRecordingState (isRecording());
         recompute();
     }
