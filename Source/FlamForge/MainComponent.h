@@ -155,11 +155,11 @@ public:
     static constexpr int kPad      = 22;
     static constexpr int kTitleH   = 38;
     static constexpr int kSubH     = 20;
-    static constexpr int kDeviceH  = 210;   // input device + input channels (advanced/output hidden)
+    // kDeviceH / kStatsH / kCoverageH are now computed dynamically in resized().
     static constexpr int kPieceH   = 34;
     static constexpr int kRecordH  = 56;
-    static constexpr int kStatsH   = 104;
-    static constexpr int kCoverageH= 58;
+    static constexpr int kDestH    = 28;   // destination row (path editor + Browse)
+    static constexpr int kBrowserH = 296;  // embedded folder browser (260 list + 4 gap + 32 actions)
     static constexpr int kExportH  = 44;
     static constexpr int kStatusH  = 22;
     static constexpr int kRevealH  = 28;
@@ -220,6 +220,30 @@ public:
         propOpts.osxLibrarySubFolder = "Application Support";
         appProps.setStorageParameters (propOpts);
 
+        // --- destination row (always visible — no modal dependency) ---------------
+        destLabel.setText ("Export to:", juce::dontSendNotification);
+        destLabel.setColour (juce::Label::textColourId, juce::Colours::white.withAlpha (0.7f));
+        addAndMakeVisible (destLabel);
+
+        destPathEditor.setText (loadPersistedDest().getFullPathName(), false);
+        destPathEditor.setColour (juce::TextEditor::backgroundColourId, juce::Colour (0xff1b1f25));
+        destPathEditor.setTooltip ("Type or paste the export destination folder path");
+        destPathEditor.onReturnKey = [this] { persistDestPath(); };
+        destPathEditor.onFocusLost = [this] { persistDestPath(); };
+        addAndMakeVisible (destPathEditor);
+
+        configureButton (browseBtn, "Browse...");
+        browseBtn.onClick = [this] { onBrowse(); };
+
+        // Embedded folder browser — appears in-window when no native picker is available.
+        configureButton (chooseFolderBtn, "Use This Folder");
+        chooseFolderBtn.onClick = [this] { onChooseFolder(); };
+        chooseFolderBtn.setVisible (false);
+
+        configureButton (cancelBrowseBtn, "Cancel");
+        cancelBrowseBtn.onClick = [this] { hideBrowser(); };
+        cancelBrowseBtn.setVisible (false);
+
         configureButton (exportBtn, "Export kit  (flamkit.yaml + samples)");
         exportBtn.onClick = [this] { onExport(); };
 
@@ -252,12 +276,16 @@ public:
 
     int naturalHeight() const
     {
+        // Use jlimit lower bounds for the three elastic sections so the window
+        // opens at a sensible minimum without over-sizing on small screens.
         return kPad + kTitleH + kSubH + kGap
-             + kDeviceH + kGap
+             + 160 + kGap   // deviceH lower bound
              + kPieceH + kGap
              + kRecordH + kGap
-             + kStatsH + kGap
-             + kCoverageH + kGap
+             + 80 + kGap    // statsH lower bound
+             + 48 + kGap    // coverageH lower bound
+             + kDestH + kGap
+             + (browserVisible ? kBrowserH + kGap : 0)
              + kExportH + kGap
              + kStatusH + kGap
              + kRevealH + kPad;
@@ -267,23 +295,51 @@ public:
 
     void resized() override
     {
+        // Pass 1 — sum all fixed-height sections and padding.
+        const int fixedTotal =
+            2 * kPad
+            + kTitleH + kSubH + kGap
+            + kPieceH + kGap
+            + kRecordH + kGap
+            + kDestH + kGap
+            + (browserVisible ? kBrowserH + kGap : 0)
+            + kExportH + kGap
+            + kStatusH + kGap
+            + kRevealH;
+
+        // Pass 2 — distribute remaining height proportionally to elastic sections.
+        const int flexAvail  = juce::jmax (0, getHeight() - fixedTotal);
+        const int deviceH    = juce::jlimit (160, 340, 50 + flexAvail * 55 / 100);
+        const int statsH     = juce::jlimit (80,  160, flexAvail * 30 / 100);
+        const int coverageH  = juce::jlimit (48,  100, flexAvail * 15 / 100);
+
+        // Store for scroll-position calculation in updateBrowserLayout().
+        m_deviceH   = deviceH;
+        m_statsH    = statsH;
+        m_coverageH = coverageH;
+
         auto area = getLocalBounds().reduced (kPad, kPad);
 
         title.setBounds    (area.removeFromTop (kTitleH));
         subtitle.setBounds (area.removeFromTop (kSubH));
         area.removeFromTop (kGap);
 
-        deviceSelector->setBounds (area.removeFromTop (kDeviceH));
+        deviceSelector->setBounds (area.removeFromTop (deviceH));
         area.removeFromTop (kGap);
 
         {
             auto row = area.removeFromTop (kPieceH);
-            pieceLabel.setBounds (row.removeFromLeft (84));
-            addBtn.setBounds     (row.removeFromRight (70));
+            // Change 4 — proportional piece bar widths clamped to safe pixel ranges.
+            const int labelW = juce::jlimit (70,  90,  row.getWidth() / 8);
+            const int addW   = juce::jlimit (60,  80,  row.getWidth() / 9);
+            const int navW   = juce::jlimit (28,  38,  row.getWidth() / 20);
+            const int countW = juce::jlimit (80,  100, row.getWidth() / 7);
+            pieceLabel.setBounds (row.removeFromLeft (labelW));
+            addBtn.setBounds     (row.removeFromRight (addW));
             row.removeFromRight (6);
-            nextBtn.setBounds    (row.removeFromRight (34));
-            pieceCount.setBounds (row.removeFromRight (90));
-            prevBtn.setBounds    (row.removeFromRight (34));
+            nextBtn.setBounds    (row.removeFromRight (navW));
+            pieceCount.setBounds (row.removeFromRight (countW));
+            prevBtn.setBounds    (row.removeFromRight (navW));
             row.removeFromRight (8);
             pieceName.setBounds  (row);
         }
@@ -291,10 +347,35 @@ public:
 
         recordBtn.setBounds (area.removeFromTop (kRecordH));
         area.removeFromTop (kGap);
-        stats.setBounds (area.removeFromTop (kStatsH));
+        stats.setBounds    (area.removeFromTop (statsH));
         area.removeFromTop (kGap);
-        coverage.setBounds (area.removeFromTop (kCoverageH));
+        coverage.setBounds (area.removeFromTop (coverageH));
         area.removeFromTop (kGap);
+        {
+            auto row = area.removeFromTop (kDestH);
+            // Change 5 — proportional destination row widths.
+            const int destLabelW = juce::jlimit (60, 90, row.getWidth() / 7);
+            const int browseBtnW = juce::jlimit (70, 90, row.getWidth() / 7);
+            destLabel.setBounds (row.removeFromLeft (destLabelW));
+            row.removeFromLeft (4);
+            if (browseBtn.isVisible())
+            {
+                browseBtn.setBounds (row.removeFromRight (browseBtnW));
+                row.removeFromRight (4);
+            }
+            destPathEditor.setBounds (row);
+        }
+        area.removeFromTop (kGap);
+        if (browserVisible && fileBrowser != nullptr)
+        {
+            fileBrowser->setBounds    (area.removeFromTop (kBrowserH - 36));
+            area.removeFromTop (4);
+            auto actRow = area.removeFromTop (32);
+            chooseFolderBtn.setBounds (actRow.removeFromLeft (actRow.getWidth() / 2 - 4));
+            actRow.removeFromLeft (8);
+            cancelBrowseBtn.setBounds (actRow);
+            area.removeFromTop (kGap);
+        }
         exportBtn.setBounds (area.removeFromTop (kExportH));
         area.removeFromTop (kGap);
         status.setBounds (area.removeFromTop (kStatusH));
@@ -439,59 +520,170 @@ private:
             if (! p.hits.empty()) { anyHits = true; break; }
         if (! anyHits) { setStatus ("Nothing to export yet - record some hits first."); return; }
 
+        const juce::String pathText = destPathEditor.getText().trim();
+        juce::File destDir = pathText.isNotEmpty() ? juce::File (pathText) : buildDefaultDest();
+
+        if (! destDir.isDirectory() && ! destDir.createDirectory())
+        {
+            setStatus ("Cannot create folder: " + destDir.getFullPathName());
+            return;
+        }
+
+        persistDestPath();
+
+        setStatus ("Exporting to " + destDir.getFullPathName() + " ...");
+        const ExportResult res = exportKit (kitName, captures, options, destDir);
+        setStatus (res.message);
+
+        if (res.ok)
+        {
+            lastExportedKit = res.kitYaml.getParentDirectory();
+            revealBtn.setVisible (true);
+        }
+    }
+
+    juce::File buildDefaultDest()
+    {
         auto musicDir = juce::File::getSpecialLocation (juce::File::userMusicDirectory);
         if (! musicDir.isDirectory())
             musicDir = juce::File::getSpecialLocation (juce::File::userHomeDirectory);
-        const juce::File defaultDest = musicDir.getChildFile ("FlamForgeKits");
+        return musicDir.getChildFile ("FlamForgeKits");
+    }
 
-        // Use the last-chosen directory as the starting point if still valid.
-        juce::File startDir = defaultDest;
+    juce::File loadPersistedDest()
+    {
         if (auto* props = appProps.getUserSettings())
         {
             const juce::String last = props->getValue ("lastExportDir");
             if (last.isNotEmpty())
             {
-                const juce::File lastDir (last);
-                if (lastDir.isDirectory())
-                    startDir = lastDir;
+                juce::File f (last);
+                if (f.isDirectory())
+                    return f;
             }
         }
+        return buildDefaultDest();
+    }
 
-        chooser = std::make_unique<juce::FileChooser> (
-            "Choose export destination folder", startDir, "");
+    void persistDestPath()
+    {
+        if (auto* props = appProps.getUserSettings())
+            props->setValue ("lastExportDir", destPathEditor.getText().trim());
+    }
 
-        chooser->launchAsync (
-            juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectDirectories,
-            [this, defaultDest] (const juce::FileChooser& fc)
+    void onBrowse()
+    {
+        if (browserVisible)
+        {
+            hideBrowser();
+            return;
+        }
+
+        const juce::String pathText = destPathEditor.getText().trim();
+        const juce::File startDir = pathText.isNotEmpty() && juce::File (pathText).isDirectory()
+                                   ? juce::File (pathText)
+                                   : buildDefaultDest();
+
+        if (juce::FileChooser::isPlatformDialogAvailable())
+        {
+            // Native dialog available (macOS, Windows, Linux with zenity/kdialog).
+            chooser = std::make_unique<juce::FileChooser> (
+                "Choose export destination folder", startDir, "");
+
+            chooser->launchAsync (
+                juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectDirectories,
+                [this] (const juce::FileChooser& fc)
+                {
+                    const auto results = fc.getResults();
+                    if (! results.isEmpty() && results[0].isDirectory())
+                    {
+                        destPathEditor.setText (results[0].getFullPathName(), false);
+                        persistDestPath();
+                    }
+                });
+            return;
+        }
+
+        // No native dialog backend. Show a juce::FileBrowserComponent embedded directly
+        // in this window — zero external dependencies, works on any platform.
+        if (fileBrowser == nullptr)
+        {
+            fileBrowser = std::make_unique<juce::FileBrowserComponent> (
+                juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectDirectories,
+                startDir, nullptr, nullptr);
+            addAndMakeVisible (*fileBrowser);
+        }
+        else
+        {
+            fileBrowser->setRoot (startDir);
+            fileBrowser->setVisible (true);
+        }
+
+        chooseFolderBtn.setVisible (true);
+        cancelBrowseBtn.setVisible (true);
+        browseBtn.setButtonText ("Hide Browser");
+        browserVisible = true;
+        updateBrowserLayout();
+    }
+
+    void hideBrowser()
+    {
+        browserVisible = false;
+        if (fileBrowser != nullptr)
+            fileBrowser->setVisible (false);
+        chooseFolderBtn.setVisible (false);
+        cancelBrowseBtn.setVisible (false);
+        browseBtn.setButtonText ("Browse...");
+        updateBrowserLayout();
+    }
+
+    void onChooseFolder()
+    {
+        if (fileBrowser != nullptr)
+        {
+            const juce::File chosen = fileBrowser->getRoot();
+            if (chosen.isDirectory())
             {
-                // If the user cancelled, fall back to the default destination.
-                juce::File destDir = defaultDest;
-                const auto results = fc.getResults();
-                if (! results.isEmpty() && results[0].isDirectory())
-                {
-                    destDir = results[0];
-                    if (auto* props = appProps.getUserSettings())
-                        props->setValue ("lastExportDir", destDir.getFullPathName());
-                }
+                destPathEditor.setText (chosen.getFullPathName(), false);
+                persistDestPath();
+                setStatus ("Destination: " + chosen.getFullPathName());
+            }
+        }
+        hideBrowser();
+    }
 
-                setStatus ("Exporting to " + destDir.getFullPathName() + " ...");
-                const ExportResult res = exportKit (kitName, captures, options, destDir);
-                setStatus (res.message);
+    void updateBrowserLayout()
+    {
+        // Trigger parent (MainComponent) to resize the viewport content.
+        if (auto* parent = getParentComponent())
+            parent->resized();
+        resized();
 
-                if (res.ok)
-                {
-                    lastExportedKit = res.kitYaml.getParentDirectory();
-                    revealBtn.setVisible (true);
-                }
-            });
+        // When opening the browser, scroll the viewport so the browser is visible.
+        if (browserVisible)
+        {
+            if (auto* vp = dynamic_cast<juce::Viewport*> (getParentComponent()))
+            {
+                // Use the last computed elastic heights so the scroll target
+                // tracks the actual layout rather than stale constants.
+                const int destRowY = kPad + kTitleH + kSubH + kGap
+                                   + m_deviceH + kGap
+                                   + kPieceH + kGap
+                                   + kRecordH + kGap
+                                   + m_statsH + kGap
+                                   + m_coverageH + kGap;
+                vp->setViewPosition (0, destRowY);
+            }
+        }
     }
 
     juce::AudioDeviceManager deviceManager;
     std::unique_ptr<juce::AudioDeviceSelectorComponent> deviceSelector;
 
-    juce::Label       title, subtitle, pieceLabel, pieceCount, status;
-    juce::TextEditor  pieceName;
-    juce::TextButton  prevBtn, nextBtn, addBtn, recordBtn, exportBtn, revealBtn;
+    juce::Label       title, subtitle, pieceLabel, pieceCount, status, destLabel;
+    juce::TextEditor  pieceName, destPathEditor;
+    juce::TextButton  prevBtn, nextBtn, addBtn, recordBtn, exportBtn, revealBtn,
+                      browseBtn, chooseFolderBtn, cancelBrowseBtn;
     StatsPanel        stats;
     CoverageMeter     coverage;
 
@@ -501,9 +693,17 @@ private:
     SynthOptions              options;
     juce::String              kitName = "FlamForge Kit";
 
-    std::unique_ptr<juce::FileChooser> chooser;
-    juce::ApplicationProperties        appProps;
-    juce::File                         lastExportedKit;
+    std::unique_ptr<juce::FileChooser>        chooser;
+    std::unique_ptr<juce::FileBrowserComponent> fileBrowser;
+    juce::ApplicationProperties               appProps;
+    juce::File                                lastExportedKit;
+    bool                                      browserVisible = false;
+
+    // Last computed elastic section heights; updated every resized() call so
+    // updateBrowserLayout() can produce an accurate scroll offset.
+    int m_deviceH   = 160;
+    int m_statsH    = 80;
+    int m_coverageH = 48;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ForgeContent)
 };
@@ -518,7 +718,7 @@ public:
     MainComponent()
     {
         viewport.setViewedComponent (&content, false);
-        viewport.setScrollBarsShown (true, false);
+        viewport.setScrollBarsShown (true, true);
         addAndMakeVisible (viewport);
         // Open tall enough to show everything (clamped so it fits typical screens).
         setSize (760, juce::jmin (content.naturalHeight(), 940));
@@ -530,7 +730,8 @@ public:
     {
         viewport.setBounds (getLocalBounds());
         const int w = viewport.getMaximumVisibleWidth();
-        content.setSize (w, juce::jmax (content.naturalHeight(), viewport.getHeight()));
+        const int contentW = juce::jmax (640, w);
+        content.setSize (contentW, juce::jmax (content.naturalHeight(), viewport.getHeight()));
     }
 
 private:
