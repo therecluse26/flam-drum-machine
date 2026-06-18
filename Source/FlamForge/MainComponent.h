@@ -155,11 +155,9 @@ public:
     static constexpr int kPad      = 22;
     static constexpr int kTitleH   = 38;
     static constexpr int kSubH     = 20;
-    static constexpr int kDeviceH  = 210;   // input device + input channels (advanced/output hidden)
+    // kDeviceH / kStatsH / kCoverageH are now computed dynamically in resized().
     static constexpr int kPieceH   = 34;
     static constexpr int kRecordH  = 56;
-    static constexpr int kStatsH   = 104;
-    static constexpr int kCoverageH= 58;
     static constexpr int kDestH    = 28;   // destination row (path editor + Browse)
     static constexpr int kBrowserH = 296;  // embedded folder browser (260 list + 4 gap + 32 actions)
     static constexpr int kExportH  = 44;
@@ -278,12 +276,14 @@ public:
 
     int naturalHeight() const
     {
+        // Use jlimit lower bounds for the three elastic sections so the window
+        // opens at a sensible minimum without over-sizing on small screens.
         return kPad + kTitleH + kSubH + kGap
-             + kDeviceH + kGap
+             + 160 + kGap   // deviceH lower bound
              + kPieceH + kGap
              + kRecordH + kGap
-             + kStatsH + kGap
-             + kCoverageH + kGap
+             + 80 + kGap    // statsH lower bound
+             + 48 + kGap    // coverageH lower bound
              + kDestH + kGap
              + (browserVisible ? kBrowserH + kGap : 0)
              + kExportH + kGap
@@ -295,23 +295,51 @@ public:
 
     void resized() override
     {
+        // Pass 1 — sum all fixed-height sections and padding.
+        const int fixedTotal =
+            2 * kPad
+            + kTitleH + kSubH + kGap
+            + kPieceH + kGap
+            + kRecordH + kGap
+            + kDestH + kGap
+            + (browserVisible ? kBrowserH + kGap : 0)
+            + kExportH + kGap
+            + kStatusH + kGap
+            + kRevealH;
+
+        // Pass 2 — distribute remaining height proportionally to elastic sections.
+        const int flexAvail  = juce::jmax (0, getHeight() - fixedTotal);
+        const int deviceH    = juce::jlimit (160, 340, 50 + flexAvail * 55 / 100);
+        const int statsH     = juce::jlimit (80,  160, flexAvail * 30 / 100);
+        const int coverageH  = juce::jlimit (48,  100, flexAvail * 15 / 100);
+
+        // Store for scroll-position calculation in updateBrowserLayout().
+        m_deviceH   = deviceH;
+        m_statsH    = statsH;
+        m_coverageH = coverageH;
+
         auto area = getLocalBounds().reduced (kPad, kPad);
 
         title.setBounds    (area.removeFromTop (kTitleH));
         subtitle.setBounds (area.removeFromTop (kSubH));
         area.removeFromTop (kGap);
 
-        deviceSelector->setBounds (area.removeFromTop (kDeviceH));
+        deviceSelector->setBounds (area.removeFromTop (deviceH));
         area.removeFromTop (kGap);
 
         {
             auto row = area.removeFromTop (kPieceH);
-            pieceLabel.setBounds (row.removeFromLeft (84));
-            addBtn.setBounds     (row.removeFromRight (70));
+            // Change 4 — proportional piece bar widths clamped to safe pixel ranges.
+            const int labelW = juce::jlimit (70,  90,  row.getWidth() / 8);
+            const int addW   = juce::jlimit (60,  80,  row.getWidth() / 9);
+            const int navW   = juce::jlimit (28,  38,  row.getWidth() / 20);
+            const int countW = juce::jlimit (80,  100, row.getWidth() / 7);
+            pieceLabel.setBounds (row.removeFromLeft (labelW));
+            addBtn.setBounds     (row.removeFromRight (addW));
             row.removeFromRight (6);
-            nextBtn.setBounds    (row.removeFromRight (34));
-            pieceCount.setBounds (row.removeFromRight (90));
-            prevBtn.setBounds    (row.removeFromRight (34));
+            nextBtn.setBounds    (row.removeFromRight (navW));
+            pieceCount.setBounds (row.removeFromRight (countW));
+            prevBtn.setBounds    (row.removeFromRight (navW));
             row.removeFromRight (8);
             pieceName.setBounds  (row);
         }
@@ -319,17 +347,20 @@ public:
 
         recordBtn.setBounds (area.removeFromTop (kRecordH));
         area.removeFromTop (kGap);
-        stats.setBounds (area.removeFromTop (kStatsH));
+        stats.setBounds    (area.removeFromTop (statsH));
         area.removeFromTop (kGap);
-        coverage.setBounds (area.removeFromTop (kCoverageH));
+        coverage.setBounds (area.removeFromTop (coverageH));
         area.removeFromTop (kGap);
         {
             auto row = area.removeFromTop (kDestH);
-            destLabel.setBounds (row.removeFromLeft (80));
+            // Change 5 — proportional destination row widths.
+            const int destLabelW = juce::jlimit (60, 90, row.getWidth() / 7);
+            const int browseBtnW = juce::jlimit (70, 90, row.getWidth() / 7);
+            destLabel.setBounds (row.removeFromLeft (destLabelW));
             row.removeFromLeft (4);
             if (browseBtn.isVisible())
             {
-                browseBtn.setBounds (row.removeFromRight (80));
+                browseBtn.setBounds (row.removeFromRight (browseBtnW));
                 row.removeFromRight (4);
             }
             destPathEditor.setBounds (row);
@@ -633,12 +664,14 @@ private:
         {
             if (auto* vp = dynamic_cast<juce::Viewport*> (getParentComponent()))
             {
-                constexpr int destRowY = kPad + kTitleH + kSubH + kGap
-                                       + kDeviceH + kGap
-                                       + kPieceH + kGap
-                                       + kRecordH + kGap
-                                       + kStatsH + kGap
-                                       + kCoverageH + kGap;
+                // Use the last computed elastic heights so the scroll target
+                // tracks the actual layout rather than stale constants.
+                const int destRowY = kPad + kTitleH + kSubH + kGap
+                                   + m_deviceH + kGap
+                                   + kPieceH + kGap
+                                   + kRecordH + kGap
+                                   + m_statsH + kGap
+                                   + m_coverageH + kGap;
                 vp->setViewPosition (0, destRowY);
             }
         }
@@ -665,6 +698,12 @@ private:
     juce::ApplicationProperties               appProps;
     juce::File                                lastExportedKit;
     bool                                      browserVisible = false;
+
+    // Last computed elastic section heights; updated every resized() call so
+    // updateBrowserLayout() can produce an accurate scroll offset.
+    int m_deviceH   = 160;
+    int m_statsH    = 80;
+    int m_coverageH = 48;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ForgeContent)
 };
