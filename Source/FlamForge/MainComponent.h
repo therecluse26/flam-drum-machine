@@ -14,6 +14,7 @@
 #include "KitExporter.h"
 #include "OfflineTransientDetector.h"
 #include "SegmentExtractor.h"
+#include "WaveformEditor.h"
 
 #include <array>
 #include <cmath>
@@ -695,10 +696,12 @@ class CapturePanel : public juce::Component
 {
 public:
     CaptureProgress progress;
+    WaveformEditor  waveEditor;  // C4 — interactive waveform + breakpoint editor
     std::function<void()> onRecord;
 
     static constexpr int kRecordH = 56;
     static constexpr int kMeterH  = 90;
+    static constexpr int kWaveH   = 200;  // waveform + breakpoint editor
     static constexpr int kGap     = 12;
 
     CapturePanel()
@@ -706,6 +709,7 @@ public:
         recordBtn.onClick = [this] { if (onRecord) onRecord(); };
         addAndMakeVisible (recordBtn);
         addAndMakeVisible (meterRow);
+        addAndMakeVisible (waveEditor);
         addAndMakeVisible (progress);
     }
 
@@ -735,7 +739,11 @@ public:
         b.removeFromTop (kGap);
         meterRow.setBounds (b.removeFromTop (kMeterH));
         b.removeFromTop (kGap);
-        progress.setBounds (b);
+        waveEditor.setBounds (b.removeFromTop (juce::jmax (WaveformEditor::kMinHeight,
+                                                            juce::jmin (kWaveH, b.getHeight() / 2))));
+        b.removeFromTop (kGap);
+        if (b.getHeight() >= 40)
+            progress.setBounds (b);
     }
 
 private:
@@ -1044,6 +1052,14 @@ public:
         captures.push_back ({});
         captures[0].name = "Kick";
 
+        // WaveformEditor callback — user edited breakpoints; store and update status.
+        // Full re-extraction deferred to export; velocities reflect new boundaries.
+        capturePanel.waveEditor.onBreakpointsChanged =
+            [this] (const std::vector<int64_t>& bps, const std::vector<int>& /*vels*/)
+            {
+                setStatus ("Breakpoints adjusted: " + juce::String ((int) bps.size()) + " hit(s).");
+            };
+
         refreshAll();
         updateSetupSummary();
         startTimerHz (30);
@@ -1055,6 +1071,9 @@ public:
         detector.cancel();  // stop background thread before members are torn down
         deviceManager.removeChangeListener (this);
         deviceManager.removeAudioCallback (&engine);
+        // Delete the continuous take WAV now that the editor is about to be destroyed.
+        if (currentContinuousWav.existsAsFile())
+            currentContinuousWav.deleteFile();
     }
 
     int naturalHeight() const
@@ -1063,7 +1082,8 @@ public:
         const int deviceH  = 160;
         const int headerH  = header.naturalHeight (deviceH);
         const int captureH = CapturePanel::kRecordH + CapturePanel::kGap
-                           + CapturePanel::kMeterH   + CapturePanel::kGap + 100;
+                           + CapturePanel::kMeterH   + CapturePanel::kGap
+                           + CapturePanel::kWaveH    + CapturePanel::kGap + 100;
         const int midH     = juce::jmax (captureH, 120);
         return 2 * kPad + headerH + kGap + midH;
     }
@@ -1244,6 +1264,13 @@ private:
     void switchPieceAbsolute (int index)
     {
         stopRecording();
+        // Drop the current piece's WAV when switching — the new piece has its own take.
+        if (currentContinuousWav.existsAsFile())
+        {
+            capturePanel.waveEditor.setSource ({}, 0.0, 0);
+            currentContinuousWav.deleteFile();
+            currentContinuousWav = juce::File {};
+        }
         currentPieceIndex = juce::jlimit (0, (int) captures.size() - 1, index);
         refreshAll();
     }
@@ -1261,12 +1288,34 @@ private:
 
     void toggleRecord()
     {
-        if (isRecording()) stopRecording();
-        else
+        if (isRecording()) { stopRecording(); return; }
+
+        // Clear any existing WAV from a previous take before starting a new one.
+        if (currentContinuousWav.existsAsFile())
         {
-            engine.setMode (CaptureEngine::Mode::Recording);
-            capturePanel.setRecordingState (true);
-            setStatus ("Recording \"" + currentPiece().name + "\" - play it soft to hard.");
+            capturePanel.waveEditor.setSource ({}, 0.0, 0);
+            currentContinuousWav.deleteFile();
+            currentContinuousWav = juce::File {};
+        }
+
+        engine.setMode (CaptureEngine::Mode::Recording);
+        capturePanel.setRecordingState (true);
+        setStatus ("Recording \"" + currentPiece().name + "\" - play it soft to hard.");
+
+        // Wire live thumbnail refresh from the growing temp WAV.
+        const juce::File liveWav = engine.getContinuousTempFile();
+        if (liveWav != juce::File{})
+        {
+            double sr    = 48000.0;
+            int    numCh = 1;
+            if (auto* dev = deviceManager.getCurrentAudioDevice())
+            {
+                sr    = dev->getCurrentSampleRate();
+                numCh = juce::jmax (1, dev->getActiveInputChannels().countNumberOfSetBits());
+            }
+            capturePanel.waveEditor.setChannelLabels (channelLabels);
+            capturePanel.waveEditor.setSource (liveWav, sr, numCh);
+            capturePanel.waveEditor.setLiveRecording (true);
         }
     }
 
@@ -1288,6 +1337,9 @@ private:
             setStatus ("Stopped — no audio captured.");
             return;
         }
+
+        // Stop the live thumbnail refresh — the recording is done.
+        capturePanel.waveEditor.setLiveRecording (false);
 
         setStatus ("Analysing transients...");
 
@@ -1320,18 +1372,31 @@ private:
                     return;
                 }
 
+                // Guard: if the user switched pieces while detection was running, discard.
+                if (pieceIndex != self->currentPieceIndex || pieceIndex >= (int) self->captures.size())
+                {
+                    tempWav.deleteFile();
+                    return;
+                }
+
+                // Feed WAV + breakpoints to the waveform editor BEFORE extraction so
+                // the thumbnail and energy scanner can start from the complete file.
+                self->capturePanel.waveEditor.setLiveRecording (false);
+                self->capturePanel.waveEditor.setChannelLabels (self->channelLabels);
+                self->capturePanel.waveEditor.setSource (tempWav, r.sampleRate, r.numChannels);
+                {
+                    const std::vector<int> initVels (r.breakpoints.size(), 64);
+                    self->capturePanel.waveEditor.setBreakpoints (r.breakpoints, r.segmentPeaksDb,
+                                                                  initVels, r.totalSamples);
+                }
+
                 auto seg = extractSegments (tempWav, r);
-                tempWav.deleteFile();
 
                 if (! seg.ok)
                 {
                     self->setStatus ("Segment extraction failed: " + seg.error);
-                    return;
-                }
-
-                if (pieceIndex >= (int) self->captures.size())
-                {
-                    self->setStatus ("Segment extraction: piece was removed.");
+                    // Keep the WAV alive — editor is still useful for visual review.
+                    self->currentContinuousWav = tempWav;
                     return;
                 }
 
@@ -1339,6 +1404,10 @@ private:
                 piece.hits.clear();
                 for (auto& h : seg.hits)
                     piece.hits.push_back (std::move (h));
+
+                // Store WAV (don't delete) — WaveformEditor EnergyScanner is still reading it.
+                // Deleted when piece resets or new recording starts (see toggleRecord / destructor).
+                self->currentContinuousWav = tempWav;
 
                 self->recompute();
                 self->setStatus ("\"" + piece.name + "\" — "
@@ -1445,6 +1514,10 @@ private:
     juce::ApplicationProperties appProps;
     juce::File                lastExportedKit;
     bool                      hasAutoCollapsed = false;
+    // Temp WAV from the most recent continuous recording — kept alive while
+    // WaveformEditor's EnergyScanner and AudioThumbnail still reference it.
+    // Deleted on new recording start, piece switch, or app teardown.
+    juce::File                currentContinuousWav;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ForgeContent)
 };
