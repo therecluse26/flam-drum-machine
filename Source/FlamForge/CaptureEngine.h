@@ -65,6 +65,13 @@ public:
     // Drain all hits captured since the previous call. MESSAGE THREAD ONLY.
     std::vector<CapturedHit> drainNewHits();
 
+    // Drain immediate onset-peak events that fired at the moment of detection,
+    // before the 600ms window is assembled. MESSAGE THREAD ONLY.
+    // Each value is the peakDb of the onset block, matching kOnsetDb gating.
+    // Intended to update the coverage meter provisionally; authoritative
+    // counts come later via drainNewHits().
+    std::vector<float> drainProvisionalOnsets();
+
     // --- juce::AudioIODeviceCallback ---------------------------------------
     void audioDeviceIOCallbackWithContext (const float* const* inputChannelData,
                                            int numInputChannels,
@@ -126,6 +133,14 @@ private:
     int  recWritten  = 0;
     int  recSilence  = 0;
     float recPeakDb  = -100.0f;
+
+    // --- immediate onset events (audio -> message, no audio copy) -----------
+    // One peakDb float per detected onset; pushed when a new hit window opens,
+    // before the 600ms recording window completes. Allows the coverage meter to
+    // update within one 30Hz tick rather than waiting for the full window.
+    static constexpr int kOnsetSlots = 128;
+    juce::AbstractFifo                      onsetFifo { kOnsetSlots };
+    std::array<float, kOnsetSlots>          onsetBuf  {};
 
     // --- finished-hit pool + fifo (audio -> message) -----------------------
     struct Slot
