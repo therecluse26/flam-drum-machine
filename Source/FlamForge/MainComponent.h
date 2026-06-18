@@ -9,6 +9,7 @@
 
 #include "CaptureEngine.h"
 #include "CaptureTypes.h"
+#include "ForgeColors.h"
 #include "LayerSynth.h"
 #include "KitExporter.h"
 
@@ -93,7 +94,8 @@ public:
         }
         area.removeFromTop (5);
 
-        // Bin tiles -- green (n>=6) ideal, yellow (n>=2) usable, red (n>=1) thin, dark empty
+        // Bin tiles: hue encodes velocity position (blue=soft → red=loud via velocityColour),
+        // brightness encodes coverage tier (full=ideal, dim=thin, near-black=empty).
         {
             const int binsH = juce::jlimit (26, 46, area.getHeight() / 3);
             auto binsR = area.removeFromTop (binsH).toFloat();
@@ -105,12 +107,18 @@ public:
             {
                 const auto bin = juce::Rectangle<float> (
                     binsR.getX() + i * (binW + gap), binsR.getY(), binW, binsR.getHeight());
-                const int n = counts[(size_t) i];
+                const int n   = counts[(size_t) i];
+
+                // Centre velocity of this bin's range, 1..127 monotonically left to right
+                const float t   = float (2 * i + 1) / float (2 * kNumBins);
+                const int   vel = 1 + juce::roundToInt (t * 126.0f);
+
                 juce::Colour c;
-                if      (n >= 6) c = juce::Colour (0xff3ecf6b);
-                else if (n >= 2) c = juce::Colour (0xffe0b341);
-                else if (n >= 1) c = juce::Colour (0xffd0473f);
-                else             c = juce::Colour (0xff23272e);
+                if      (n >= 6) c = velocityColour (vel);
+                else if (n >= 2) c = velocityColour (vel).withMultipliedBrightness (0.80f);
+                else if (n >= 1) c = velocityColour (vel).withMultipliedBrightness (0.60f);
+                else             c = velocityColour (vel).withMultipliedSaturation (0.25f)
+                                                         .withMultipliedBrightness (0.28f);
                 g.setColour (c);
                 g.fillRoundedRectangle (bin, 2.0f);
             }
