@@ -54,6 +54,14 @@ public:
     // modes so the UI can show a live meter / "got it" feedback.
     float lastCalibratedDb() const;
 
+    // Per-channel instantaneous block peak (dBFS). Relaxed-atomic read; safe to
+    // call from the message thread at any time. Returns -100 dBFS for indices
+    // outside [0, channelCount()).
+    float channelLevelDb (int c) const;
+
+    // Number of active input channels reported by the device (or last callback).
+    int channelCount() const;
+
     // Drain all hits captured since the previous call. MESSAGE THREAD ONLY.
     std::vector<CapturedHit> drainNewHits();
 
@@ -87,6 +95,11 @@ private:
     std::atomic<Mode>  mode       { Mode::Idle };
     std::atomic<float> lastPeakDb { -100.0f };
     Calibration        calib;                       // message thread owns logic; values plain floats
+
+    // Per-channel peak updated every callback (relaxed stores, audio→UI telemetry).
+    // Initialised to -100 dBFS in the constructor (zero-init leaves them at 0 dBFS).
+    std::array<std::atomic<float>, kMaxChannels> channelPeak {};
+    std::atomic<int> activeChannels { 0 };
 
     // calibrate-pass state (audio thread)
     bool  calibArmed     = false;   // currently inside a calibrate hit

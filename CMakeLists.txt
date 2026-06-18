@@ -328,6 +328,24 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
         ${X11_Xcursor_LIB})
 endif()
 
+# FlamForge headless self-test — data pipeline + per-channel metering.
+# JUCE's X11 init runs before initialise(), so Linux needs a virtual display
+# even though the test calls quit() without showing any window.
+if(BUILD_TESTING)
+    if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        add_test(
+            NAME   FlamForge_SelfTest
+            COMMAND xvfb-run -a $<TARGET_FILE:FlamForge> --selftest)
+    else()
+        add_test(
+            NAME   FlamForge_SelfTest
+            COMMAND $<TARGET_FILE:FlamForge> --selftest)
+    endif()
+    set_tests_properties(FlamForge_SelfTest PROPERTIES
+        TIMEOUT 60
+        LABELS  "L2;flamforge;selftest")
+endif()
+
 if(BUILD_TESTING)
     # L1Tests/ is intentionally different from tests/ — on case-insensitive
     # filesystems (macOS HFS+, Windows NTFS) `tests` and `Tests` mapped to the
