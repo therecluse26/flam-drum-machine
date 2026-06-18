@@ -35,6 +35,7 @@ struct ExportResult
 ExportResult exportKit (const juce::String& kitName,
                         const std::vector<PieceCapture>& captures,
                         const SynthOptions& opts,
-                        const juce::File& destDir);
+                        const juce::File& destDir,
+                        const std::vector<juce::String>& channelLabels = {});
 
 } // namespace flamforge

@@ -66,7 +66,8 @@ bool writeWav24 (const juce::File& file, const juce::AudioBuffer<float>& buffer,
 ExportResult exportKit (const juce::String& kitName,
                         const std::vector<PieceCapture>& captures,
                         const SynthOptions& opts,
-                        const juce::File& destDir)
+                        const juce::File& destDir,
+                        const std::vector<juce::String>& channelLabels)
 {
     ExportResult result;
 
@@ -159,10 +160,15 @@ ExportResult exportKit (const juce::String& kitName,
     }
 
     // --- channel names -----------------------------------------------------
+    // Use user-provided labels where available; fall back to "Mic N" for blank or missing entries.
     if (channelCount <= 0)
         channelCount = 1;
     for (int c = 0; c < channelCount; ++c)
-        kit.channelNames.push_back ("Mic " + juce::String (c + 1));
+    {
+        const bool hasLabel = (c < (int) channelLabels.size() && channelLabels[(size_t) c].isNotEmpty());
+        kit.channelNames.push_back (hasLabel ? channelLabels[(size_t) c]
+                                             : "Mic " + juce::String (c + 1));
+    }
 
     // --- write flamkit.yaml ------------------------------------------------
     const juce::File kitYaml = kitRoot.getChildFile ("flamkit.yaml");

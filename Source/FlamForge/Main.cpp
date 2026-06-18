@@ -18,6 +18,7 @@
 #include <juce_gui_basics/juce_gui_basics.h>
 
 #include "MainComponent.h"
+#include "CaptureEngine.h"
 #include "CaptureTypes.h"
 #include "LayerSynth.h"
 #include "KitExporter.h"
@@ -102,6 +103,77 @@ static int runSelfTest()
                 if (! l.sampleFile.existsAsFile()) ++missing;
     say ("wav-refs missing=" + juce::String (missing));
     if (missing > 0) { say ("FAIL: reloaded layers reference missing wavs"); return 1; }
+
+    // 5) label round-trip: user channel labels survive export → YAML → reload (FLA-139)
+    {
+        auto tmp2 = juce::File::getSpecialLocation (juce::File::tempDirectory)
+                       .getChildFile ("flamforge_labeltest");
+        tmp2.deleteRecursively();
+        tmp2.createDirectory();
+
+        // "Left" and "" (blank): blank should fall back to "Mic 2".
+        const std::vector<juce::String> testLabels { "Left", "" };
+        auto res2 = exportKit ("Label Test Kit", captures, opts, tmp2, testLabels);
+        say ("label-export: ok=" + juce::String ((int) res2.ok));
+        if (! res2.ok) { say ("FAIL: label export: " + res2.message); return 1; }
+
+        flam::FlamKitLoader ldr;
+        auto kit2 = ldr.loadKit (res2.kitYaml);
+        if (kit2 == nullptr) { say ("FAIL: label reload"); return 1; }
+
+        const bool ch0ok = kit2->channelNames.size() > 0 && kit2->channelNames[0] == "Left";
+        const bool ch1ok = kit2->channelNames.size() > 1 && kit2->channelNames[1] == "Mic 2";
+        say ("label round-trip: ch0=" + (kit2->channelNames.size() > 0 ? kit2->channelNames[0] : "?")
+             + " ch1=" + (kit2->channelNames.size() > 1 ? kit2->channelNames[1] : "?"));
+        if (! ch0ok) { say ("FAIL: ch0 label expected 'Left'"); return 1; }
+        if (! ch1ok) { say ("FAIL: ch1 blank label expected 'Mic 2' fallback"); return 1; }
+
+        tmp2.deleteRecursively();
+    }
+
+    // 6) per-channel metering atomics (FLA-137)
+    // Feed 3-channel synthetic blocks: ch0 hot, ch1 silent, ch2 mid.
+    // Assert channelLevelDb(c) reflects each channel independently.
+    {
+        CaptureEngine engine;
+        engine.audioDeviceAboutToStart (nullptr);   // init buffers; null → 48 kHz / 1 ch fallback
+
+        constexpr int kTestCh   = 3;
+        constexpr int kBlockSz  = 256;
+
+        const float ampHot = 0.9f;    // ch0 — hot, ~-0.9 dBFS
+        const float ampSil = 0.0f;    // ch1 — silence, expect -100 dBFS
+        const float ampMid = 0.1f;    // ch2 — mid, ~-20 dBFS
+
+        std::vector<float> buf0 (kBlockSz, ampHot);
+        std::vector<float> buf1 (kBlockSz, ampSil);
+        std::vector<float> buf2 (kBlockSz, ampMid);
+
+        const float* inPtrs[kTestCh] = { buf0.data(), buf1.data(), buf2.data() };
+
+        juce::AudioIODeviceCallbackContext ctx{};
+        engine.audioDeviceIOCallbackWithContext (inPtrs, kTestCh,
+                                                 nullptr, 0, kBlockSz, ctx);
+
+        const float dbHot = engine.channelLevelDb (0);
+        const float dbSil = engine.channelLevelDb (1);
+        const float dbMid = engine.channelLevelDb (2);
+        const int   count = engine.channelCount();
+
+        say ("metering: ch0=" + juce::String (dbHot, 1)
+             + " ch1=" + juce::String (dbSil, 1)
+             + " ch2=" + juce::String (dbMid, 1)
+             + " count=" + juce::String (count));
+
+        if (dbHot < -3.0f)
+        { say ("FAIL: ch0 expected hot (>-3 dBFS), got " + juce::String (dbHot, 1)); return 1; }
+        if (dbSil > -90.0f)
+        { say ("FAIL: ch1 expected silent (<-90 dBFS), got " + juce::String (dbSil, 1)); return 1; }
+        if (dbMid > -15.0f || dbMid < -30.0f)
+        { say ("FAIL: ch2 expected mid [-30,-15] dBFS, got " + juce::String (dbMid, 1)); return 1; }
+        if (count != kTestCh)
+        { say ("FAIL: channelCount expected " + juce::String (kTestCh) + ", got " + juce::String (count)); return 1; }
+    }
 
     say ("PASS");
     return 0;

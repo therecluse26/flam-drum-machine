@@ -18,7 +18,12 @@ namespace
     }
 }
 
-CaptureEngine::CaptureEngine() = default;
+CaptureEngine::CaptureEngine()
+{
+    // std::atomic<float> zero-inits to 0 dBFS; we want -100 dBFS as the silence floor.
+    for (auto& p : channelPeak)
+        p.store (-100.0f, std::memory_order_relaxed);
+}
 
 // ---------------------------------------------------------------------------
 // control (message thread)
@@ -43,6 +48,17 @@ CaptureEngine::Mode CaptureEngine::getMode() const
 float CaptureEngine::lastCalibratedDb() const
 {
     return lastPeakDb.load();
+}
+
+float CaptureEngine::channelLevelDb (int c) const
+{
+    if (c < 0 || c >= kMaxChannels) return -100.0f;
+    return channelPeak[(size_t) c].load (std::memory_order_relaxed);
+}
+
+int CaptureEngine::channelCount() const
+{
+    return activeChannels.load (std::memory_order_relaxed);
 }
 
 // ---------------------------------------------------------------------------
@@ -99,6 +115,8 @@ void CaptureEngine::audioDeviceAboutToStart (juce::AudioIODevice* device)
                     : 0;
     if (numChannels <= 0)
         numChannels = juce::jmin (1, kMaxChannels);
+
+    activeChannels.store (numChannels, std::memory_order_relaxed);
 
     windowSamples  = (int) std::ceil (kWindowMs  * 0.001 * sampleRate);
     preRollSamples = (int) std::ceil (kPreRollMs * 0.001 * sampleRate);
@@ -191,8 +209,25 @@ void CaptureEngine::audioDeviceIOCallbackWithContext (const float* const* inputC
         if (outputChannelData[c] != nullptr)
             juce::FloatVectorOperations::clear (outputChannelData[c], numSamples);
 
-    const Mode m = mode.load();
     const int ch = juce::jlimit (0, kMaxChannels, numInputChannels);
+
+    // Per-channel instantaneous block peak — updated unconditionally so the UI
+    // meter is live in every mode (including Idle). Relaxed stores: this is
+    // telemetry, not synchronisation.
+    if (ch > 0 && numSamples > 0)
+    {
+        activeChannels.store (ch, std::memory_order_relaxed);
+        for (int c = 0; c < ch; ++c)
+        {
+            float peak = 0.0f;
+            if (inputChannelData[c] != nullptr)
+                for (int n = 0; n < numSamples; ++n)
+                    peak = juce::jmax (peak, std::abs (inputChannelData[c][n]));
+            channelPeak[(size_t) c].store (ampToDb (peak), std::memory_order_relaxed);
+        }
+    }
+
+    const Mode m = mode.load();
     if (m == Mode::Idle || ch <= 0 || numSamples <= 0)
         return;
 

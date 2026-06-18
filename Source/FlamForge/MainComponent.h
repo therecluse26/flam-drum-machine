@@ -140,6 +140,211 @@ private:
 };
 
 // ---------------------------------------------------------------------------
+// ForgeMeter — timer-free segmented LED input level meter.
+//
+// Driven by ForgeContent's existing 30 Hz juce::Timer via tick(); has no
+// internal timer so it adds zero scheduling overhead per strip.
+// ---------------------------------------------------------------------------
+class ForgeMeter : public juce::Component
+{
+public:
+    ForgeMeter() = default;
+
+    // Called at 30 Hz from ForgeContent. Applies ballistic decay and repaints.
+    void tick (float rawDb) noexcept
+    {
+        // Fast attack, ~0.5 s decay to silence at 30 Hz (matches PeakMeter).
+        constexpr float kDecay = 0.85f;
+        displayDb = rawDb > displayDb ? rawDb : displayDb * kDecay + (-100.0f) * (1.0f - kDecay);
+        if (rawDb >= 0.0f) clipLatch = true;
+        repaint();
+    }
+
+    void resetClip() { clipLatch = false; repaint(); }
+
+    void paint (juce::Graphics& g) override
+    {
+        auto b = getLocalBounds().toFloat();
+        g.setColour (juce::Colour (0xff14171c));
+        g.fillRoundedRectangle (b, 2.0f);
+
+        // 14 px clip strip
+        const float clipH = 14.0f;
+        auto clipR = b.removeFromTop (clipH).reduced (1.0f, 0.0f);
+        g.setColour (clipLatch ? juce::Colour (0xffd0473f) : juce::Colour (0xff23272e));
+        g.fillRoundedRectangle (clipR, 2.0f);
+        if (clipLatch)
+        {
+            g.setColour (juce::Colours::white);
+            g.setFont (juce::Font (juce::FontOptions (9.0f)));
+            g.drawText ("CLIP", clipR, juce::Justification::centred);
+        }
+        b.removeFromTop (2.0f);
+
+        // Segmented LED bars — ported from Source/UI/PeakMeter.h
+        const float segH   = 3.0f, segGap = 1.0f;
+        const int   numSegs = static_cast<int> (b.getHeight() / (segH + segGap));
+        const float norm    = juce::jlimit (0.0f, 1.0f, juce::jmap (displayDb, -60.0f, 6.0f, 0.0f, 1.0f));
+        const int   litSegs = static_cast<int> (norm * numSegs);
+        const int greenTop  = static_cast<int> (juce::jmap (-12.0f, -60.0f, 6.0f, 0.0f, 1.0f) * numSegs);
+        const int yellowTop = static_cast<int> (juce::jmap ( -3.0f, -60.0f, 6.0f, 0.0f, 1.0f) * numSegs);
+        const float segW    = b.getWidth() - 4.0f;
+        const float segX    = b.getX() + 2.0f;
+
+        for (int i = 0; i < numSegs; ++i)
+        {
+            const float segY = b.getBottom() - (i + 1) * (segH + segGap) + segGap;
+            const bool  lit  = i < litSegs;
+            juce::Colour col;
+            if      (i < greenTop)  col = juce::Colour (0xff3ecf6b);
+            else if (i < yellowTop) col = juce::Colour (0xffe0b341);
+            else                    col = juce::Colour (0xffd0473f);
+            g.setColour (lit ? col : col.withAlpha (0.10f));
+            g.fillRoundedRectangle ({segX, segY, segW, segH}, 1.0f);
+        }
+    }
+
+private:
+    float displayDb{-100.0f};
+    bool  clipLatch{false};
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ForgeMeter)
+};
+
+// ---------------------------------------------------------------------------
+// ForgeChannelStrip — editable label + vertical meter for one input channel.
+// No internal timer; driven by ChannelStripRow::tick().
+// ---------------------------------------------------------------------------
+class ForgeChannelStrip : public juce::Component
+{
+public:
+    std::function<void (const juce::String&)> onLabelChanged;
+
+    ForgeChannelStrip()
+    {
+        label.setColour (juce::TextEditor::backgroundColourId, juce::Colour (0xff1b1f25));
+        label.setColour (juce::TextEditor::textColourId, juce::Colours::white.withAlpha (0.85f));
+        label.setFont (juce::Font (juce::FontOptions (11.0f)));
+        label.setJustification (juce::Justification::centred);
+        label.onTextChange = [this] { if (onLabelChanged) onLabelChanged (label.getText()); };
+        addAndMakeVisible (label);
+        addAndMakeVisible (meter);
+    }
+
+    void setLabel (const juce::String& t)
+    {
+        label.setText (t, juce::dontSendNotification);
+    }
+
+    juce::String getLabel() const { return label.getText(); }
+
+    void tick (float rawDb) { meter.tick (rawDb); }
+    void resetClip()        { meter.resetClip(); }
+
+    void resized() override
+    {
+        auto b = getLocalBounds().reduced (2, 0);
+        label.setBounds (b.removeFromTop (20));
+        b.removeFromTop (2);
+        meter.setBounds (b);
+    }
+
+    void paint (juce::Graphics& g) override
+    {
+        // Subtle right-edge separator
+        g.setColour (juce::Colour (0xff23272e));
+        g.fillRect (getLocalBounds().withLeft (getWidth() - 1));
+    }
+
+private:
+    juce::TextEditor label;
+    ForgeMeter       meter;
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ForgeChannelStrip)
+};
+
+// ---------------------------------------------------------------------------
+// ChannelStripRow — horizontal, scrollable row of up to 16 ForgeChannelStrip.
+//
+// ForgeContent owns the label model (std::vector<juce::String> channelLabels).
+// rebuild() seeds strips from that vector and wires onLabelChanged back so
+// edits keep the model current. tick() is called at 30 Hz from ForgeContent.
+// ---------------------------------------------------------------------------
+class ChannelStripRow : public juce::Component
+{
+public:
+    static constexpr int kStripW = 76;  // fixed strip width; 16 strips = 1216 px → horizontal scroll
+
+    ChannelStripRow()
+    {
+        // inner declared before viewport → viewport destroyed first (see member order below).
+        viewport.setViewedComponent (&inner, /*ownedByViewport=*/false);
+        viewport.setScrollBarsShown (/*vertical=*/false, /*horizontal=*/true);
+        addAndMakeVisible (viewport);
+    }
+
+    void rebuild (int n,
+                  const std::vector<juce::String>& labelSource,
+                  std::function<void (int, juce::String)> onLabelChanged)
+    {
+        strips.clear();   // deletes old strips; each removes itself from inner
+        for (int c = 0; c < n; ++c)
+        {
+            auto* s = strips.add (new ForgeChannelStrip());
+            s->setLabel (c < (int) labelSource.size()
+                         ? labelSource[(size_t) c]
+                         : "Mic " + juce::String (c + 1));
+            const int idx = c;
+            s->onLabelChanged = [idx, onLabelChanged] (const juce::String& t)
+            {
+                onLabelChanged (idx, t);
+            };
+            inner.addAndMakeVisible (s);
+        }
+        layoutInner();
+    }
+
+    // Pump live input levels for all strips. Called at 30 Hz from ForgeContent.
+    void tick (CaptureEngine& eng)
+    {
+        for (int c = 0; c < strips.size(); ++c)
+            strips[c]->tick (eng.channelLevelDb (c));
+    }
+
+    void resized() override
+    {
+        viewport.setBounds (getLocalBounds());
+        layoutInner();
+    }
+
+    void paint (juce::Graphics& g) override
+    {
+        g.setColour (juce::Colour (0xff14171c));
+        g.fillRoundedRectangle (getLocalBounds().toFloat(), 4.0f);
+    }
+
+private:
+    void layoutInner()
+    {
+        const int n    = strips.size();
+        const int innerW = juce::jmax (viewport.getWidth(), n * kStripW);
+        inner.setSize (innerW, viewport.getHeight());
+        int x = 0;
+        for (auto* s : strips)
+        {
+            s->setBounds (x, 0, kStripW, inner.getHeight());
+            x += kStripW;
+        }
+    }
+
+    // Declare inner before viewport — C++ reverse-destruction order ensures
+    // the viewport (and its raw contentComp pointer) is destroyed first.
+    juce::Component              inner;
+    juce::OwnedArray<ForgeChannelStrip> strips;
+    juce::Viewport               viewport;
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ChannelStripRow)
+};
+
+// ---------------------------------------------------------------------------
 // ForgeContent — the scrolled content column.
 //
 // Record-centric flow: pick a piece, hit Record, play. Calibration (dynamic
@@ -158,6 +363,7 @@ public:
     // kDeviceH / kStatsH / kCoverageH are now computed dynamically in resized().
     static constexpr int kPieceH   = 34;
     static constexpr int kRecordH  = 56;
+    static constexpr int kStripsH  = 90;   // per-channel label + meter row
     static constexpr int kDestH    = 28;   // destination row (path editor + Browse)
     static constexpr int kBrowserH = 296;  // embedded folder browser (260 list + 4 gap + 32 actions)
     static constexpr int kExportH  = 44;
@@ -212,6 +418,7 @@ public:
 
         addAndMakeVisible (stats);
         addAndMakeVisible (coverage);
+        addAndMakeVisible (stripRow);
 
         // Persist export destination across sessions.
         juce::PropertiesFile::Options propOpts;
@@ -284,6 +491,7 @@ public:
              + kRecordH + kGap
              + 80 + kGap    // statsH lower bound
              + 48 + kGap    // coverageH lower bound
+             + kStripsH + kGap
              + kDestH + kGap
              + (browserVisible ? kBrowserH + kGap : 0)
              + kExportH + kGap
@@ -301,6 +509,7 @@ public:
             + kTitleH + kSubH + kGap
             + kPieceH + kGap
             + kRecordH + kGap
+            + kStripsH + kGap
             + kDestH + kGap
             + (browserVisible ? kBrowserH + kGap : 0)
             + kExportH + kGap
@@ -350,6 +559,8 @@ public:
         stats.setBounds    (area.removeFromTop (statsH));
         area.removeFromTop (kGap);
         coverage.setBounds (area.removeFromTop (coverageH));
+        area.removeFromTop (kGap);
+        stripRow.setBounds (area.removeFromTop (kStripsH));
         area.removeFromTop (kGap);
         {
             auto row = area.removeFromTop (kDestH);
@@ -464,6 +675,23 @@ private:
                 piece.hits.push_back (std::move (h));
         }
         recompute();
+
+        // Rebuild strips when the device channel count changes; pump levels every tick.
+        const int n = engine.channelCount();
+        if (n != lastChannelCount)
+        {
+            while ((int) channelLabels.size() < n)
+                channelLabels.push_back ("Mic " + juce::String ((int) channelLabels.size() + 1));
+            lastChannelCount = n;
+            stripRow.rebuild (n, channelLabels,
+                [this] (int c, juce::String t)
+                {
+                    if (c < (int) channelLabels.size())
+                        channelLabels[(size_t) c] = t;
+                });
+            resized();
+        }
+        stripRow.tick (engine);
     }
 
     // Recompute retroactive calibration + velocities + live layer preview.
@@ -532,7 +760,7 @@ private:
         persistDestPath();
 
         setStatus ("Exporting to " + destDir.getFullPathName() + " ...");
-        const ExportResult res = exportKit (kitName, captures, options, destDir);
+        const ExportResult res = exportKit (kitName, captures, options, destDir, channelLabels);
         setStatus (res.message);
 
         if (res.ok)
@@ -671,7 +899,8 @@ private:
                                    + kPieceH + kGap
                                    + kRecordH + kGap
                                    + m_statsH + kGap
-                                   + m_coverageH + kGap;
+                                   + m_coverageH + kGap
+                                   + kStripsH + kGap;
                 vp->setViewPosition (0, destRowY);
             }
         }
@@ -686,6 +915,12 @@ private:
                       browseBtn, chooseFolderBtn, cancelBrowseBtn;
     StatsPanel        stats;
     CoverageMeter     coverage;
+    ChannelStripRow   stripRow;
+
+    // Label model for the per-channel strip row. Survives device re-inits and
+    // is the single source of truth for export (FLA-139 will read this vector).
+    std::vector<juce::String> channelLabels;
+    int                       lastChannelCount = 0;
 
     CaptureEngine             engine;
     std::vector<PieceCapture> captures;
