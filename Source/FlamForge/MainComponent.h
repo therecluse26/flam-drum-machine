@@ -679,7 +679,7 @@ public:
     MainComponent()
     {
         viewport.setViewedComponent (&content, false);
-        viewport.setScrollBarsShown (true, false);
+        viewport.setScrollBarsShown (true, true);
         addAndMakeVisible (viewport);
         // Open tall enough to show everything (clamped so it fits typical screens).
         setSize (760, juce::jmin (content.naturalHeight(), 940));
@@ -691,7 +691,8 @@ public:
     {
         viewport.setBounds (getLocalBounds());
         const int w = viewport.getMaximumVisibleWidth();
-        content.setSize (w, juce::jmax (content.naturalHeight(), viewport.getHeight()));
+        const int contentW = juce::jmax (640, w);
+        content.setSize (contentW, juce::jmax (content.naturalHeight(), viewport.getHeight()));
     }
 
 private:
