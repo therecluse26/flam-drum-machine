@@ -8,6 +8,7 @@
 
 #include <juce_audio_basics/juce_audio_basics.h>
 #include <juce_audio_devices/juce_audio_devices.h>
+#include <juce_audio_formats/juce_audio_formats.h>
 #include <atomic>
 #include <array>
 #include <vector>
@@ -21,19 +22,24 @@ namespace flamforge
 // Plugged into a juce::AudioDeviceManager as an AudioIODeviceCallback. It runs
 // in one of four modes:
 //
-//   Idle           — pass the audio through untouched, do nothing.
+//   Idle           — pass audio through (meters still active), do nothing.
 //   CalibrateSoft  — measure incoming peaks; on a clear hit, record the peak
 //                    as the player's softest dynamic (calibration().softestDb).
 //   CalibrateLoud  — same, but stores it as loudestDb. Calibration becomes
 //                    valid once both passes have produced a value.
-//   Recording      — detect onsets and capture a ~600ms multi-channel window
-//                    per hit, map peak -> MIDI velocity, publish to the message
-//                    thread.
+//   Recording      — continuous capture: all incoming audio is written into a
+//                    pre-allocated lock-free ring buffer; a background writer
+//                    thread drains it to a 24-bit temp WAV file on disk.
+//                    Call stopContinuousRecording() to finalise the WAV and
+//                    retrieve the file; call resetContinuousRecording() to
+//                    abort and delete it.
 //
-// REAL-TIME SAFETY: the audio callback never allocates, locks, or touches the
-// filesystem. All buffers are preallocated; finished hits are handed to the
-// message thread through a juce::AbstractFifo carrying only slot indices.
-// drainNewHits() (message thread) copies the staged audio out.
+// REAL-TIME SAFETY (Recording mode): the audio callback never allocates or
+// touches the filesystem. It writes audio blocks into ThreadedWriter's
+// pre-allocated internal ring buffer (AbstractFifo + AudioBuffer) — no heap
+// alloc. The CriticalSection is an uncontended thin-mutex; it blocks only
+// during the rare teardown event, not during steady-state recording.
+// The background TimeSliceThread drains the ring and writes to the WAV file.
 // ---------------------------------------------------------------------------
 class CaptureEngine : public juce::AudioIODeviceCallback
 {
@@ -41,7 +47,7 @@ public:
     enum class Mode { Idle, CalibrateSoft, CalibrateLoud, Recording };
 
     CaptureEngine();
-    ~CaptureEngine() override = default;
+    ~CaptureEngine() override;
 
     // --- control (message thread) ------------------------------------------
     void setMode (Mode m);
@@ -54,16 +60,33 @@ public:
     // modes so the UI can show a live meter / "got it" feedback.
     float lastCalibratedDb() const;
 
-    // Per-channel instantaneous block peak (dBFS). Relaxed-atomic read; safe to
-    // call from the message thread at any time. Returns -100 dBFS for indices
-    // outside [0, channelCount()).
+    // Per-channel instantaneous block peak (dBFS). Relaxed-atomic read; safe
+    // to call from the message thread at any time. Returns -100 for out-of-range.
     float channelLevelDb (int c) const;
 
-    // Number of active input channels reported by the device (or last callback).
+    // Number of active input channels reported by the device.
     int channelCount() const;
 
-    // Drain all hits captured since the previous call. MESSAGE THREAD ONLY.
-    std::vector<CapturedHit> drainNewHits();
+    // Legacy stub — returns empty. Kept for code compiled against old API.
+    std::vector<CapturedHit> drainNewHits() { return {}; }
+
+    // --- continuous-capture API (Recording mode) ----------------------------
+
+    // Path to the active temp WAV being written. Invalid File() when idle.
+    juce::File getContinuousTempFile() const;
+
+    // Samples written to the temp WAV so far. 0 when not recording.
+    // Safe to read from message thread (relaxed atomic).
+    int64_t getRecordedSamples() const noexcept;
+
+    // Finalise the WAV and return the file — caller takes ownership and is
+    // responsible for deleting it when done.
+    // Returns an invalid File() if no recording is active.
+    juce::File stopContinuousRecording();
+
+    // Abort the current recording and delete the temp file.
+    // Call on piece reset or before the object is destroyed.
+    void resetContinuousRecording();
 
     // --- juce::AudioIODeviceCallback ---------------------------------------
     void audioDeviceIOCallbackWithContext (const float* const* inputChannelData,
@@ -78,66 +101,63 @@ public:
 
 private:
     // --- tunables ----------------------------------------------------------
-    static constexpr int   kMaxChannels   = 16;
-    static constexpr double kWindowMs      = 600.0;   // captured length per hit
-    static constexpr double kPreRollMs     = 5.0;     // grab slightly before onset
-    static constexpr float  kOnsetDb       = -40.0f;  // arm threshold (Recording)
-    static constexpr float  kCalibrateDb   = -45.0f;  // "this is a real hit" floor
-    static constexpr double kReleaseMs     = 120.0;   // silence to end a hit
-    static constexpr int    kNumSlots      = 64;      // finished-hit pool / fifo
+    static constexpr int   kMaxChannels = 16;
+    static constexpr float kCalibrateDb = -45.0f; // "real hit" floor for calibration
+    static constexpr double kReleaseMs  = 120.0;   // calibration silence threshold
 
-    // --- helpers (audio thread) --------------------------------------------
-    void  resetRecordingState();
+    // --- helpers -----------------------------------------------------------
     float blockPeakDb (const float* const* in, int numCh, int numSamples) const;
-    void  publishHit (int channels, int length, double sr); // copies window -> a free slot
+
+    // Internal: stop and flush the writer. If deleteFile=true, removes the temp
+    // WAV. Returns the file path regardless (caller may ignore it).
+    juce::File stopAndFlushWriter (bool deleteFile);
+
+    void startContinuousRecording();
 
     // --- mode / feedback ---------------------------------------------------
     std::atomic<Mode>  mode       { Mode::Idle };
     std::atomic<float> lastPeakDb { -100.0f };
-    Calibration        calib;                       // message thread owns logic; values plain floats
+    Calibration        calib;
 
-    // Per-channel peak updated every callback (relaxed stores, audio→UI telemetry).
-    // Initialised to -100 dBFS in the constructor (zero-init leaves them at 0 dBFS).
+    // Per-channel peak — relaxed-atomic telemetry for UI meters.
     std::array<std::atomic<float>, kMaxChannels> channelPeak {};
     std::atomic<int> activeChannels { 0 };
 
     // calibrate-pass state (audio thread)
-    bool  calibArmed     = false;   // currently inside a calibrate hit
-    float calibRunPeakDb = -100.0f; // peak of the hit in progress
-    int   calibSilence   = 0;       // samples below floor since last loud sample
+    bool  calibArmed     = false;
+    float calibRunPeakDb = -100.0f;
+    int   calibSilence   = 0;
 
     // --- device geometry ---------------------------------------------------
-    double sampleRate     = 48000.0;
-    int    numChannels    = 0;
-    int    windowSamples  = 0;      // kWindowMs in samples
-    int    preRollSamples = 0;
+    double sampleRate    = 48000.0;
+    int    numChannels   = 0;
     int    releaseSamples = 0;
 
-    // --- ring buffer for pre-roll (audio thread) ---------------------------
-    // Continuous capture of the most recent audio so a hit window can start a
-    // few ms before the detected onset.
-    juce::AudioBuffer<float> ring;   // [kMaxChannels][windowSamples + preRoll]
-    int  ringWrite = 0;
-    int  ringSize  = 0;
+    // --- continuous capture ------------------------------------------------
+    // ThreadedWriter uses an internal pre-allocated ring buffer (AbstractFifo).
+    // Audio thread calls write() → lock-free ring push.
+    // writerThread (TimeSliceThread) drains the ring → 24-bit WAV on disk.
+    //
+    // Teardown protocol (prevents use-after-free without allocating on audio thread):
+    //   1. Store null to continuousWriterPtr (seq_cst) — audio thread sees null on
+    //      next callback and skips the write block.
+    //   2. Acquire writerLock — blocks until any in-progress write() finishes.
+    //   3. Reset continuousWriter — ThreadedWriter destructor flushes the ring,
+    //      closes the WAV, and removes itself from writerThread.
+    //
+    // The audio callback acquires writerLock for the duration of write(). During
+    // normal recording this is always uncontended (tens of nanoseconds). It only
+    // blocks on the rare teardown event.
+    juce::WavAudioFormat wavFormat;
+    juce::TimeSliceThread writerThread { "FlamForge Writer" };
 
-    // --- in-progress recorded hit (audio thread) ---------------------------
-    juce::AudioBuffer<float> recBuf; // [kMaxChannels][windowSamples]
-    bool recActive   = false;
-    int  recWritten  = 0;
-    int  recSilence  = 0;
-    float recPeakDb  = -100.0f;
+    juce::CriticalSection writerLock;
+    std::atomic<juce::AudioFormatWriter::ThreadedWriter*> continuousWriterPtr { nullptr };
+    std::unique_ptr<juce::AudioFormatWriter::ThreadedWriter> continuousWriter;
+    juce::File currentTempFile;
 
-    // --- finished-hit pool + fifo (audio -> message) -----------------------
-    struct Slot
-    {
-        juce::AudioBuffer<float> audio; // [kMaxChannels][windowSamples]
-        std::atomic<int> channels { 0 };
-        std::atomic<int> length   { 0 };
-        std::atomic<double> sr    { 48000.0 };
-        std::atomic<float>  peakDb { -100.0f };
-    };
-    std::array<Slot, kNumSlots> slots;
-    juce::AbstractFifo fifo { kNumSlots };
+    // Incremented on audio thread; read on message thread.
+    std::atomic<int64_t> continuousRecordedSamples { 0 };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (CaptureEngine)
 };

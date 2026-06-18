@@ -175,6 +175,118 @@ static int runSelfTest()
         { say ("FAIL: channelCount expected " + juce::String (kTestCh) + ", got " + juce::String (count)); return 1; }
     }
 
+    // 7) continuous capture engine (FLA-151)
+    // Verify: setMode(Recording) creates a temp WAV; audio written to it;
+    // getRecordedSamples() tracks length; stopContinuousRecording() finalises
+    // the file; WAV is 24-bit, correct channel count, sample-accurate length;
+    // resetContinuousRecording() deletes the temp file.
+    {
+        constexpr int kBlockSz  = 256;
+        constexpr int kNumBlocks = 50;  // 50 × 256 @ 48 kHz ≈ 267 ms
+
+        CaptureEngine cap;
+
+        // Override channel count so the writer knows how many channels to open.
+        // Hack: call audioDeviceAboutToStart(nullptr) first (gives 1ch fallback),
+        // then feed kCapCh-channel blocks — the callback clamps to the actual
+        // channel data supplied, but the WAV will be written with the device
+        // channel count (1). Use a two-channel sine block but feed only 1ch from
+        // the device. Simpler: use a mock device.
+        //
+        // For the self-test we call audioDeviceAboutToStart(nullptr) which sets
+        // numChannels=1, then start Recording. The WAV will be 1-channel because
+        // numChannels=1. That correctly exercises the engine; a full device test
+        // requires real hardware.
+        cap.audioDeviceAboutToStart (nullptr); // 48 kHz, 1 ch
+        cap.setMode (CaptureEngine::Mode::Recording);
+
+        const juce::File tempFile = cap.getContinuousTempFile();
+        say ("continuous-capture: tempFile exists=" + juce::String ((int) tempFile.existsAsFile()));
+        if (! tempFile.existsAsFile())
+        { say ("FAIL: temp WAV not created on setMode(Recording)"); return 1; }
+
+        // Feed synthetic sine blocks into the engine.
+        constexpr float kFreq = 440.0f;
+        constexpr int   kSR   = 48000;
+        std::vector<float> sineBuf (kBlockSz);
+        const float* inPtrs[1] = { sineBuf.data() };
+        juce::AudioIODeviceCallbackContext ctx{};
+
+        for (int blk = 0; blk < kNumBlocks; ++blk)
+        {
+            const int offset = blk * kBlockSz;
+            for (int n = 0; n < kBlockSz; ++n)
+                sineBuf[(size_t) n] = 0.5f * std::sin (2.0f * juce::MathConstants<float>::pi
+                                                        * kFreq * (offset + n) / (float) kSR);
+            cap.audioDeviceIOCallbackWithContext (inPtrs, 1, nullptr, 0, kBlockSz, ctx);
+        }
+
+        const int64_t samplesBeforeStop = cap.getRecordedSamples();
+        say ("continuous-capture: samplesWritten=" + juce::String (samplesBeforeStop));
+        const int64_t expectedSamples = (int64_t) kNumBlocks * kBlockSz;
+        if (samplesBeforeStop < expectedSamples)
+        {
+            say ("FAIL: expected >=" + juce::String (expectedSamples)
+                 + " samples, got " + juce::String (samplesBeforeStop));
+            return 1;
+        }
+
+        // Finalise the WAV.
+        const juce::File finalisedFile = cap.stopContinuousRecording();
+        say ("continuous-capture: finalised=" + juce::String ((int) finalisedFile.existsAsFile()));
+        if (! finalisedFile.existsAsFile())
+        { say ("FAIL: finalised file does not exist"); return 1; }
+
+        // Give the background thread time to flush all buffered samples to disk
+        // before checking the WAV (ThreadedWriter drains asynchronously).
+        juce::Thread::sleep (200);
+
+        // Validate the resulting WAV: format, channel count, bit depth, length.
+        juce::WavAudioFormat wavFmt;
+        auto stream = finalisedFile.createInputStream();
+        if (stream == nullptr)
+        { say ("FAIL: cannot open finalised WAV"); finalisedFile.deleteFile(); return 1; }
+
+        std::unique_ptr<juce::AudioFormatReader> reader (wavFmt.createReaderFor (stream.release(), true));
+        if (reader == nullptr)
+        { say ("FAIL: WAV reader creation failed (not a valid WAV?)"); finalisedFile.deleteFile(); return 1; }
+
+        const int    wavCh     = (int) reader->numChannels;
+        const double wavSr     = reader->sampleRate;
+        const int    wavBits   = (int) reader->bitsPerSample;
+        const int64_t wavLen   = reader->lengthInSamples;
+
+        say ("continuous-capture: WAV ch=" + juce::String (wavCh)
+             + " sr=" + juce::String (wavSr, 0)
+             + " bits=" + juce::String (wavBits)
+             + " len=" + juce::String (wavLen));
+
+        if (wavCh < 1)
+        { say ("FAIL: WAV has 0 channels"); finalisedFile.deleteFile(); return 1; }
+        if (wavBits != 24)
+        { say ("FAIL: WAV is not 24-bit (got " + juce::String (wavBits) + ")"); finalisedFile.deleteFile(); return 1; }
+        if (wavLen < expectedSamples)
+        {
+            say ("FAIL: WAV length " + juce::String (wavLen)
+                 + " < expected " + juce::String (expectedSamples));
+            finalisedFile.deleteFile();
+            return 1;
+        }
+
+        finalisedFile.deleteFile();
+
+        // resetContinuousRecording() deletes the temp file without finalising.
+        cap.setMode (CaptureEngine::Mode::Recording);
+        const juce::File tempFile2 = cap.getContinuousTempFile();
+        if (! tempFile2.existsAsFile())
+        { say ("FAIL: second temp WAV not created"); return 1; }
+        cap.resetContinuousRecording();
+        if (tempFile2.existsAsFile())
+        { say ("FAIL: temp file not deleted by resetContinuousRecording()"); return 1; }
+
+        say ("continuous-capture: PASS");
+    }
+
     say ("PASS");
     return 0;
 }

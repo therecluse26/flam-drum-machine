@@ -11,7 +11,6 @@ namespace flamforge
 
 namespace
 {
-    // Linear amplitude (0..1) -> dBFS, floored so silence is finite.
     inline float ampToDb (float amp) noexcept
     {
         return amp > 1.0e-6f ? juce::Decibels::gainToDecibels (amp, -100.0f) : -100.0f;
@@ -20,9 +19,15 @@ namespace
 
 CaptureEngine::CaptureEngine()
 {
-    // std::atomic<float> zero-inits to 0 dBFS; we want -100 dBFS as the silence floor.
     for (auto& p : channelPeak)
         p.store (-100.0f, std::memory_order_relaxed);
+}
+
+CaptureEngine::~CaptureEngine()
+{
+    // Abort any active recording and clean up the temp file.
+    stopAndFlushWriter (true);
+    writerThread.stopThread (2000);
 }
 
 // ---------------------------------------------------------------------------
@@ -30,13 +35,24 @@ CaptureEngine::CaptureEngine()
 // ---------------------------------------------------------------------------
 void CaptureEngine::setMode (Mode m)
 {
-    // Reset per-mode transient state so a fresh pass starts clean. Plain stores;
-    // the audio thread reads `mode` atomically and re-derives the rest.
     calibArmed     = false;
     calibRunPeakDb = -100.0f;
     calibSilence   = 0;
-    resetRecordingState();
     lastPeakDb.store (-100.0f);
+
+    const Mode prev = mode.load();
+
+    if (m == Mode::Recording)
+    {
+        startContinuousRecording();
+    }
+    else if (prev == Mode::Recording)
+    {
+        // Leaving Recording without an explicit stopContinuousRecording() call
+        // (e.g. aborting a take mid-stream). Discard the temp WAV.
+        stopAndFlushWriter (true);
+    }
+
     mode.store (m);
 }
 
@@ -61,43 +77,26 @@ int CaptureEngine::channelCount() const
     return activeChannels.load (std::memory_order_relaxed);
 }
 
-// ---------------------------------------------------------------------------
-// drain (message thread): copy finished hits out of the slot pool.
-// ---------------------------------------------------------------------------
-std::vector<CapturedHit> CaptureEngine::drainNewHits()
+// --- continuous-capture API ------------------------------------------------
+
+juce::File CaptureEngine::getContinuousTempFile() const
 {
-    std::vector<CapturedHit> out;
+    return currentTempFile;
+}
 
-    int start1, size1, start2, size2;
-    fifo.prepareToRead (fifo.getNumReady(), start1, size1, start2, size2);
+int64_t CaptureEngine::getRecordedSamples() const noexcept
+{
+    return continuousRecordedSamples.load (std::memory_order_relaxed);
+}
 
-    auto copySlot = [&out] (Slot& slot)
-    {
-        const int ch  = slot.channels.load();
-        const int len = slot.length.load();
-        if (ch <= 0 || len <= 0)
-            return;
+juce::File CaptureEngine::stopContinuousRecording()
+{
+    return stopAndFlushWriter (false); // finalise WAV, return path, don't delete
+}
 
-        CapturedHit hit;
-        hit.sampleRate   = slot.sr.load();
-        hit.peakDb       = slot.peakDb.load();
-        hit.audio.setSize (ch, len, false, true, false);
-        for (int c = 0; c < ch; ++c)
-            hit.audio.copyFrom (c, 0, slot.audio, c, 0, len);
-        out.push_back (std::move (hit));
-    };
-
-    for (int i = 0; i < size1; ++i) copySlot (slots[(size_t) (start1 + i)]);
-    for (int i = 0; i < size2; ++i) copySlot (slots[(size_t) (start2 + i)]);
-
-    fifo.finishedRead (size1 + size2);
-
-    // Velocity is assigned now (message thread) using the current calibration,
-    // so a re-calibrate before draining still applies sensibly.
-    for (auto& h : out)
-        h.midiVelocity = calib.velocityFor (h.peakDb);
-
-    return out;
+void CaptureEngine::resetContinuousRecording()
+{
+    stopAndFlushWriter (true); // abort and delete temp file
 }
 
 // ---------------------------------------------------------------------------
@@ -105,7 +104,7 @@ std::vector<CapturedHit> CaptureEngine::drainNewHits()
 // ---------------------------------------------------------------------------
 void CaptureEngine::audioDeviceAboutToStart (juce::AudioIODevice* device)
 {
-    sampleRate  = device != nullptr ? device->getCurrentSampleRate() : 48000.0;
+    sampleRate = device != nullptr ? device->getCurrentSampleRate() : 48000.0;
     if (sampleRate <= 0.0)
         sampleRate = 48000.0;
 
@@ -117,24 +116,8 @@ void CaptureEngine::audioDeviceAboutToStart (juce::AudioIODevice* device)
         numChannels = juce::jmin (1, kMaxChannels);
 
     activeChannels.store (numChannels, std::memory_order_relaxed);
-
-    windowSamples  = (int) std::ceil (kWindowMs  * 0.001 * sampleRate);
-    preRollSamples = (int) std::ceil (kPreRollMs * 0.001 * sampleRate);
     releaseSamples = (int) std::ceil (kReleaseMs * 0.001 * sampleRate);
 
-    ringSize = windowSamples + preRollSamples + 1;
-
-    // Preallocate everything the audio thread will ever touch.
-    ring.setSize   (kMaxChannels, ringSize,      false, true, false);
-    recBuf.setSize (kMaxChannels, windowSamples, false, true, false);
-    for (auto& s : slots)
-        s.audio.setSize (kMaxChannels, windowSamples, false, true, false);
-
-    ring.clear();
-    recBuf.clear();
-    ringWrite = 0;
-
-    resetRecordingState();
     calibArmed     = false;
     calibRunPeakDb = -100.0f;
     calibSilence   = 0;
@@ -142,23 +125,19 @@ void CaptureEngine::audioDeviceAboutToStart (juce::AudioIODevice* device)
 
 void CaptureEngine::audioDeviceStopped()
 {
-    resetRecordingState();
+    // Device stopped: abort any active continuous recording so the temp file
+    // is not left open on a device that no longer exists.
+    if (continuousWriterPtr.load (std::memory_order_acquire) != nullptr)
+        stopAndFlushWriter (true);
+
     calibArmed     = false;
     calibRunPeakDb = -100.0f;
     calibSilence   = 0;
 }
 
 // ---------------------------------------------------------------------------
-// audio thread helpers
+// private helpers
 // ---------------------------------------------------------------------------
-void CaptureEngine::resetRecordingState()
-{
-    recActive  = false;
-    recWritten = 0;
-    recSilence = 0;
-    recPeakDb  = -100.0f;
-}
-
 float CaptureEngine::blockPeakDb (const float* const* in, int numCh, int numSamples) const
 {
     float peak = 0.0f;
@@ -169,27 +148,84 @@ float CaptureEngine::blockPeakDb (const float* const* in, int numCh, int numSamp
     return ampToDb (peak);
 }
 
-void CaptureEngine::publishHit (int channels, int length, double sr)
+void CaptureEngine::startContinuousRecording()
 {
-    int s1, n1, s2, n2;
-    fifo.prepareToWrite (1, s1, n1, s2, n2);
-    const int idx = (n1 > 0) ? s1 : s2;
-    if (n1 + n2 < 1)
-        return; // pool full: drop this hit rather than block the audio thread
+    stopAndFlushWriter (true); // discard any previous take
 
-    auto& slot = slots[(size_t) idx];
+    if (numChannels <= 0)
+        return;
 
-    const int ch  = juce::jlimit (1, kMaxChannels, channels);
-    const int len = juce::jlimit (1, windowSamples, length);
-    for (int c = 0; c < ch; ++c)
-        slot.audio.copyFrom (c, 0, recBuf, c, 0, len);
+    auto tempFile = juce::File::getSpecialLocation (juce::File::tempDirectory)
+                       .getChildFile ("flamforge_" + juce::Uuid().toString().replace ("-", "").substring (0, 12) + ".wav");
 
-    slot.channels.store (ch);
-    slot.length.store (len);
-    slot.sr.store (sr);
-    slot.peakDb.store (recPeakDb);
+    auto* outputStream = new juce::FileOutputStream (tempFile);
+    if (! outputStream->openedOk())
+    {
+        delete outputStream;
+        return;
+    }
 
-    fifo.finishedWrite (1);
+    // createWriterFor takes ownership of outputStream on success; on failure the
+    // caller must delete the stream.
+    auto* formatWriter = wavFormat.createWriterFor (
+        outputStream,
+        sampleRate,
+        (unsigned int) juce::jmax (1, numChannels),
+        24,   // 24-bit PCM — matches flamkit.yaml pipeline
+        {},
+        0);
+
+    if (formatWriter == nullptr)
+    {
+        delete outputStream;
+        tempFile.deleteFile();
+        return;
+    }
+
+    // Ring buffer: 4 seconds at current sample rate — generous headroom for
+    // any background-thread scheduling jitter on Linux/Windows.
+    const int ringBufferSamples = (int) (sampleRate * 4.0);
+
+    // ThreadedWriter takes ownership of formatWriter; the TimeSliceThread is
+    // shared across recordings so it doesn't need to restart each time.
+    continuousWriter = std::make_unique<juce::AudioFormatWriter::ThreadedWriter> (
+        formatWriter, writerThread, ringBufferSamples);
+
+    currentTempFile = tempFile;
+    continuousRecordedSamples.store (0, std::memory_order_relaxed);
+
+    if (! writerThread.isThreadRunning())
+        writerThread.startThread (juce::Thread::Priority::background);
+
+    // Release-store: audio thread must see the fully-constructed writer before
+    // it starts writing into it.
+    continuousWriterPtr.store (continuousWriter.get(), std::memory_order_release);
+}
+
+juce::File CaptureEngine::stopAndFlushWriter (bool deleteFile)
+{
+    // 1. Signal the audio thread to stop writing — any callback that starts
+    //    after this store sees null and skips the write block.
+    continuousWriterPtr.store (nullptr, std::memory_order_seq_cst);
+
+    // 2. Acquire writerLock. If an audio callback already loaded the old (non-null)
+    //    pointer and is currently inside write(), it holds this lock. We block until
+    //    that write() finishes — then no further writes to the object are possible.
+    {
+        const juce::ScopedLock sl (writerLock);
+
+        // 3. Destroy the ThreadedWriter: flushes the ring buffer to disk, finalises
+        //    the WAV header, closes the file, and removes itself from writerThread.
+        continuousWriter.reset();
+    }
+
+    const juce::File result = currentTempFile;
+    if (deleteFile)
+        currentTempFile.deleteFile();
+    currentTempFile = juce::File();
+
+    continuousRecordedSamples.store (0, std::memory_order_relaxed);
+    return result;
 }
 
 // ---------------------------------------------------------------------------
@@ -211,9 +247,8 @@ void CaptureEngine::audioDeviceIOCallbackWithContext (const float* const* inputC
 
     const int ch = juce::jlimit (0, kMaxChannels, numInputChannels);
 
-    // Per-channel instantaneous block peak — updated unconditionally so the UI
-    // meter is live in every mode (including Idle). Relaxed stores: this is
-    // telemetry, not synchronisation.
+    // Per-channel instantaneous block peak — live in every mode. Relaxed stores:
+    // this is telemetry, not synchronisation.
     if (ch > 0 && numSamples > 0)
     {
         activeChannels.store (ch, std::memory_order_relaxed);
@@ -248,7 +283,6 @@ void CaptureEngine::audioDeviceIOCallbackWithContext (const float* const* inputC
             calibSilence += numSamples;
             if (calibSilence >= releaseSamples)
             {
-                // Hit finished — commit its peak as the calibration value.
                 if (m == Mode::CalibrateSoft) calib.softestDb = calibRunPeakDb;
                 else                          calib.loudestDb = calibRunPeakDb;
 
@@ -262,66 +296,30 @@ void CaptureEngine::audioDeviceIOCallbackWithContext (const float* const* inputC
         return;
     }
 
-    // --- Recording: ring buffer + onset detection --------------------------
-    // 1) Always keep the most recent audio in the ring (for pre-roll).
-    for (int n = 0; n < numSamples; ++n)
+    // --- Recording: continuous write via lock-free ring buffer -------------
+    //
+    // Fast path: load the pointer with acquire semantics. If null (idle or
+    // tearing down), return immediately — no locking, no allocation.
+    auto* w = continuousWriterPtr.load (std::memory_order_acquire);
+    if (w == nullptr)
+        return;
+
+    // Acquire writerLock for the duration of write(). During steady-state
+    // recording this lock is always uncontended — just an atomic CAS, ~10 ns.
+    // It only blocks on the rare teardown event, allowing the message thread
+    // to safely destroy the writer after we release it.
     {
-        const int w = ringWrite;
-        for (int c = 0; c < ch; ++c)
-            ring.setSample (c, w, inputChannelData[c] != nullptr ? inputChannelData[c][n] : 0.0f);
-        ringWrite = (w + 1) % ringSize;
-    }
+        const juce::ScopedLock sl (writerLock);
 
-    // 2) Onset / capture state machine, evaluated per block.
-    if (! recActive)
-    {
-        if (blkDb > kOnsetDb)
-        {
-            // New hit: seed recBuf with the pre-roll already sitting in the ring.
-            recActive  = true;
-            recWritten = 0;
-            recSilence = 0;
-            recPeakDb  = blkDb;
+        // Double-check: teardown could have stored null between our load and
+        // our lock acquisition. If so, the writer is already destroyed — skip.
+        if (continuousWriterPtr.load (std::memory_order_seq_cst) == nullptr)
+            return;
 
-            const int pre = juce::jmin (preRollSamples, windowSamples);
-            int rPos = ringWrite - numSamples - pre;
-            rPos %= ringSize;
-            if (rPos < 0) rPos += ringSize;
-
-            for (int n = 0; n < pre && recWritten < windowSamples; ++n)
-            {
-                for (int c = 0; c < ch; ++c)
-                    recBuf.setSample (c, recWritten, ring.getSample (c, rPos));
-                rPos = (rPos + 1) % ringSize;
-                ++recWritten;
-            }
-        }
-    }
-
-    if (recActive)
-    {
-        recPeakDb = juce::jmax (recPeakDb, blkDb);
-
-        // Append this block into recBuf (clamped to the window length).
-        for (int n = 0; n < numSamples && recWritten < windowSamples; ++n)
-        {
-            for (int c = 0; c < ch; ++c)
-                recBuf.setSample (c, recWritten, inputChannelData[c] != nullptr ? inputChannelData[c][n] : 0.0f);
-            ++recWritten;
-        }
-
-        // Track silence for end-of-hit detection.
-        if (blkDb > kOnsetDb) recSilence = 0;
-        else                  recSilence += numSamples;
-
-        const bool windowFull = (recWritten >= windowSamples);
-        const bool decayed     = (recSilence >= releaseSamples);
-
-        if (windowFull || decayed)
-        {
-            publishHit (ch, recWritten, sampleRate);
-            resetRecordingState();
-        }
+        // write() is lock-free internally (AbstractFifo into pre-allocated AudioBuffer).
+        // Returns false if the ring overflows; drop the block rather than blocking.
+        if (w->write (inputChannelData, numSamples))
+            continuousRecordedSamples.fetch_add (numSamples, std::memory_order_relaxed);
     }
 }
 
