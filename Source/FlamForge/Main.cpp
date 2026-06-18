@@ -104,7 +104,34 @@ static int runSelfTest()
     say ("wav-refs missing=" + juce::String (missing));
     if (missing > 0) { say ("FAIL: reloaded layers reference missing wavs"); return 1; }
 
-    // 5) per-channel metering atomics (FLA-137)
+    // 5) label round-trip: user channel labels survive export → YAML → reload (FLA-139)
+    {
+        auto tmp2 = juce::File::getSpecialLocation (juce::File::tempDirectory)
+                       .getChildFile ("flamforge_labeltest");
+        tmp2.deleteRecursively();
+        tmp2.createDirectory();
+
+        // "Left" and "" (blank): blank should fall back to "Mic 2".
+        const std::vector<juce::String> testLabels { "Left", "" };
+        auto res2 = exportKit ("Label Test Kit", captures, opts, tmp2, testLabels);
+        say ("label-export: ok=" + juce::String ((int) res2.ok));
+        if (! res2.ok) { say ("FAIL: label export: " + res2.message); return 1; }
+
+        flam::FlamKitLoader ldr;
+        auto kit2 = ldr.loadKit (res2.kitYaml);
+        if (kit2 == nullptr) { say ("FAIL: label reload"); return 1; }
+
+        const bool ch0ok = kit2->channelNames.size() > 0 && kit2->channelNames[0] == "Left";
+        const bool ch1ok = kit2->channelNames.size() > 1 && kit2->channelNames[1] == "Mic 2";
+        say ("label round-trip: ch0=" + (kit2->channelNames.size() > 0 ? kit2->channelNames[0] : "?")
+             + " ch1=" + (kit2->channelNames.size() > 1 ? kit2->channelNames[1] : "?"));
+        if (! ch0ok) { say ("FAIL: ch0 label expected 'Left'"); return 1; }
+        if (! ch1ok) { say ("FAIL: ch1 blank label expected 'Mic 2' fallback"); return 1; }
+
+        tmp2.deleteRecursively();
+    }
+
+    // 6) per-channel metering atomics (FLA-137)
     // Feed 3-channel synthetic blocks: ch0 hot, ch1 silent, ch2 mid.
     // Assert channelLevelDb(c) reflects each channel independently.
     {

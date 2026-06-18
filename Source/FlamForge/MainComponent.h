@@ -760,7 +760,7 @@ private:
         persistDestPath();
 
         setStatus ("Exporting to " + destDir.getFullPathName() + " ...");
-        const ExportResult res = exportKit (kitName, captures, options, destDir);
+        const ExportResult res = exportKit (kitName, captures, options, destDir, channelLabels);
         setStatus (res.message);
 
         if (res.ok)
