@@ -31,7 +31,7 @@ inline int mapPeakToVelocity (float db, float softDb, float loudDb)
 }
 
 // ---------------------------------------------------------------------------
-// CoverageMeter — the "fingerprint registration" view.
+// CoverageMeter -- the "fingerprint registration" view.
 //
 // Each captured hit is bucketed into one of kNumBins velocity bins (1..127).
 // Bins are coloured by how many hits landed in them:
@@ -75,9 +75,9 @@ public:
             total += n;
 
             juce::Colour c;
-            if (n >= 6)      c = juce::Colour (0xff3ecf6b);   // green  — ideal
-            else if (n >= 2) c = juce::Colour (0xffe0b341);   // yellow — usable
-            else if (n >= 1) c = juce::Colour (0xffd0473f);   // red    — thin
+            if (n >= 6)      c = juce::Colour (0xff3ecf6b);   // green  -- ideal
+            else if (n >= 2) c = juce::Colour (0xffe0b341);   // yellow -- usable
+            else if (n >= 1) c = juce::Colour (0xffd0473f);   // red    -- thin
             else             c = juce::Colour (0xff23272e);   // empty
             g.setColour (c);
             g.fillRoundedRectangle (bin, 2.0f);
@@ -98,7 +98,7 @@ private:
 };
 
 // ---------------------------------------------------------------------------
-// StatsPanel — live, automatically-derived readouts.
+// StatsPanel -- live, automatically-derived readouts.
 // ---------------------------------------------------------------------------
 class StatsPanel : public juce::Component
 {
@@ -139,7 +139,7 @@ private:
 };
 
 // ---------------------------------------------------------------------------
-// ForgeMeter — timer-free segmented LED input level meter.
+// ForgeMeter -- timer-free segmented LED input level meter.
 //
 // Driven by ForgeContent's existing 30 Hz juce::Timer via tick(); has no
 // internal timer so it adds zero scheduling overhead per strip.
@@ -180,7 +180,7 @@ public:
         }
         b.removeFromTop (2.0f);
 
-        // Segmented LED bars — ported from Source/UI/PeakMeter.h
+        // Segmented LED bars -- ported from Source/UI/PeakMeter.h
         const float segH   = 3.0f, segGap = 1.0f;
         const int   numSegs = static_cast<int> (b.getHeight() / (segH + segGap));
         const float norm    = juce::jlimit (0.0f, 1.0f, juce::jmap (displayDb, -60.0f, 6.0f, 0.0f, 1.0f));
@@ -210,7 +210,7 @@ private:
 };
 
 // ---------------------------------------------------------------------------
-// ForgeChannelStrip — editable label + vertical meter for one input channel.
+// ForgeChannelStrip -- editable label + vertical meter for one input channel.
 // No internal timer; driven by ChannelStripRow::tick().
 // ---------------------------------------------------------------------------
 class ForgeChannelStrip : public juce::Component
@@ -261,7 +261,7 @@ private:
 };
 
 // ---------------------------------------------------------------------------
-// ChannelStripRow — horizontal, scrollable row of up to 16 ForgeChannelStrip.
+// ChannelStripRow -- horizontal, scrollable row of up to 16 ForgeChannelStrip.
 //
 // ForgeContent owns the label model (std::vector<juce::String> channelLabels).
 // rebuild() seeds strips from that vector and wires onLabelChanged back so
@@ -270,11 +270,11 @@ private:
 class ChannelStripRow : public juce::Component
 {
 public:
-    static constexpr int kStripW = 76;  // fixed strip width; 16 strips = 1216 px → horizontal scroll
+    static constexpr int kStripW = 76;  // fixed strip width; 16 strips = 1216 px -> horizontal scroll
 
     ChannelStripRow()
     {
-        // inner declared before viewport → viewport destroyed first (see member order below).
+        // inner declared before viewport -> viewport destroyed first (see member order below).
         viewport.setViewedComponent (&inner, /*ownedByViewport=*/false);
         viewport.setScrollBarsShown (/*vertical=*/false, /*horizontal=*/true);
         addAndMakeVisible (viewport);
@@ -334,7 +334,7 @@ private:
         }
     }
 
-    // Declare inner before viewport — C++ reverse-destruction order ensures
+    // Declare inner before viewport -- C++ reverse-destruction order ensures
     // the viewport (and its raw contentComp pointer) is destroyed first.
     juce::Component              inner;
     juce::OwnedArray<ForgeChannelStrip> strips;
@@ -344,7 +344,11 @@ private:
 };
 
 // ---------------------------------------------------------------------------
-// SetupHeader — top zone: title + subtitle + audio device selector + channel strips.
+// SetupHeader -- top zone: title + subtitle + audio device selector + channel strips.
+//
+// Collapsible: click the title/subtitle area to collapse to a one-line summary;
+// click the summary bar to expand again. Auto-collapses once ForgeContent detects
+// a valid input device via AudioDeviceManager::ChangeListener -- no timer added.
 //
 // Owns title and subtitle; holds a non-owning pointer to the AudioDeviceSelectorComponent
 // (owned by ForgeContent via unique_ptr). adoptDeviceSelector() must be called from
@@ -354,23 +358,37 @@ class SetupHeader : public juce::Component
 {
 public:
     ChannelStripRow stripRow;
+    std::function<void()> onCollapseToggled;  // fired after state flips; caller should relayout
 
     static constexpr int kTitleH  = 38;
     static constexpr int kSubH    = 20;
     static constexpr int kStripsH = 90;
     static constexpr int kGap     = 12;
+    static constexpr int kBarH    = 32;  // height of the collapsed summary bar
 
     SetupHeader()
     {
         title.setFont (juce::Font (juce::FontOptions (32.0f, juce::Font::bold)));
         title.setColour (juce::Label::textColourId, juce::Colours::white);
-        title.setText ("FlamForge", juce::dontSendNotification);
+        // U+25BE BLACK DOWN-POINTING SMALL TRIANGLE -- indicates collapsible, open state
+        title.setText ("\xe2\x96\xbe FlamForge", juce::dontSendNotification);
+        title.setInterceptsMouseClicks (false, false);  // let clicks fall through to SetupHeader
         addAndMakeVisible (title);
 
         subtitle.setColour (juce::Label::textColourId, juce::Colours::white.withAlpha (0.6f));
         subtitle.setText ("Play each drum from soft to hard - layers build themselves.",
                           juce::dontSendNotification);
+        subtitle.setInterceptsMouseClicks (false, false);
         addAndMakeVisible (subtitle);
+
+        // Shown only when collapsed; summarises device + channel count + export path.
+        // U+25B8 BLACK RIGHT-POINTING SMALL TRIANGLE
+        summaryBar.setFont (juce::Font (juce::FontOptions (13.0f)));
+        summaryBar.setColour (juce::Label::textColourId, juce::Colours::white.withAlpha (0.8f));
+        summaryBar.setText ("\xe2\x96\xb8 Setup", juce::dontSendNotification);
+        summaryBar.setInterceptsMouseClicks (false, false);
+        summaryBar.setVisible (false);
+        addAndMakeVisible (summaryBar);
 
         addAndMakeVisible (stripRow);
     }
@@ -383,9 +401,54 @@ public:
         addAndMakeVisible (sel);
     }
 
+    bool isExpanded() const { return expanded; }
+
+    void setExpanded (bool e)
+    {
+        if (expanded == e) return;
+        expanded = e;
+        applyVisibility();
+        if (onCollapseToggled) onCollapseToggled();
+    }
+
+    // Update the one-line summary shown when collapsed, e.g. "Default ALSA * 2 in * ~/Music/..."
+    void setSummaryText (const juce::String& t)
+    {
+        // U+25B8 prefix retained by caller via xc2xb7 middle-dot separators
+        summaryBar.setText ("\xe2\x96\xb8 " + t, juce::dontSendNotification);
+    }
+
+    // Returns pixel height needed: kBarH when collapsed; full expanded height otherwise.
+    int naturalHeight (int deviceH) const
+    {
+        if (! expanded) return kBarH;
+        return kTitleH + kSubH + kGap + deviceH + kGap + kStripsH;
+    }
+
+    // Collapsed: any click expands. Expanded: click in the title+subtitle zone collapses.
+    void mouseUp (const juce::MouseEvent& e) override
+    {
+        if (! expanded || e.getPosition().getY() <= kTitleH + kSubH)
+            setExpanded (! expanded);
+    }
+
+    void paint (juce::Graphics& g) override
+    {
+        if (! expanded)
+        {
+            g.setColour (juce::Colour (0xff1b1f25));
+            g.fillRoundedRectangle (getLocalBounds().toFloat(), 4.0f);
+        }
+    }
+
     void resized() override
     {
         auto b = getLocalBounds();
+        if (! expanded)
+        {
+            summaryBar.setBounds (b.reduced (12, 0));
+            return;
+        }
         title.setBounds    (b.removeFromTop (kTitleH));
         subtitle.setBounds (b.removeFromTop (kSubH));
         b.removeFromTop (kGap);
@@ -400,229 +463,79 @@ public:
     }
 
 private:
-    juce::Label title, subtitle;
+    void applyVisibility()
+    {
+        title.setVisible (expanded);
+        subtitle.setVisible (expanded);
+        if (deviceSel != nullptr) deviceSel->setVisible (expanded);
+        stripRow.setVisible (expanded);
+        summaryBar.setVisible (! expanded);
+    }
+
+    bool expanded = true;
+    juce::Label title, subtitle, summaryBar;
     juce::AudioDeviceSelectorComponent* deviceSel = nullptr;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SetupHeader)
 };
 
 // ---------------------------------------------------------------------------
-// PieceRowData — compact per-piece summary fed from ForgeContent into PieceRail.
-// ---------------------------------------------------------------------------
-struct PieceRowData
-{
-    juce::String name;
-    int hitCount   = 0;
-    int binsFilled = 0;  // 0..CoverageMeter::kNumBins
-};
-
-// ---------------------------------------------------------------------------
-// PieceRow — one selectable, inline-renameable row in PieceRail.
+// PieceRail -- left rail: drum piece navigation.
 //
-// Single-click selects the row. Double-click on the already-selected row
-// opens an inline TextEditor for renaming. The editor is transparent and
-// mouse-transparent when read-only, so all clicks reach PieceRow's handlers.
-//
-// IMPORTANT: onNameCommit must NOT trigger a rail rebuild (setItems) from
-// within the same call — doing so would delete this row while commitName()
-// is still on the stack (use-after-free).
-// ---------------------------------------------------------------------------
-class PieceRow : public juce::Component
-{
-public:
-    std::function<void()>                     onSelect;
-    std::function<void (const juce::String&)> onNameCommit;
-
-    PieceRow()
-    {
-        nameEditor.setColour (juce::TextEditor::backgroundColourId, juce::Colour (0x00000000u));
-        nameEditor.setColour (juce::TextEditor::outlineColourId, juce::Colours::transparentBlack);
-        nameEditor.setColour (juce::TextEditor::focusedOutlineColourId, juce::Colour (0xff3b7dcc));
-        nameEditor.setColour (juce::TextEditor::textColourId, juce::Colours::white.withAlpha (0.88f));
-        nameEditor.setFont (juce::Font (juce::FontOptions (13.0f)));
-        nameEditor.setReadOnly (true);
-        nameEditor.setOpaque (false);
-        nameEditor.setInterceptsMouseClicks (false, false);
-        nameEditor.onReturnKey = [this] { commitName(); };
-        nameEditor.onFocusLost = [this] { commitName(); };
-        addAndMakeVisible (nameEditor);
-    }
-
-    void setData (int index, const PieceRowData& d, bool sel)
-    {
-        pieceIdx = index;
-        if (! sel && selected && ! nameEditor.isReadOnly())
-        {
-            nameEditor.setReadOnly (true);
-            nameEditor.setInterceptsMouseClicks (false, false);
-        }
-        selected = sel;
-        data     = d;
-        nameEditor.setText (d.name, juce::dontSendNotification);
-        repaint();
-    }
-
-    void mouseDown (const juce::MouseEvent&) override
-    {
-        if (! selected && onSelect)
-            onSelect();
-    }
-
-    void mouseDoubleClick (const juce::MouseEvent&) override
-    {
-        if (selected && nameEditor.isReadOnly())
-        {
-            nameEditor.setReadOnly (false);
-            nameEditor.grabKeyboardFocus();
-            nameEditor.selectAll();
-            repaint();
-        }
-    }
-
-    void resized() override
-    {
-        auto b = getLocalBounds().reduced (4, 3);
-        b.removeFromLeft (18);  // dot (8 px) + gap (10 px)
-        b.removeFromRight (46); // hit-count area
-        nameEditor.setBounds (b);
-    }
-
-    void paint (juce::Graphics& g) override
-    {
-        const auto b = getLocalBounds();
-
-        if (selected)
-        {
-            g.setColour (juce::Colour (0xff2a2e35));
-            g.fillRoundedRectangle (b.toFloat(), 4.0f);
-        }
-
-        // Coverage dot
-        constexpr float kDot = 8.0f;
-        g.setColour (coverageColour (data.binsFilled));
-        g.fillEllipse ({6.0f, (b.getHeight() - kDot) * 0.5f, kDot, kDot});
-
-        // Hit count (right-aligned)
-        g.setColour (juce::Colours::white.withAlpha (0.4f));
-        g.setFont (juce::Font (juce::FontOptions (10.0f)));
-        g.drawText (juce::String (data.hitCount),
-                    b.withLeft (b.getRight() - 46).reduced (2, 0),
-                    juce::Justification::centredRight);
-
-        // Row separator
-        g.setColour (juce::Colour (0xff1e2227));
-        g.fillRect (juce::Rectangle<float> (0.0f, (float) b.getBottom() - 1.0f,
-                                            (float) b.getWidth(), 1.0f));
-    }
-
-private:
-    static juce::Colour coverageColour (int binsFilled) noexcept
-    {
-        if (binsFilled >= 12)  return juce::Colour (0xff3ecf6b);  // green  — good
-        if (binsFilled >= 5)   return juce::Colour (0xffe0b341);  // yellow — usable
-        if (binsFilled >= 1)   return juce::Colour (0xffd0473f);  // red    — thin
-        return juce::Colour (0xff3a3f47);                          // grey   — empty
-    }
-
-    void commitName()
-    {
-        const juce::String t = nameEditor.getText().trim();
-        nameEditor.setReadOnly (true);
-        nameEditor.setInterceptsMouseClicks (false, false);
-        if (t.isNotEmpty())
-        {
-            data.name = t;
-            if (onNameCommit) onNameCommit (t);
-            return;  // onNameCommit must not rebuild the rail — 'this' must remain valid
-        }
-        nameEditor.setText (data.name, juce::dontSendNotification);
-        repaint();
-    }
-
-    int              pieceIdx = 0;
-    PieceRowData     data;
-    bool             selected = false;
-    juce::TextEditor nameEditor;
-
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PieceRow)
-};
-
-// ---------------------------------------------------------------------------
-// PieceRail — persistent left rail: scrollable list of all drum pieces.
-//
-// Replaces the old < 1/1 > navigation with a kit-level overview showing
-// coverage dot + name + hit count per piece. ForgeContent calls setItems()
-// on every state refresh; the rail holds no duplicate data.
+// Lays out vertically so it works as a narrow left column. Callbacks wired by
+// ForgeContent; setDisplay() called on every piece switch or state refresh.
 // ---------------------------------------------------------------------------
 class PieceRail : public juce::Component
 {
 public:
-    std::function<void (int)>                      onSelect;       // absolute piece index
-    std::function<void()>                          onAdd;
-    std::function<void (int, const juce::String&)> onNameChanged;  // (pieceIdx, newName)
-
-    static constexpr int kRowH    = 32;
-    static constexpr int kHeaderH = 20;
-    static constexpr int kAddH    = 28;
-    static constexpr int kPad     = 5;
+    std::function<void (int)>                 onSwitch;      // delta: -1 or +1
+    std::function<void()>                     onAdd;
+    std::function<void (const juce::String&)> onNameChanged;
 
     PieceRail()
     {
-        headerLabel.setText ("PIECES", juce::dontSendNotification);
-        headerLabel.setColour (juce::Label::textColourId, juce::Colours::white.withAlpha (0.45f));
-        headerLabel.setFont (juce::Font (juce::FontOptions (10.0f, juce::Font::bold)));
-        addAndMakeVisible (headerLabel);
+        pieceLabel.setText ("Drum piece:", juce::dontSendNotification);
+        pieceLabel.setColour (juce::Label::textColourId, juce::Colours::white.withAlpha (0.7f));
+        addAndMakeVisible (pieceLabel);
 
-        // inner declared before viewport — destroyed after viewport (reverse order).
-        inner.setInterceptsMouseClicks (false, true);
-        viewport.setViewedComponent (&inner, /*ownedByViewport=*/false);
-        viewport.setScrollBarsShown (/*vertical=*/true, /*horizontal=*/false);
-        addAndMakeVisible (viewport);
+        pieceName.setColour (juce::TextEditor::backgroundColourId, juce::Colour (0xff1b1f25));
+        pieceName.setColour (juce::TextEditor::textColourId, juce::Colours::white.withAlpha (0.85f));
+        pieceName.onTextChange = [this] { if (onNameChanged) onNameChanged (pieceName.getText()); };
+        addAndMakeVisible (pieceName);
 
-        addBtn.setButtonText ("+ Add piece");
-        addBtn.onClick = [this] { if (onAdd) onAdd(); };
-        addAndMakeVisible (addBtn);
+        configureButton (prevBtn, "<");     prevBtn.onClick = [this] { if (onSwitch) onSwitch (-1); };
+        configureButton (nextBtn, ">");     nextBtn.onClick = [this] { if (onSwitch) onSwitch (+1); };
+        configureButton (addBtn, "+ Add");  addBtn.onClick  = [this] { if (onAdd) onAdd(); };
+
+        pieceCount.setJustificationType (juce::Justification::centred);
+        pieceCount.setColour (juce::Label::textColourId, juce::Colours::white.withAlpha (0.7f));
+        addAndMakeVisible (pieceCount);
     }
 
-    void setItems (int selectedIdx, const std::vector<PieceRowData>& items)
+    void setDisplay (int idx, int total, const juce::String& name)
     {
-        rows.clear();
-        for (int i = 0; i < (int) items.size(); ++i)
-        {
-            auto* row = rows.add (new PieceRow());
-            const int idx = i;
-            row->onSelect     = [this, idx] { if (onSelect) onSelect (idx); };
-            row->onNameCommit = [this, idx] (const juce::String& n)
-            {
-                if (onNameChanged) onNameChanged (idx, n);
-            };
-            row->setData (i, items[(size_t) i], i == selectedIdx);
-            inner.addAndMakeVisible (row);
-        }
-        layoutRows();
-
-        // Scroll to keep selected row visible
-        if (selectedIdx >= 0 && selectedIdx < (int) items.size())
-        {
-            const int y   = selectedIdx * kRowH;
-            const int vpH = viewport.getHeight();
-            const int cur = viewport.getViewPositionY();
-            if (y < cur)
-                viewport.setViewPosition (0, y);
-            else if (y + kRowH > cur + vpH)
-                viewport.setViewPosition (0, juce::jmax (0, y + kRowH - vpH));
-        }
+        pieceName.setText (name, juce::dontSendNotification);
+        pieceCount.setText (juce::String (idx + 1) + " / " + juce::String (total),
+                            juce::dontSendNotification);
     }
 
     void resized() override
     {
-        auto b = getLocalBounds().reduced (kPad, kPad);
-        headerLabel.setBounds (b.removeFromTop (kHeaderH));
-        b.removeFromTop (2);
-        addBtn.setBounds (b.removeFromBottom (kAddH));
-        b.removeFromBottom (kPad);
-        viewport.setBounds (b);
-        layoutRows();
+        auto b = getLocalBounds().reduced (6, 6);
+        pieceLabel.setBounds (b.removeFromTop (18));
+        b.removeFromTop (4);
+        pieceName.setBounds (b.removeFromTop (24));
+        b.removeFromTop (10);
+        {
+            auto nav = b.removeFromTop (28);
+            const int navW = juce::jlimit (26, 36, nav.getWidth() / 5);
+            prevBtn.setBounds    (nav.removeFromLeft (navW));
+            nav.removeFromLeft (2);
+            nextBtn.setBounds    (nav.removeFromRight (navW));
+            pieceCount.setBounds (nav);
+        }
+        b.removeFromTop (8);
+        addBtn.setBounds (b.removeFromTop (28));
     }
 
     void paint (juce::Graphics& g) override
@@ -632,28 +545,21 @@ public:
     }
 
 private:
-    void layoutRows()
+    void configureButton (juce::TextButton& b, const juce::String& lbl)
     {
-        const int vpW    = juce::jmax (1, viewport.getMaximumVisibleWidth());
-        const int totalH = rows.size() * kRowH;
-        inner.setSize (vpW, juce::jmax (totalH, viewport.getHeight()));
-        for (int i = 0; i < rows.size(); ++i)
-            rows[i]->setBounds (0, i * kRowH, vpW, kRowH);
+        b.setButtonText (lbl);
+        addAndMakeVisible (b);
     }
 
-    // Declare inner before viewport — C++ reverse-destruction ensures
-    // viewport (which holds a raw pointer to inner) is destroyed first.
-    juce::Label              headerLabel;
-    juce::Component          inner;
-    juce::Viewport           viewport;
-    juce::TextButton         addBtn;
-    juce::OwnedArray<PieceRow> rows;
+    juce::Label      pieceLabel, pieceCount;
+    juce::TextEditor pieceName;
+    juce::TextButton prevBtn, nextBtn, addBtn;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PieceRail)
 };
 
 // ---------------------------------------------------------------------------
-// CapturePanel — center zone: RECORD button + stats readout + coverage meter.
+// CapturePanel -- center zone: RECORD button + stats readout + coverage meter.
 //
 // Public members (stats, coverage) are accessed directly by ForgeContent's
 // recompute() to update displayed data; no extra indirection needed.
@@ -704,7 +610,7 @@ private:
 };
 
 // ---------------------------------------------------------------------------
-// ExportBar — bottom zone: destination row + optional embedded browser + export.
+// ExportBar -- bottom zone: destination row + optional embedded browser + export.
 //
 // Manages its own browser visibility state and FileChooser/FileBrowserComponent
 // lifecycle. ForgeContent wires onExportRequested / onRevealRequested /
@@ -927,7 +833,7 @@ private:
 };
 
 // ---------------------------------------------------------------------------
-// ForgeContent — owns the scrollable zone components (header + middle),
+// ForgeContent -- owns the scrollable zone components (header + middle),
 // single 30 Hz timer, engine, and all application state.
 //
 // ExportBar is a sibling component owned by MainComponent and pinned to the
@@ -935,20 +841,21 @@ private:
 // via the public callback members below; MainComponent wires them.
 //
 // Member declaration order is intentional:
-//   deviceManager → deviceSelector (unique_ptr) → zone components → state
+//   deviceManager -> deviceSelector (unique_ptr) -> zone components -> state
 // Destruction is reverse order, so zones are torn down before deviceSelector,
-// and deviceSelector before deviceManager — preventing use-after-free on the
+// and deviceSelector before deviceManager -- preventing use-after-free on the
 // raw pointer held by SetupHeader::adoptDeviceSelector().
 // ---------------------------------------------------------------------------
 class ForgeContent : public juce::Component,
-                     private juce::Timer
+                     private juce::Timer,
+                     public juce::ChangeListener
 {
 public:
     static constexpr int kPad     = 22;
     static constexpr int kGap     = 12;
     static constexpr int kRailW   = 150;  // fixed PieceRail width
 
-    // Callbacks wired by MainComponent to connect ForgeContent ↔ ExportBar.
+    // Callbacks wired by MainComponent to connect ForgeContent <-> ExportBar.
     std::function<void (const juce::String&)> onStatusChanged;
     std::function<void()>                     onExportSucceeded;
     std::function<juce::String()>             getExportDestPath;
@@ -967,21 +874,24 @@ public:
         // Wire device selector into the header zone (non-owning).
         header.adoptDeviceSelector (*deviceSelector);
 
+        // Re-layout when the header collapses/expands, propagating up to MainComponent
+        // so the viewport content height is updated to match the new naturalHeight().
+        header.onCollapseToggled = [this]
+        {
+            resized();
+            if (auto* vp = getParentComponent())
+                if (auto* mc = vp->getParentComponent())
+                    mc->resized();
+        };
+
         addAndMakeVisible (header);
         addAndMakeVisible (pieceRail);
         addAndMakeVisible (capturePanel);
 
         // --- PieceRail callbacks ---
-        pieceRail.onSelect = [this] (int idx) { selectPiece (idx); };
-        pieceRail.onAdd    = [this]            { addPiece(); };
-        // Update the data model only — do NOT call setItems()/refreshAll() here;
-        // the ForgeContent callback fires while PieceRow::commitName() is still
-        // on the stack, so rebuilding the rail would delete the row mid-call.
-        pieceRail.onNameChanged = [this] (int idx, const juce::String& n)
-        {
-            if (idx >= 0 && idx < (int) captures.size())
-                captures[(size_t) idx].name = n;
-        };
+        pieceRail.onSwitch = [this] (int d) { switchPiece (d); };
+        pieceRail.onAdd    = [this]        { addPiece(); };
+        pieceRail.onNameChanged = [this] (const juce::String& n) { currentPiece().name = n; };
 
         // --- CapturePanel callbacks ---
         capturePanel.onRecord = [this] { toggleRecord(); };
@@ -994,16 +904,19 @@ public:
         appProps.setStorageParameters (propOpts);
 
         deviceManager.addAudioCallback (&engine);
+        deviceManager.addChangeListener (this);  // auto-collapse on valid device selection
         captures.push_back ({});
         captures[0].name = "Kick";
 
         refreshAll();
+        updateSetupSummary();
         startTimerHz (30);
     }
 
     ~ForgeContent() override
     {
         stopTimer();
+        deviceManager.removeChangeListener (this);
         deviceManager.removeAudioCallback (&engine);
     }
 
@@ -1011,8 +924,7 @@ public:
     {
         // Lower-bound elastic heights for initial window sizing.
         const int deviceH  = 160;
-        const int headerH  = SetupHeader::kTitleH + SetupHeader::kSubH + SetupHeader::kGap
-                           + deviceH + SetupHeader::kGap + SetupHeader::kStripsH;
+        const int headerH  = header.naturalHeight (deviceH);
         const int captureH = CapturePanel::kRecordH + CapturePanel::kGap + 80 + CapturePanel::kGap + 48;
         const int midH     = juce::jmax (captureH, 120);
         return 2 * kPad + headerH + kGap + midH;
@@ -1022,19 +934,31 @@ public:
 
     void resized() override
     {
-        // Compute elastic device-panel height from available space (same proportions as before).
-        const int fixedV = 2 * kPad
-            + SetupHeader::kTitleH + SetupHeader::kSubH + SetupHeader::kGap
-            + SetupHeader::kGap    // gap after device
-            + SetupHeader::kStripsH + kGap  // strips + gap below header
-            + kGap;                          // gap below mid
-        const int flexAvail = juce::jmax (0, getHeight() - fixedV);
-        const int deviceH   = juce::jlimit (160, 340, 50 + flexAvail * 55 / 100);
-        const int midH      = juce::jmax (120, flexAvail - deviceH - kGap);
-        const int headerH   = SetupHeader::kTitleH + SetupHeader::kSubH + SetupHeader::kGap
-                            + deviceH + SetupHeader::kGap + SetupHeader::kStripsH;
-
         auto area = getLocalBounds().reduced (kPad, kPad);
+
+        int headerH, midH;
+        if (header.isExpanded())
+        {
+            // Compute elastic device-panel height from available space.
+            const int fixedV = 2 * kPad
+                + SetupHeader::kTitleH + SetupHeader::kSubH + SetupHeader::kGap
+                + SetupHeader::kGap    // gap after device
+                + SetupHeader::kStripsH + kGap  // strips + gap below header
+                + kGap;                          // gap below mid
+            const int flexAvail = juce::jmax (0, getHeight() - fixedV);
+            const int deviceH   = juce::jlimit (160, 340, 50 + flexAvail * 55 / 100);
+            midH    = juce::jmax (120, flexAvail - deviceH - kGap);
+            headerH = SetupHeader::kTitleH + SetupHeader::kSubH + SetupHeader::kGap
+                    + deviceH + SetupHeader::kGap + SetupHeader::kStripsH;
+        }
+        else
+        {
+            // Collapsed: header is a thin bar; give the freed space to the mid zone.
+            const int fixedVCollapsed = 2 * kPad + SetupHeader::kBarH + kGap + kGap;
+            const int flexAvailCollapsed = juce::jmax (0, getHeight() - fixedVCollapsed);
+            headerH = SetupHeader::kBarH;
+            midH    = juce::jmax (120, flexAvailCollapsed - kGap);
+        }
 
         // Top zone: SetupHeader (full width)
         header.setBounds (area.removeFromTop (headerH));
@@ -1059,38 +983,6 @@ public:
     // --- Public API for MainComponent to call on behalf of ExportBar actions ---
 
     // Triggered by ExportBar's Export button via MainComponent.
-    static int computeBinsFilled (const PieceCapture& piece)
-    {
-        if (piece.hits.empty()) return 0;
-        float softDb = 1.0e9f, loudDb = -1.0e9f;
-        for (const auto& h : piece.hits)
-        {
-            softDb = juce::jmin (softDb, h.peakDb);
-            loudDb = juce::jmax (loudDb, h.peakDb);
-        }
-        const bool hasRange = (int) piece.hits.size() >= 2 && loudDb > softDb;
-        std::array<int, CoverageMeter::kNumBins> counts{};
-        for (const auto& h : piece.hits)
-        {
-            const int v   = hasRange ? mapPeakToVelocity (h.peakDb, softDb, loudDb) : 100;
-            const int bin = juce::jlimit (0, CoverageMeter::kNumBins - 1,
-                                          (juce::jlimit (1, 127, v) - 1) * CoverageMeter::kNumBins / 127);
-            ++counts[(size_t) bin];
-        }
-        int filled = 0;
-        for (int n : counts) if (n > 0) ++filled;
-        return filled;
-    }
-
-    std::vector<PieceRowData> buildRowData() const
-    {
-        std::vector<PieceRowData> out;
-        out.reserve (captures.size());
-        for (const auto& p : captures)
-            out.push_back ({ p.name, (int) p.hits.size(), computeBinsFilled (p) });
-        return out;
-    }
-
     void onExport()
     {
         stopRecording();
@@ -1134,6 +1026,7 @@ public:
     {
         if (auto* props = appProps.getUserSettings())
             props->setValue ("lastExportDir", path);
+        updateSetupSummary();  // keep collapsed summary in sync with new path
     }
 
     // Called by MainComponent at startup to seed ExportBar with the last used path.
@@ -1154,6 +1047,55 @@ private:
 
     void setStatus (const juce::String& s) { if (onStatusChanged) onStatusChanged (s); }
 
+    // Rebuild the one-line summary shown in the collapsed SetupHeader bar.
+    void updateSetupSummary()
+    {
+        juce::String summary;
+        if (auto* dev = deviceManager.getCurrentAudioDevice())
+        {
+            summary = dev->getName();
+            const int chCount = dev->getActiveInputChannels().countNumberOfSetBits();
+            if (chCount > 0)
+                summary += " \xc2\xb7 " + juce::String (chCount) + " in";  // U+00B7 middle dot
+        }
+        else
+        {
+            summary = "No device";
+        }
+        if (getExportDestPath)
+        {
+            const juce::String dest = getExportDestPath().trim();
+            if (dest.isNotEmpty())
+            {
+                // Shorten path to ~/... where possible.
+                const juce::String home =
+                    juce::File::getSpecialLocation (juce::File::userHomeDirectory).getFullPathName();
+                juce::String dispDest = dest;
+                if (dest.startsWith (home))
+                    dispDest = "~" + dest.substring (home.length());
+                summary += " \xc2\xb7 " + dispDest;
+            }
+        }
+        header.setSummaryText (summary);
+    }
+
+    // Auto-collapse header once a valid input device is selected (fires at most once).
+    void changeListenerCallback (juce::ChangeBroadcaster*) override
+    {
+        updateSetupSummary();
+        if (header.isExpanded() && ! hasAutoCollapsed)
+        {
+            if (auto* dev = deviceManager.getCurrentAudioDevice())
+            {
+                if (dev->getActiveInputChannels().countNumberOfSetBits() > 0)
+                {
+                    hasAutoCollapsed = true;
+                    header.setExpanded (false);
+                }
+            }
+        }
+    }
+
     void addPiece()
     {
         stopRecording();
@@ -1163,16 +1105,16 @@ private:
         refreshAll();
     }
 
-    void selectPiece (int idx)
+    void switchPiece (int delta)
     {
         stopRecording();
-        currentPieceIndex = juce::jlimit (0, (int) captures.size() - 1, idx);
+        currentPieceIndex = juce::jlimit (0, (int) captures.size() - 1, currentPieceIndex + delta);
         refreshAll();
     }
 
     void refreshAll()
     {
-        pieceRail.setItems (currentPieceIndex, buildRowData());
+        pieceRail.setDisplay (currentPieceIndex, (int) captures.size(), currentPiece().name);
         capturePanel.setRecordingState (isRecording());
         recompute();
     }
@@ -1296,81 +1238,39 @@ private:
     juce::String              kitName = "FlamForge Kit";
     juce::ApplicationProperties appProps;
     juce::File                lastExportedKit;
+    bool                      hasAutoCollapsed = false;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ForgeContent)
 };
 
 // ---------------------------------------------------------------------------
-// MainComponent — two-zone layout:
-//   • Viewport (top, elastic): scrolls ForgeContent (header + middle zones).
-//   • ExportBar (bottom, persistent): always visible, never scrolls away.
-//
-// ExportBar expands/shrinks (embedded browser) — this triggers parent->resized()
-// inside ExportBar, which reflows the split correctly via resized() here.
-// ForgeContent ↔ ExportBar are connected through callback pairs wired here.
+// MainComponent -- hosts the content in a Viewport, sized so the whole layout
+// is visible on open (no cut-off); the viewport only scrolls on small screens.
 // ---------------------------------------------------------------------------
 class MainComponent : public juce::Component
 {
 public:
-    // Horizontal padding matches ForgeContent interior margins; vertical gap
-    // gives the bar visual breathing room without wasting screen space.
-    static constexpr int kBarPadH = ForgeContent::kPad;  // 22 px — matches content margins
-    static constexpr int kBarPadV = 8;
-
     MainComponent()
     {
         viewport.setViewedComponent (&content, false);
         viewport.setScrollBarsShown (true, true);
         addAndMakeVisible (viewport);
-        addAndMakeVisible (exportBar);
-
-        // ForgeContent → ExportBar: status text + reveal button trigger
-        content.onStatusChanged   = [this] (const juce::String& s) { exportBar.setStatus (s); };
-        content.onExportSucceeded = [this] { exportBar.showReveal(); };
-        content.getExportDestPath = [this] { return exportBar.getDestPath(); };
-
-        // ExportBar → ForgeContent: user actions forwarded to the engine
-        exportBar.onExportRequested = [this] { content.onExport(); };
-        exportBar.onRevealRequested = [this] { content.onReveal(); };
-        exportBar.onPathCommitted   = [this] (const juce::String& p) { content.persistDestPath (p); };
-        // Browser expand/collapse changes naturalHeight() — reflow the two-zone split.
-        exportBar.onBrowserVisibilityChanged = [this] (bool) { resized(); };
-
-        // Seed ExportBar with the last-used export directory from prefs.
-        exportBar.setDestPath (content.loadPersistedDest().getFullPathName());
-        exportBar.setStatus ("Ready. Choose your input above, name the drum, then Record.");
-
-        const int initH = content.naturalHeight() + 2 * kBarPadV + exportBar.naturalHeight();
-        setSize (760, juce::jmin (initH, 940));
+        setSize (760, juce::jmin (content.naturalHeight(), 940));
     }
 
-    void paint (juce::Graphics& g) override
-    {
-        g.fillAll (juce::Colour (0xff0d0f12));
-        // Thin separator between scrollable body and persistent export bar.
-        const int sepY = getHeight() - 2 * kBarPadV - exportBar.naturalHeight() - 1;
-        g.setColour (juce::Colour (0xff23272e));
-        g.fillRect (0, sepY, getWidth(), 1);
-    }
+    void paint (juce::Graphics& g) override { g.fillAll (juce::Colour (0xff0d0f12)); }
 
     void resized() override
     {
-        auto b = getLocalBounds();
-        // Pin ExportBar to the bottom; give the Viewport everything above it.
-        const int barZoneH = exportBar.naturalHeight() + 2 * kBarPadV;
-        exportBar.setBounds (b.removeFromBottom (barZoneH).reduced (kBarPadH, kBarPadV));
-        viewport.setBounds (b);
-
+        viewport.setBounds (getLocalBounds());
         const int w = viewport.getMaximumVisibleWidth();
         const int contentW = juce::jmax (640, w);
         content.setSize (contentW, juce::jmax (content.naturalHeight(), viewport.getHeight()));
-        repaint();  // redraw separator line at updated position
     }
 
 private:
     juce::Viewport viewport;
     ForgeContent   content;
-    ExportBar      exportBar;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainComponent)
 };
