@@ -31,18 +31,24 @@ inline int mapPeakToVelocity (float db, float softDb, float loudDb)
 }
 
 // ---------------------------------------------------------------------------
-// CoverageMeter -- the "fingerprint registration" view.
+// CaptureProgress -- unified capture-feedback view.
 //
-// Each captured hit is bucketed into one of kNumBins velocity bins (1..127).
-// Bins are coloured by how many hits landed in them:
-//   red 1, yellow 2-5, green 6+ (ideal round-robin depth); empty = grey.
+// Replaces the former separate StatsPanel + CoverageMeter. The bin count is
+// shown inline on the same header row as "VELOCITY COVERAGE" (text beside the
+// visual it describes, not a separate stacked block). Session stats (hits,
+// range, layers) are rendered beneath the bins inside the same rounded panel.
+//
+// setAll() is called from ForgeContent::recompute() -- no internal timer.
 // ---------------------------------------------------------------------------
-class CoverageMeter : public juce::Component
+class CaptureProgress : public juce::Component
 {
 public:
     static constexpr int kNumBins = 16;
 
-    void setHits (const std::vector<int>& velocities)
+    CaptureProgress() = default;
+
+    void setAll (int hits, bool hasRange, float softDb, float loudDb,
+                 int layers, int rr, const std::vector<int>& velocities)
     {
         counts.fill (0);
         filled = 0;
@@ -53,6 +59,14 @@ public:
             ++counts[(size_t) bin];
         }
         for (int n : counts) if (n > 0) ++filled;
+
+        hitsCount    = hits;
+        hasRangeFlag = hasRange;
+        softDbVal    = softDb;
+        loudDbVal    = loudDb;
+        layersVal    = layers;
+        rrVal        = rr;
+
         repaint();
     }
 
@@ -60,82 +74,95 @@ public:
 
     void paint (juce::Graphics& g) override
     {
-        auto r = getLocalBounds().toFloat().reduced (1.0f);
         g.setColour (juce::Colour (0xff14171c));
-        g.fillRoundedRectangle (r, 4.0f);
+        g.fillRoundedRectangle (getLocalBounds().toFloat(), 6.0f);
 
-        const float gap = 3.0f;
-        const float binW = (r.getWidth() - gap * (kNumBins - 1)) / (float) kNumBins;
+        auto area = getLocalBounds().reduced (12, 8);
 
-        int total = 0;
-        for (int i = 0; i < kNumBins; ++i)
+        // Coverage header row: label + inline bin count
         {
-            auto bin = juce::Rectangle<float> (r.getX() + i * (binW + gap), r.getY(), binW, r.getHeight());
-            const int n = counts[(size_t) i];
-            total += n;
+            auto row = area.removeFromTop (16);
+            g.setColour (juce::Colours::white.withAlpha (0.55f));
+            g.setFont (juce::Font (juce::FontOptions (11.5f)));
+            g.drawText ("VELOCITY COVERAGE", row.toFloat(), juce::Justification::centredLeft);
 
-            juce::Colour c;
-            if (n >= 6)      c = juce::Colour (0xff3ecf6b);   // green  -- ideal
-            else if (n >= 2) c = juce::Colour (0xffe0b341);   // yellow -- usable
-            else if (n >= 1) c = juce::Colour (0xffd0473f);   // red    -- thin
-            else             c = juce::Colour (0xff23272e);   // empty
-            g.setColour (c);
-            g.fillRoundedRectangle (bin, 2.0f);
+            const juce::String cnt = juce::String (filled) + " / " + juce::String (kNumBins) + " bins"
+                                   + (filled >= kNumBins ? "  (full)" : "");
+            g.setColour (filled >= kNumBins ? juce::Colour (0xff3ecf6b) : juce::Colours::white.withAlpha (0.50f));
+            g.drawText (cnt, row.toFloat(), juce::Justification::centredRight);
         }
+        area.removeFromTop (5);
 
-        if (total == 0)
+        // Bin tiles -- green (n>=6) ideal, yellow (n>=2) usable, red (n>=1) thin, dark empty
         {
-            g.setColour (juce::Colours::white.withAlpha (0.35f));
-            g.setFont (juce::Font (juce::FontOptions (12.0f)));
-            g.drawText ("soft  <  velocity coverage  >  hard   (play hits to fill)",
-                        getLocalBounds(), juce::Justification::centred);
+            const int binsH = juce::jlimit (26, 46, area.getHeight() / 3);
+            auto binsR = area.removeFromTop (binsH).toFloat();
+
+            const float gap  = 3.0f;
+            const float binW = (binsR.getWidth() - gap * (kNumBins - 1)) / (float) kNumBins;
+
+            for (int i = 0; i < kNumBins; ++i)
+            {
+                const auto bin = juce::Rectangle<float> (
+                    binsR.getX() + i * (binW + gap), binsR.getY(), binW, binsR.getHeight());
+                const int n = counts[(size_t) i];
+                juce::Colour c;
+                if      (n >= 6) c = juce::Colour (0xff3ecf6b);
+                else if (n >= 2) c = juce::Colour (0xffe0b341);
+                else if (n >= 1) c = juce::Colour (0xffd0473f);
+                else             c = juce::Colour (0xff23272e);
+                g.setColour (c);
+                g.fillRoundedRectangle (bin, 2.0f);
+            }
+
+            if (hitsCount == 0)
+            {
+                g.setColour (juce::Colours::white.withAlpha (0.28f));
+                g.setFont (juce::Font (juce::FontOptions (11.0f)));
+                g.drawText ("soft  <  velocity coverage  >  hard   (play hits to fill)",
+                            binsR.toType<int>(), juce::Justification::centred);
+            }
+        }
+        area.removeFromTop (8);
+
+        // Session stats beneath the bins
+        g.setFont (juce::Font (juce::FontOptions (12.5f).withStyle ("Monospaced")));
+        const int lh = juce::jlimit (14, 20, juce::jmax (14, area.getHeight() / 4));
+
+        struct StatRow { const char* label; juce::String value; };
+        const StatRow rows[3] = {
+            { "Hits:",   juce::String (hitsCount) },
+            { "Range:",  hasRangeFlag
+                             ? juce::String (softDbVal, 1) + " to " + juce::String (loudDbVal, 1) + " dBFS"
+                             : juce::String ("play 2+ hits to detect") },
+            { "Layers:", layersVal > 0
+                             ? juce::String (layersVal) + " x up to " + juce::String (rrVal) + " rr"
+                             : juce::String ("--") },
+        };
+
+        for (const auto& row : rows)
+        {
+            if (area.getHeight() < lh) break;
+            auto r = area.removeFromTop (lh).toFloat();
+            area.removeFromTop (3);
+            g.setColour (juce::Colours::white.withAlpha (0.42f));
+            g.drawText (row.label, r.withWidth (64.0f), juce::Justification::centredLeft);
+            g.setColour (juce::Colours::white.withAlpha (0.82f));
+            g.drawText (row.value, r.withLeft (r.getX() + 66.0f), juce::Justification::centredLeft);
         }
     }
 
 private:
-    std::array<int, kNumBins> counts { {} };
-    int filled = 0;
-};
+    std::array<int, kNumBins> counts{{}};
+    int   filled      = 0;
+    int   hitsCount   = 0;
+    bool  hasRangeFlag = false;
+    float softDbVal   = 0.0f;
+    float loudDbVal   = 0.0f;
+    int   layersVal   = 0;
+    int   rrVal       = 0;
 
-// ---------------------------------------------------------------------------
-// StatsPanel -- live, automatically-derived readouts.
-// ---------------------------------------------------------------------------
-class StatsPanel : public juce::Component
-{
-public:
-    void setStats (int hits, bool hasRange, float softDb, float loudDb,
-                   int layers, int rr, int binsFilled, int numBins)
-    {
-        lines.clear();
-        lines.add ("Hits captured:     " + juce::String (hits));
-        lines.add ("Dynamic range:     " + (hasRange
-                      ? juce::String (softDb, 1) + " .. " + juce::String (loudDb, 1) + " dBFS  (auto)"
-                      : juce::String ("play 2+ hits to detect")));
-        lines.add ("Velocity layers:   " + (layers > 0
-                      ? juce::String (layers) + "  x up to " + juce::String (rr) + " round-robins"
-                      : juce::String ("--")));
-        lines.add ("Coverage:          " + juce::String (binsFilled) + " / " + juce::String (numBins)
-                      + " bins"  + (binsFilled >= numBins ? "  (full)" : ""));
-        repaint();
-    }
-
-    void paint (juce::Graphics& g) override
-    {
-        auto r = getLocalBounds().toFloat();
-        g.setColour (juce::Colour (0xff14171c));
-        g.fillRoundedRectangle (r, 6.0f);
-
-        g.setColour (juce::Colours::white.withAlpha (0.85f));
-        g.setFont (juce::Font (juce::FontOptions (14.0f).withStyle ("Monospaced")));
-
-        auto area = getLocalBounds().reduced (14, 10);
-        const int lh = area.getHeight() / juce::jmax (1, lines.size());
-        for (auto& l : lines)
-            g.drawText (l, area.removeFromTop (lh), juce::Justification::centredLeft);
-    }
-
-private:
-    juce::StringArray lines;
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (CaptureProgress)
 };
 
 // ---------------------------------------------------------------------------
@@ -344,11 +371,14 @@ private:
 };
 
 // ---------------------------------------------------------------------------
-// SetupHeader -- top zone: title + subtitle + audio device selector + channel strips.
+// SetupHeader -- top zone: title + subtitle + audio device selector.
 //
 // Collapsible: click the title/subtitle area to collapse to a one-line summary;
 // click the summary bar to expand again. Auto-collapses once ForgeContent detects
 // a valid input device via AudioDeviceManager::ChangeListener -- no timer added.
+//
+// Per-channel meter strips have moved into CapturePanel (directly under RECORD)
+// where the user watches levels while playing -- this zone is device setup only.
 //
 // Owns title and subtitle; holds a non-owning pointer to the AudioDeviceSelectorComponent
 // (owned by ForgeContent via unique_ptr). adoptDeviceSelector() must be called from
@@ -357,12 +387,10 @@ private:
 class SetupHeader : public juce::Component
 {
 public:
-    ChannelStripRow stripRow;
     std::function<void()> onCollapseToggled;  // fired after state flips; caller should relayout
 
     static constexpr int kTitleH  = 38;
     static constexpr int kSubH    = 20;
-    static constexpr int kStripsH = 90;
     static constexpr int kGap     = 12;
     static constexpr int kBarH    = 32;  // height of the collapsed summary bar
 
@@ -389,8 +417,6 @@ public:
         summaryBar.setInterceptsMouseClicks (false, false);
         summaryBar.setVisible (false);
         addAndMakeVisible (summaryBar);
-
-        addAndMakeVisible (stripRow);
     }
 
     // Called once from ForgeContent's constructor body after deviceSelector is created.
@@ -422,7 +448,7 @@ public:
     int naturalHeight (int deviceH) const
     {
         if (! expanded) return kBarH;
-        return kTitleH + kSubH + kGap + deviceH + kGap + kStripsH;
+        return kTitleH + kSubH + kGap + deviceH;
     }
 
     // Collapsed: any click expands. Expanded: click in the title+subtitle zone collapses.
@@ -453,13 +479,7 @@ public:
         subtitle.setBounds (b.removeFromTop (kSubH));
         b.removeFromTop (kGap);
         if (deviceSel != nullptr)
-        {
-            // Remainder minus gap and strips goes to device selector (elastic).
-            const int devH = juce::jmax (0, b.getHeight() - kGap - kStripsH);
-            deviceSel->setBounds (b.removeFromTop (devH));
-            b.removeFromTop (kGap);
-        }
-        stripRow.setBounds (b.removeFromTop (kStripsH));
+            deviceSel->setBounds (b);   // all remaining height to device selector
     }
 
 private:
@@ -468,7 +488,6 @@ private:
         title.setVisible (expanded);
         subtitle.setVisible (expanded);
         if (deviceSel != nullptr) deviceSel->setVisible (expanded);
-        stripRow.setVisible (expanded);
         summaryBar.setVisible (! expanded);
     }
 
@@ -559,27 +578,37 @@ private:
 };
 
 // ---------------------------------------------------------------------------
-// CapturePanel -- center zone: RECORD button + stats readout + coverage meter.
+// CapturePanel -- center zone: RECORD button + per-channel meters + unified
+// capture-progress view (coverage bins + session stats in one panel).
 //
-// Public members (stats, coverage) are accessed directly by ForgeContent's
-// recompute() to update displayed data; no extra indirection needed.
+// Layout (top to bottom):
+//   [RECORD button -- full width]
+//   [ChannelStripRow -- per-channel input meters, full width]
+//   [CaptureProgress -- velocity bins + inline stats, fills remainder]
+//
+// The ChannelStripRow is driven by ForgeContent's single 30 Hz Timer via
+// tickMeters(); no timer is created inside this panel. The progress view is
+// updated by ForgeContent::recompute() via progress.setAll().
+//
+// TODO (FLA-123): insert audition/preview controls between RECORD and meters
+// once the CaptureEngine playback path lands.
 // ---------------------------------------------------------------------------
 class CapturePanel : public juce::Component
 {
 public:
-    StatsPanel    stats;
-    CoverageMeter coverage;
+    CaptureProgress progress;
     std::function<void()> onRecord;
 
     static constexpr int kRecordH = 56;
+    static constexpr int kMeterH  = 90;
     static constexpr int kGap     = 12;
 
     CapturePanel()
     {
         recordBtn.onClick = [this] { if (onRecord) onRecord(); };
         addAndMakeVisible (recordBtn);
-        addAndMakeVisible (stats);
-        addAndMakeVisible (coverage);
+        addAndMakeVisible (meterRow);
+        addAndMakeVisible (progress);
     }
 
     void setRecordingState (bool rec)
@@ -589,22 +618,31 @@ public:
                              rec ? juce::Colour (0xffd0473f) : juce::Colour (0xff2f7d4f));
     }
 
+    // Called at 30 Hz from ForgeContent::timerCallback() -- no timer inside this panel.
+    void tickMeters (CaptureEngine& eng) { meterRow.tick (eng); }
+
+    // Rebuild strips when device channel count changes.
+    void rebuild (int n,
+                  const std::vector<juce::String>& labels,
+                  std::function<void (int, juce::String)> onChanged)
+    {
+        meterRow.rebuild (n, labels, std::move (onChanged));
+        resized();
+    }
+
     void resized() override
     {
         auto b = getLocalBounds();
         recordBtn.setBounds (b.removeFromTop (kRecordH));
         b.removeFromTop (kGap);
-        // Distribute remainder proportionally: stats 60%, gap, coverage 40%.
-        const int rem    = b.getHeight();
-        const int statsH = juce::jlimit (80, 160, rem * 60 / 100);
-        const int coverH = juce::jlimit (48, 100, rem - statsH - kGap);
-        stats.setBounds    (b.removeFromTop (statsH));
+        meterRow.setBounds (b.removeFromTop (kMeterH));
         b.removeFromTop (kGap);
-        coverage.setBounds (b.removeFromTop (coverH));
+        progress.setBounds (b);
     }
 
 private:
     juce::TextButton recordBtn;
+    ChannelStripRow  meterRow;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (CapturePanel)
 };
@@ -925,7 +963,8 @@ public:
         // Lower-bound elastic heights for initial window sizing.
         const int deviceH  = 160;
         const int headerH  = header.naturalHeight (deviceH);
-        const int captureH = CapturePanel::kRecordH + CapturePanel::kGap + 80 + CapturePanel::kGap + 48;
+        const int captureH = CapturePanel::kRecordH + CapturePanel::kGap
+                           + CapturePanel::kMeterH   + CapturePanel::kGap + 100;
         const int midH     = juce::jmax (captureH, 120);
         return 2 * kPad + headerH + kGap + midH;
     }
@@ -939,17 +978,15 @@ public:
         int headerH, midH;
         if (header.isExpanded())
         {
-            // Compute elastic device-panel height from available space.
+            // fixedV: non-elastic height (strips now in CapturePanel, not header).
             const int fixedV = 2 * kPad
                 + SetupHeader::kTitleH + SetupHeader::kSubH + SetupHeader::kGap
-                + SetupHeader::kGap    // gap after device
-                + SetupHeader::kStripsH + kGap  // strips + gap below header
-                + kGap;                          // gap below mid
+                + kGap    // gap between header and mid
+                + kGap;   // gap below mid
             const int flexAvail = juce::jmax (0, getHeight() - fixedV);
             const int deviceH   = juce::jlimit (160, 340, 50 + flexAvail * 55 / 100);
             midH    = juce::jmax (120, flexAvail - deviceH - kGap);
-            headerH = SetupHeader::kTitleH + SetupHeader::kSubH + SetupHeader::kGap
-                    + deviceH + SetupHeader::kGap + SetupHeader::kStripsH;
+            headerH = SetupHeader::kTitleH + SetupHeader::kSubH + SetupHeader::kGap + deviceH;
         }
         else
         {
@@ -1159,7 +1196,7 @@ private:
             while ((int) channelLabels.size() < n)
                 channelLabels.push_back ("Mic " + juce::String ((int) channelLabels.size() + 1));
             lastChannelCount = n;
-            header.stripRow.rebuild (n, channelLabels,
+            capturePanel.rebuild (n, channelLabels,
                 [this] (int c, juce::String t)
                 {
                     if (c < (int) channelLabels.size())
@@ -1167,7 +1204,7 @@ private:
                 });
             resized();
         }
-        header.stripRow.tick (engine);
+        capturePanel.tickMeters (engine);
     }
 
     void recompute()
@@ -1186,7 +1223,6 @@ private:
         std::vector<int> vels;
         vels.reserve (piece.hits.size());
         for (const auto& h : piece.hits) vels.push_back (h.midiVelocity);
-        capturePanel.coverage.setHits (vels);
 
         int layers = 0, rr = 0;
         if (! piece.hits.empty())
@@ -1201,9 +1237,9 @@ private:
                 rr = m + 1;
             }
         }
-        capturePanel.stats.setStats ((int) piece.hits.size(), hasRange, softDb, loudDb,
-                                     layers, rr, capturePanel.coverage.binsFilled(),
-                                     CoverageMeter::kNumBins);
+
+        capturePanel.progress.setAll ((int) piece.hits.size(), hasRange, softDb, loudDb,
+                                      layers, rr, vels);
 
         if (isRecording())
             setStatus ("Recording \"" + piece.name + "\" - "
