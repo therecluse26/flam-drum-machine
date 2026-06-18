@@ -276,6 +276,7 @@ target_sources(FlamForge
         Source/FlamForge/LayerSynth.cpp
         Source/FlamForge/KitExporter.cpp
         Source/FlamForge/OfflineTransientDetector.cpp
+        Source/FlamForge/SegmentExtractor.cpp
         Source/Formats/FlamKitLoader.cpp)
 
 target_include_directories(FlamForge

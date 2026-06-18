@@ -12,6 +12,8 @@
 #include "ForgeColors.h"
 #include "LayerSynth.h"
 #include "KitExporter.h"
+#include "OfflineTransientDetector.h"
+#include "SegmentExtractor.h"
 
 #include <array>
 #include <cmath>
@@ -1050,6 +1052,7 @@ public:
     ~ForgeContent() override
     {
         stopTimer();
+        detector.cancel();  // stop background thread before members are torn down
         deviceManager.removeChangeListener (this);
         deviceManager.removeAudioCallback (&engine);
     }
@@ -1269,13 +1272,79 @@ private:
 
     void stopRecording()
     {
-        if (isRecording())
+        if (! isRecording())
         {
-            engine.setMode (CaptureEngine::Mode::Idle);
-            setStatus ("Stopped. \"" + currentPiece().name + "\" has "
-                       + juce::String ((int) currentPiece().hits.size()) + " hits.");
+            capturePanel.setRecordingState (false);
+            return;
         }
+
+        // Finalise the WAV before setMode(Idle), which would otherwise discard it.
+        const juce::File tempWav = engine.stopContinuousRecording();
+        engine.setMode (CaptureEngine::Mode::Idle);
         capturePanel.setRecordingState (false);
+
+        if (! tempWav.existsAsFile())
+        {
+            setStatus ("Stopped — no audio captured.");
+            return;
+        }
+
+        setStatus ("Analysing transients...");
+
+        // Capture the piece index now; the user may switch pieces before the
+        // async detection callback fires.
+        const int pieceIndex = currentPieceIndex;
+
+        detector.setFile (tempWav);
+
+        // SafePointer goes null when ForgeContent is destroyed, preventing
+        // use-after-free in the async callback chain.
+        juce::Component::SafePointer<ForgeContent> safe (this);
+
+        detector.runAsync ([safe, tempWav, pieceIndex] (OfflineTransientDetector::Result r) mutable
+        {
+            juce::MessageManager::callAsync ([safe, r = std::move (r), tempWav, pieceIndex] () mutable
+            {
+                if (safe == nullptr)
+                {
+                    tempWav.deleteFile();
+                    return;
+                }
+
+                auto* self = safe.getComponent();
+
+                if (! r.succeeded)
+                {
+                    self->setStatus ("Transient detection failed: " + r.error);
+                    tempWav.deleteFile();
+                    return;
+                }
+
+                auto seg = extractSegments (tempWav, r);
+                tempWav.deleteFile();
+
+                if (! seg.ok)
+                {
+                    self->setStatus ("Segment extraction failed: " + seg.error);
+                    return;
+                }
+
+                if (pieceIndex >= (int) self->captures.size())
+                {
+                    self->setStatus ("Segment extraction: piece was removed.");
+                    return;
+                }
+
+                auto& piece = self->captures[(size_t) pieceIndex];
+                piece.hits.clear();
+                for (auto& h : seg.hits)
+                    piece.hits.push_back (std::move (h));
+
+                self->recompute();
+                self->setStatus ("\"" + piece.name + "\" — "
+                               + juce::String ((int) piece.hits.size()) + " hit(s) detected.");
+            });
+        });
     }
 
     void timerCallback() override
@@ -1368,6 +1437,7 @@ private:
     std::vector<juce::String> channelLabels;
     int                       lastChannelCount = 0;
     CaptureEngine             engine;
+    OfflineTransientDetector  detector;
     std::vector<PieceCapture> captures;
     int                       currentPieceIndex = 0;
     SynthOptions              options;

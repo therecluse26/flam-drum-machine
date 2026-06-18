@@ -22,6 +22,8 @@
 #include "CaptureTypes.h"
 #include "LayerSynth.h"
 #include "KitExporter.h"
+#include "OfflineTransientDetector.h"
+#include "SegmentExtractor.h"
 #include "Formats/FlamKitLoader.h"
 
 #include <cmath>
@@ -285,6 +287,146 @@ static int runSelfTest()
         { say ("FAIL: temp file not deleted by resetContinuousRecording()"); return 1; }
 
         say ("continuous-capture: PASS");
+    }
+
+    // 8) SegmentExtractor (FLA-154)
+    // Write a 2-channel synthetic WAV with 3 distinct hit regions separated by
+    // silence.  Construct a fake OfflineTransientDetector::Result pointing to
+    // the known onset positions, then verify:
+    //   - extractSegments() returns the right hit count
+    //   - samples after the fade-in window match the source (sample-accurate)
+    //   - peakDb comes from the supplied detection result (no recomputation)
+    //   - fade-in silences the very first sample of each segment
+    {
+        constexpr int   kSR      = 48000;
+        constexpr int   kNCh     = 2;
+        constexpr int   kHitLen  = 4800;    // 100 ms per hit
+        constexpr int   kGapLen  = 1200;    // 25 ms silence between hits
+        constexpr int   kNumHits = 3;
+        constexpr float kFreq    = 440.0f;
+
+        // Each "segment" in the WAV: hit (sine) + gap (silence) except the last.
+        const int segLen   = kHitLen + kGapLen;
+        const int totalLen = kNumHits * kHitLen + (kNumHits - 1) * kGapLen;
+
+        juce::AudioBuffer<float> synth (kNCh, totalLen);
+        synth.clear();
+
+        std::vector<int64_t> breakpoints;
+        std::vector<float>   peaksDb;
+
+        for (int i = 0; i < kNumHits; ++i)
+        {
+            const int64_t hitStart = (int64_t)(i * segLen);
+            breakpoints.push_back (hitStart);
+
+            const float amp = 0.3f * (float)(i + 1);   // 0.3, 0.6, 0.9
+            peaksDb.push_back (juce::Decibels::gainToDecibels (amp));
+
+            for (int s = 0; s < kHitLen; ++s)
+                for (int ch = 0; ch < kNCh; ++ch)
+                    synth.setSample (ch, (int) hitStart + s,
+                                     amp * std::sin (2.0f * juce::MathConstants<float>::pi
+                                                     * kFreq * (float) s / (float) kSR));
+        }
+
+        // Write synthetic buffer to a temp WAV (24-bit, 2-channel).
+        const auto segDir = juce::File::getSpecialLocation (juce::File::tempDirectory)
+                                .getChildFile ("flamforge_seg154");
+        segDir.createDirectory();
+        const auto segWav = segDir.getChildFile ("seg_test.wav");
+
+        {
+            juce::WavAudioFormat fmt;
+            auto outStream = segWav.createOutputStream();
+            jassert (outStream != nullptr);
+            std::unique_ptr<juce::AudioFormatWriter> w (
+                fmt.createWriterFor (outStream.get(), kSR, kNCh, 24, {}, 0));
+            jassert (w != nullptr);
+            outStream.release();   // writer owns the stream
+            w->writeFromAudioSampleBuffer (synth, 0, totalLen);
+        }
+
+        // Build fake detection result with exact onset positions.
+        OfflineTransientDetector::Result det;
+        det.succeeded       = true;
+        det.breakpoints     = breakpoints;
+        det.segmentPeaksDb  = peaksDb;
+        det.totalSamples    = totalLen;
+        det.sampleRate      = kSR;
+        det.numChannels     = kNCh;
+
+        auto seg = extractSegments (segWav, det, /*fadeInMs=*/5.0f);
+        say ("segment-extractor: ok=" + juce::String ((int) seg.ok)
+             + " hits=" + juce::String ((int) seg.hits.size()));
+
+        if (! seg.ok)
+        { say ("FAIL: extractSegments not ok: " + seg.error); segDir.deleteRecursively(); return 1; }
+
+        if ((int) seg.hits.size() != kNumHits)
+        {
+            say ("FAIL: expected " + juce::String (kNumHits)
+                 + " hits, got " + juce::String ((int) seg.hits.size()));
+            segDir.deleteRecursively();
+            return 1;
+        }
+
+        // Fade-in: sample 0 of every hit must be exactly 0 (gain = 0/fadeLen).
+        for (int i = 0; i < kNumHits; ++i)
+        {
+            const float s0 = seg.hits[(size_t) i].audio.getSample (0, 0);
+            if (std::abs (s0) > 1.0e-6f)
+            {
+                say ("FAIL: hit " + juce::String (i) + " sample[0]=" + juce::String (s0)
+                     + " expected 0 (fade-in)");
+                segDir.deleteRecursively();
+                return 1;
+            }
+        }
+
+        // Sample-accuracy: after the 5 ms fade-in window (240 samples @ 48 kHz),
+        // extracted samples must match the source within 24-bit round-trip tolerance.
+        constexpr int   kFadeSmp  = (int)(5.0f * kSR / 1000.0f);   // 240
+        constexpr float kTolerance = 2.0f / (float)(1 << 23);       // 1 LSB of 24-bit
+
+        for (int i = 0; i < kNumHits; ++i)
+        {
+            const int64_t segStart = breakpoints[(size_t) i];
+            const auto& h = seg.hits[(size_t) i];
+
+            for (int s = kFadeSmp; s < h.audio.getNumSamples(); s += 97)  // sparse check
+            {
+                for (int ch = 0; ch < kNCh; ++ch)
+                {
+                    const float got  = h.audio.getSample (ch, s);
+                    const float want = synth.getSample (ch, (int) segStart + s);
+                    if (std::abs (got - want) > kTolerance)
+                    {
+                        say ("FAIL: hit " + juce::String (i)
+                             + " ch" + juce::String (ch)
+                             + " s=" + juce::String (s)
+                             + " got=" + juce::String (got, 6)
+                             + " want=" + juce::String (want, 6));
+                        segDir.deleteRecursively();
+                        return 1;
+                    }
+                }
+            }
+        }
+
+        // peakDb must come directly from the detection result.
+        for (int i = 0; i < kNumHits; ++i)
+        {
+            if (std::abs (seg.hits[(size_t) i].peakDb - peaksDb[(size_t) i]) > 0.001f)
+            {
+                say ("FAIL: hit " + juce::String (i) + " peakDb mismatch");
+                segDir.deleteRecursively();
+                return 1;
+            }
+        }
+
+        segDir.deleteRecursively();
+        say ("segment-extractor: PASS");
     }
 
     say ("PASS");
