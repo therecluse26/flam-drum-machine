@@ -62,6 +62,21 @@ int CaptureEngine::channelCount() const
 }
 
 // ---------------------------------------------------------------------------
+// drainProvisionalOnsets: immediate peakDb events (message thread).
+// ---------------------------------------------------------------------------
+std::vector<float> CaptureEngine::drainProvisionalOnsets()
+{
+    std::vector<float> out;
+    int s1, n1, s2, n2;
+    onsetFifo.prepareToRead (onsetFifo.getNumReady(), s1, n1, s2, n2);
+    out.reserve ((size_t) (n1 + n2));
+    for (int i = 0; i < n1; ++i) out.push_back (onsetBuf[(size_t) (s1 + i)]);
+    for (int i = 0; i < n2; ++i) out.push_back (onsetBuf[(size_t) (s2 + i)]);
+    onsetFifo.finishedRead (n1 + n2);
+    return out;
+}
+
+// ---------------------------------------------------------------------------
 // drain (message thread): copy finished hits out of the slot pool.
 // ---------------------------------------------------------------------------
 std::vector<CapturedHit> CaptureEngine::drainNewHits()
@@ -277,6 +292,19 @@ void CaptureEngine::audioDeviceIOCallbackWithContext (const float* const* inputC
     {
         if (blkDb > kOnsetDb)
         {
+            // Immediate onset event: push peakDb to the provisional FIFO now,
+            // before the 600ms window assembles. The message thread drains this
+            // via drainProvisionalOnsets() within one 30 Hz tick (~33ms) so the
+            // coverage meter updates live. RT-safe: prepareToWrite + array write
+            // + finishedWrite — no allocation, no lock, no I/O.
+            {
+                int s1, n1, s2, n2;
+                onsetFifo.prepareToWrite (1, s1, n1, s2, n2);
+                if (n1 > 0)      onsetBuf[(size_t) s1] = blkDb;
+                else if (n2 > 0) onsetBuf[(size_t) s2] = blkDb;
+                onsetFifo.finishedWrite (n1 > 0 ? 1 : (n2 > 0 ? 1 : 0));
+            }
+
             // New hit: seed recBuf with the pre-roll already sitting in the ring.
             recActive  = true;
             recWritten = 0;

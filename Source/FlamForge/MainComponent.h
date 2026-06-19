@@ -620,6 +620,7 @@ private:
     void switchPiece (int delta)
     {
         stopRecording();
+        provisionalPeaks_.clear();
         currentPieceIndex = juce::jlimit (0, (int) captures.size() - 1, currentPieceIndex + delta);
         refreshAll();
     }
@@ -650,6 +651,7 @@ private:
         if (isRecording())
         {
             engine.setMode (CaptureEngine::Mode::Idle);
+            provisionalPeaks_.clear();  // superseded by final drainNewHits() results
             setStatus ("Stopped. \"" + currentPiece().name + "\" has "
                        + juce::String ((int) currentPiece().hits.size()) + " hits.");
         }
@@ -667,12 +669,28 @@ private:
     // --- live pump (30Hz): drain hits, re-derive everything ----------------
     void timerCallback() override
     {
+        // 1. Drain immediate onset events → provisional coverage update.
+        //    One peakDb per strike, published at the audio-thread instant of
+        //    detection — before the 600ms window assembles. Updates the meter
+        //    within one tick (~33ms) rather than waiting 300-600ms.
+        if (isRecording())
+        {
+            for (float peakDb : engine.drainProvisionalOnsets())
+                provisionalPeaks_.push_back (peakDb);
+        }
+
+        // 2. Drain authoritative 600ms windows. Each new auth hit reconciles
+        //    one provisional entry (FIFO order), preventing double-count.
         auto newHits = engine.drainNewHits();
         if (isRecording() && ! newHits.empty())
         {
             auto& piece = currentPiece();
             for (auto& h : newHits)
+            {
                 piece.hits.push_back (std::move (h));
+                if (! provisionalPeaks_.empty())
+                    provisionalPeaks_.erase (provisionalPeaks_.begin());
+            }
         }
         recompute();
 
@@ -711,9 +729,16 @@ private:
         for (auto& h : piece.hits)
             h.midiVelocity = hasRange ? mapPeakToVelocity (h.peakDb, softDb, loudDb) : 100;
 
+        // Build velocity list: authoritative hits + still-provisional onsets.
+        // Provisional entries use the same retroactive mapping as auth hits so
+        // the bin assignment is consistent; they're replaced once the 600ms
+        // window publishes and reconcileswith the FIFO-ordered pop in timerCallback.
         std::vector<int> vels;
-        vels.reserve (piece.hits.size());
-        for (const auto& h : piece.hits) vels.push_back (h.midiVelocity);
+        vels.reserve (piece.hits.size() + provisionalPeaks_.size());
+        for (const auto& h : piece.hits)
+            vels.push_back (h.midiVelocity);
+        for (float peakDb : provisionalPeaks_)
+            vels.push_back (hasRange ? mapPeakToVelocity (peakDb, softDb, loudDb) : 100);
         coverage.setHits (vels);
 
         int layers = 0, rr = 0;
@@ -730,12 +755,18 @@ private:
             }
         }
 
-        stats.setStats ((int) piece.hits.size(), hasRange, softDb, loudDb,
+        const int totalVisible = (int) piece.hits.size() + (int) provisionalPeaks_.size();
+        stats.setStats (totalVisible, hasRange, softDb, loudDb,
                         layers, rr, coverage.binsFilled(), CoverageMeter::kNumBins);
 
         if (isRecording())
-            setStatus ("Recording \"" + piece.name + "\" - "
-                       + juce::String ((int) piece.hits.size()) + " hits. Click STOP when coverage looks good.");
+        {
+            const bool hasProvisional = ! provisionalPeaks_.empty();
+            setStatus ("Recording \"" + piece.name + "\" — "
+                       + juce::String (totalVisible) + " hit(s)"
+                       + (hasProvisional ? " (" + juce::String ((int) provisionalPeaks_.size()) + " live)" : "")
+                       + ". Click STOP when coverage looks good.");
+        }
     }
 
     // --- export (the one remaining explicit action besides Record) ---------
@@ -925,6 +956,8 @@ private:
     CaptureEngine             engine;
     std::vector<PieceCapture> captures;
     int                       currentPieceIndex = 0;
+    // Immediate onset peaks not yet matched to an authoritative 600ms window.
+    std::vector<float>        provisionalPeaks_;
     SynthOptions              options;
     juce::String              kitName = "FlamForge Kit";
 

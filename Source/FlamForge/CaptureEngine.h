@@ -65,6 +65,18 @@ public:
     // Drain all hits captured since the previous call. MESSAGE THREAD ONLY.
     std::vector<CapturedHit> drainNewHits();
 
+    // Drain immediate onset-peak events (one float peakDb per strike) that fire
+    // at the moment of onset detection — before the 600ms window assembles.
+    // Use these for provisional coverage meter updates; authoritative counts
+    // come later via drainNewHits(). MESSAGE THREAD ONLY.
+    std::vector<float> drainProvisionalOnsets();
+
+    // The energy gate used to arm onset detection in Recording mode.
+    // Both the RT estimator and the offline detector use this value so they
+    // agree on what constitutes a real hit.  Equivalent to
+    // OfflineTransientDetector::onsetGateDb() once that class is available.
+    static constexpr float onsetGateDb() noexcept { return kOnsetDb; }
+
     // --- juce::AudioIODeviceCallback ---------------------------------------
     void audioDeviceIOCallbackWithContext (const float* const* inputChannelData,
                                            int numInputChannels,
@@ -138,6 +150,13 @@ private:
     };
     std::array<Slot, kNumSlots> slots;
     juce::AbstractFifo fifo { kNumSlots };
+
+    // --- immediate onset event FIFO (audio -> message, no audio copy) --------
+    // One peakDb float per onset, fired the instant the hit window opens.
+    // RT-safe: preallocated array + AbstractFifo, zero heap/lock on audio thread.
+    static constexpr int kOnsetSlots = 128;
+    std::array<float, kOnsetSlots> onsetBuf {};
+    juce::AbstractFifo              onsetFifo { kOnsetSlots };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (CaptureEngine)
 };
