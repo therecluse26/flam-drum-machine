@@ -52,6 +52,13 @@ public:
     std::function<void (const std::vector<int64_t>& breakpoints,
                         const std::vector<int>&     segmentVelocities)> onBreakpointsChanged;
 
+    // Fired when the user single-clicks inside a segment (FLA-163).
+    // Arguments are the [startSample, endSample) of the clicked segment.
+    std::function<void (int64_t startSample, int64_t endSample)> onSegmentAudition;
+
+    // Fired when the user presses Escape to stop in-progress audition.
+    std::function<void()> onAuditionStop;
+
     WaveformEditor();
     ~WaveformEditor() override;
 
@@ -97,6 +104,7 @@ public:
     void mouseUp (const juce::MouseEvent& e) override;
     void mouseDoubleClick (const juce::MouseEvent& e) override;
     void mouseWheelMove (const juce::MouseEvent& e, const juce::MouseWheelDetails& wheel) override;
+    bool keyPressed (const juce::KeyPress& key) override;
 
 private:
     // -----------------------------------------------------------------------
@@ -136,6 +144,9 @@ private:
     // Returns the breakpoint index whose marker is within kMarkerGrabPx of x,
     // or -1 if none qualify.
     int  findBreakpointNear (float x) const;
+    // Returns the segment index that contains pixel x (i.e. breakpoints[i] ≤ xToSample(x)
+    // < breakpoints[i+1]), or -1 if x falls before the first breakpoint or out of bounds.
+    int  findSegmentAt (float x) const;
     void insertBreakpoint (int64_t sample);
     void removeBreakpoint (int idx);
 
@@ -202,8 +213,6 @@ private:
     float dragStartX   = 0.0f;
     float dragStartY   = 0.0f;
     bool  dragOffDelete = false;
-    bool  pendingAdd   = false;
-    float pendingAddX  = 0.0f;
 
     juce::TextButton expandBtn;
 

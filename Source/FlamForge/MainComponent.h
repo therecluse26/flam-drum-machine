@@ -14,6 +14,7 @@
 #include "KitExporter.h"
 #include "OfflineTransientDetector.h"
 #include "SegmentExtractor.h"
+#include "SegmentPlayer.h"
 #include "WaveformEditor.h"
 
 #include <array>
@@ -1013,12 +1014,12 @@ public:
 
     ForgeContent()
     {
-        // Recorder needs inputs only; hiding output + advanced keeps the panel compact.
-        deviceManager.initialiseWithDefaultDevices (/*inputs=*/2, /*outputs=*/0);
+        // Inputs for recording, outputs for segment audition playback (FLA-163).
+        deviceManager.initialiseWithDefaultDevices (/*inputs=*/2, /*outputs=*/2);
         deviceSelector = std::make_unique<juce::AudioDeviceSelectorComponent> (
             deviceManager,
             /*minInput=*/1, /*maxInput=*/16,
-            /*minOutput=*/0, /*maxOutput=*/0,
+            /*minOutput=*/0, /*maxOutput=*/2,
             /*showMidiIn=*/false, /*showMidiOut=*/false,
             /*stereoPairs=*/false, /*hideAdvanced=*/true);
 
@@ -1059,6 +1060,20 @@ public:
         captures.push_back ({});
         captures[0].name = "Kick";
 
+        // SegmentPlayer — click-to-audition wiring (FLA-163).
+        segmentFormatManager.registerBasicFormats();
+        audioSourcePlayer.setSource (&segmentPlayer);
+        deviceManager.addAudioCallback (&audioSourcePlayer);
+
+        capturePanel.waveEditor.onSegmentAudition = [this] (int64_t start, int64_t end)
+        {
+            segmentPlayer.playRegion (start, end);
+        };
+        capturePanel.waveEditor.onAuditionStop = [this]
+        {
+            segmentPlayer.stop();
+        };
+
         // WaveformEditor callback — user edited breakpoints; store and update status.
         // Full re-extraction deferred to export; velocities reflect new boundaries.
         capturePanel.waveEditor.onBreakpointsChanged =
@@ -1076,6 +1091,8 @@ public:
     {
         stopTimer();
         detector.cancel();  // stop background thread before members are torn down
+        segmentPlayer.stop();
+        deviceManager.removeAudioCallback (&audioSourcePlayer);
         deviceManager.removeChangeListener (this);
         deviceManager.removeAudioCallback (&engine);
         // Delete the continuous take WAV now that the editor is about to be destroyed.
@@ -1208,6 +1225,23 @@ private:
 
     bool isRecording() const { return engine.getMode() == CaptureEngine::Mode::Recording; }
 
+    // Open a new reader from wav and hand it to SegmentPlayer for audition.
+    // Pass an invalid File() to stop playback and clear the reader.
+    void updateSegmentPlayerReader (const juce::File& wav)
+    {
+        segmentPlayer.stop();
+        if (wav.existsAsFile())
+        {
+            auto reader = std::shared_ptr<juce::AudioFormatReader> (
+                segmentFormatManager.createReaderFor (wav));
+            segmentPlayer.setReader (std::move (reader));
+        }
+        else
+        {
+            segmentPlayer.setReader (nullptr);
+        }
+    }
+
     void setStatus (const juce::String& s) { if (onStatusChanged) onStatusChanged (s); }
 
     // Rebuild the one-line summary shown in the collapsed SetupHeader bar.
@@ -1275,6 +1309,7 @@ private:
         if (currentContinuousWav.existsAsFile())
         {
             capturePanel.waveEditor.setSource ({}, 0.0, 0);
+            updateSegmentPlayerReader ({});  // stop audition before deleting the WAV
             currentContinuousWav.deleteFile();
             currentContinuousWav = juce::File {};
         }
@@ -1301,6 +1336,7 @@ private:
         if (currentContinuousWav.existsAsFile())
         {
             capturePanel.waveEditor.setSource ({}, 0.0, 0);
+            updateSegmentPlayerReader ({});  // stop audition before deleting the WAV
             currentContinuousWav.deleteFile();
             currentContinuousWav = juce::File {};
         }
@@ -1408,6 +1444,7 @@ private:
                     self->setStatus ("Segment extraction failed: " + seg.error);
                     // Keep the WAV alive — editor is still useful for visual review.
                     self->currentContinuousWav = tempWav;
+                    self->updateSegmentPlayerReader (tempWav);
                     return;
                 }
 
@@ -1423,6 +1460,7 @@ private:
                 // Store WAV (don't delete) — WaveformEditor EnergyScanner is still reading it.
                 // Deleted when piece resets or new recording starts (see toggleRecord / destructor).
                 self->currentContinuousWav = tempWav;
+                self->updateSegmentPlayerReader (tempWav);
 
                 self->recompute();
                 self->setStatus ("\"" + piece.name + "\" — "
@@ -1537,6 +1575,8 @@ private:
     // --- member order: device manager and selector before zones ---
     // This ensures zones are destroyed before deviceSelector (and deviceSelector
     // before deviceManager), preventing use-after-free on SetupHeader's raw pointer.
+    // SegmentPlayer / AudioSourcePlayer are removed from the device manager
+    // explicitly in the destructor before member destructors run.
     juce::AudioDeviceManager                             deviceManager;
     std::unique_ptr<juce::AudioDeviceSelectorComponent> deviceSelector;
 
@@ -1548,6 +1588,11 @@ private:
     int                       lastChannelCount = 0;
     CaptureEngine             engine;
     OfflineTransientDetector  detector;
+
+    // Segment audition (FLA-163): format manager + player + JUCE source adapter.
+    juce::AudioFormatManager  segmentFormatManager;
+    SegmentPlayer             segmentPlayer;
+    juce::AudioSourcePlayer   audioSourcePlayer;
     std::vector<PieceCapture> captures;
     std::vector<float>        provisionalPeaksDb;   // live realtime onset peaks (FLA-157)
     int                       currentPieceIndex = 0;

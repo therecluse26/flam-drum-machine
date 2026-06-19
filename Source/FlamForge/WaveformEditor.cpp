@@ -103,6 +103,7 @@ WaveformEditor::WaveformEditor()
     expandBtn.setColour (juce::TextButton::textColourOnId,    juce::Colours::white.withAlpha (0.80f));
     expandBtn.onClick = [this] { setExpanded (! expanded); };
     addAndMakeVisible (expandBtn);
+    setWantsKeyboardFocus (true);
 }
 
 WaveformEditor::~WaveformEditor()
@@ -268,6 +269,18 @@ int WaveformEditor::findBreakpointNear (float x) const
     return closest;
 }
 
+int WaveformEditor::findSegmentAt (float x) const
+{
+    if (breakpoints.empty() || totalSamples <= 0) return -1;
+    const int64_t clickSample = xToSample (x);
+    // upper_bound gives the first breakpoint strictly greater than clickSample;
+    // stepping back one gives the segment that starts at or before the click.
+    auto it = std::upper_bound (breakpoints.begin(), breakpoints.end(), clickSample);
+    if (it == breakpoints.begin()) return -1; // click is before the first breakpoint
+    --it;
+    return (int) (it - breakpoints.begin());
+}
+
 void WaveformEditor::insertBreakpoint (int64_t sample)
 {
     sample = juce::jlimit ((int64_t) 1, juce::jmax ((int64_t) 1, totalSamples - 1), sample);
@@ -383,6 +396,7 @@ void WaveformEditor::mouseDown (const juce::MouseEvent& e)
         return;
     }
 
+    // Right-click near breakpoint → remove.
     if (e.mods.isRightButtonDown())
     {
         const int idx = findBreakpointNear (e.x);
@@ -390,16 +404,30 @@ void WaveformEditor::mouseDown (const juce::MouseEvent& e)
         return;
     }
 
+    // Ctrl/Cmd + left-click → insert breakpoint (if not landing on an existing one).
+    if (e.mods.isLeftButtonDown()
+        && (e.mods.isCtrlDown() || e.mods.isCommandDown()))
+    {
+        if (findBreakpointNear (e.x) < 0)
+            insertBreakpoint (xToSample (e.x));
+        return;
+    }
+
+    // Plain left-click: drag breakpoint if near one, otherwise audition the segment.
     draggingIdx   = findBreakpointNear (e.x);
     dragStartX    = e.x;
     dragStartY    = e.y;
     dragOffDelete = false;
-    pendingAdd    = false;
 
     if (draggingIdx < 0)
     {
-        pendingAdd  = true;
-        pendingAddX = e.x;
+        const int segIdx = findSegmentAt (e.x);
+        if (segIdx >= 0 && onSegmentAudition)
+        {
+            const int64_t segEnd = (segIdx + 1 < (int) breakpoints.size())
+                                 ? breakpoints[segIdx + 1] : totalSamples;
+            onSegmentAudition (breakpoints[segIdx], segEnd);
+        }
     }
 }
 
@@ -440,11 +468,6 @@ void WaveformEditor::mouseDrag (const juce::MouseEvent& e)
             repaint(); // show red delete indicator
         }
     }
-    else if (pendingAdd)
-    {
-        if (std::fabs (e.x - pendingAddX) > 4.0f)
-            pendingAdd = false; // moved too far — cancel pending add
-    }
 }
 
 void WaveformEditor::mouseUp (const juce::MouseEvent& e)
@@ -465,11 +488,6 @@ void WaveformEditor::mouseUp (const juce::MouseEvent& e)
         draggingIdx   = -1;
         dragOffDelete = false;
         repaint();
-    }
-    else if (pendingAdd)
-    {
-        insertBreakpoint (xToSample (pendingAddX));
-        pendingAdd = false;
     }
 }
 
@@ -505,6 +523,16 @@ void WaveformEditor::mouseWheelMove (const juce::MouseEvent& e,
         clampViewOffset();
         repaint();
     }
+}
+
+bool WaveformEditor::keyPressed (const juce::KeyPress& key)
+{
+    if (key == juce::KeyPress::escapeKey)
+    {
+        if (onAuditionStop) onAuditionStop();
+        return true;
+    }
+    return false;
 }
 
 // ---------------------------------------------------------------------------
