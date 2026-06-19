@@ -14,6 +14,7 @@
 #include "KitExporter.h"
 #include "OfflineTransientDetector.h"
 #include "SegmentExtractor.h"
+#include "SegmentPlayer.h"
 #include "WaveformEditor.h"
 
 #include <array>
@@ -124,6 +125,13 @@ public:
                                                          .withMultipliedBrightness (0.28f);
                 g.setColour (c);
                 g.fillRoundedRectangle (bin, 2.0f);
+
+                if (n > 0 && binW > 12.0f)
+                {
+                    g.setColour (juce::Colours::white.withAlpha (n >= 6 ? 0.90f : 0.75f));
+                    g.setFont (juce::Font (juce::FontOptions (12.0f)));
+                    g.drawText (juce::String (n), bin, juce::Justification::centred, false);
+                }
             }
 
             if (hitsCount == 0)
@@ -422,10 +430,12 @@ public:
         // Shown only when collapsed; summarises device + channel count + export path.
         summaryBar.setFont (juce::Font (juce::FontOptions (13.0f)));
         summaryBar.setColour (juce::Label::textColourId, juce::Colours::white.withAlpha (0.8f));
-        summaryBar.setText ("> Setup", juce::dontSendNotification);
+        summaryBar.setText (juce::String (juce::CharPointer_UTF8 ("\xe2\x96\xbc  Audio Settings")),
+                            juce::dontSendNotification);
         summaryBar.setInterceptsMouseClicks (false, false);
         summaryBar.setVisible (false);
         addAndMakeVisible (summaryBar);
+        applyVisibility();
     }
 
     // Called once from ForgeContent's constructor body after deviceSelector is created.
@@ -466,17 +476,38 @@ public:
             setExpanded (! expanded);
     }
 
+    void mouseEnter (const juce::MouseEvent&) override
+    {
+        hovered = true;
+        if (! expanded) repaint();
+    }
+
+    void mouseExit (const juce::MouseEvent&) override
+    {
+        hovered = false;
+        if (! expanded) repaint();
+    }
+
     void paint (juce::Graphics& g) override
     {
         if (! expanded)
         {
-            g.setColour (juce::Colour (0xff1b1f25));
+            g.setColour (hovered ? juce::Colour (0xff252a32) : juce::Colour (0xff1b1f25));
             g.fillRoundedRectangle (getLocalBounds().toFloat(), 4.0f);
+            g.setColour (juce::Colour (0xff3a3f48));
+            g.drawRoundedRectangle (getLocalBounds().toFloat().reduced (0.5f), 4.0f, 1.0f);
         }
+    }
+
+    void childBoundsChanged (juce::Component* child) override
+    {
+        if (handlingChildBoundsChange || child != deviceSel) return;
+        if (onCollapseToggled) onCollapseToggled();
     }
 
     void resized() override
     {
+        juce::ScopedValueSetter<bool> guard (handlingChildBoundsChange, true);
         auto b = getLocalBounds();
         if (! expanded)
         {
@@ -499,7 +530,9 @@ private:
         summaryBar.setVisible (! expanded);
     }
 
-    bool expanded = true;
+    bool expanded = false;
+    bool hovered  = false;
+    bool handlingChildBoundsChange = false;
     juce::Label title, subtitle, summaryBar;
     juce::AudioDeviceSelectorComponent* deviceSel = nullptr;
 
@@ -699,10 +732,10 @@ public:
     WaveformEditor  waveEditor;  // C4 — interactive waveform + breakpoint editor
     std::function<void()> onRecord;
 
-    static constexpr int kRecordH = 56;
-    static constexpr int kMeterH  = 90;
-    static constexpr int kWaveH   = 200;  // waveform + breakpoint editor
-    static constexpr int kGap     = 12;
+    static constexpr int kRecordH   = 56;
+    static constexpr int kMeterH    = 90;
+    static constexpr int kProgressH = 150;  // header + bins + 3 stat rows
+    static constexpr int kGap       = 12;
 
     CapturePanel()
     {
@@ -739,11 +772,19 @@ public:
         b.removeFromTop (kGap);
         meterRow.setBounds (b.removeFromTop (kMeterH));
         b.removeFromTop (kGap);
-        waveEditor.setBounds (b.removeFromTop (juce::jmax (WaveformEditor::kMinHeight,
-                                                            juce::jmin (kWaveH, b.getHeight() / 2))));
-        b.removeFromTop (kGap);
-        if (b.getHeight() >= 40)
-            progress.setBounds (b);
+
+        // CaptureProgress pinned to bottom at a fixed height.
+        // Guard: never shrink waveform below its minimum usable size.
+        const int progH = juce::jmin (kProgressH,
+                                      juce::jmax (0, b.getHeight() - WaveformEditor::kMinHeight - kGap));
+        if (progH >= 40)
+        {
+            progress.setBounds (b.removeFromBottom (progH));
+            b.removeFromBottom (kGap);
+        }
+
+        // WaveformEditor gets all remaining height.
+        waveEditor.setBounds (b.withHeight (juce::jmax (WaveformEditor::kMinHeight, b.getHeight())));
     }
 
 private:
@@ -1006,12 +1047,12 @@ public:
 
     ForgeContent()
     {
-        // Recorder needs inputs only; hiding output + advanced keeps the panel compact.
-        deviceManager.initialiseWithDefaultDevices (/*inputs=*/2, /*outputs=*/0);
+        // Inputs for recording, outputs for segment audition playback (FLA-163).
+        deviceManager.initialiseWithDefaultDevices (/*inputs=*/2, /*outputs=*/2);
         deviceSelector = std::make_unique<juce::AudioDeviceSelectorComponent> (
             deviceManager,
             /*minInput=*/1, /*maxInput=*/16,
-            /*minOutput=*/0, /*maxOutput=*/0,
+            /*minOutput=*/0, /*maxOutput=*/2,
             /*showMidiIn=*/false, /*showMidiOut=*/false,
             /*stereoPairs=*/false, /*hideAdvanced=*/true);
 
@@ -1052,6 +1093,32 @@ public:
         captures.push_back ({});
         captures[0].name = "Kick";
 
+        // SegmentPlayer — click-to-audition wiring (FLA-163).
+        segmentFormatManager.registerBasicFormats();
+        audioSourcePlayer.setSource (&segmentPlayer);
+        deviceManager.addAudioCallback (&audioSourcePlayer);
+
+        capturePanel.waveEditor.onSegmentAudition = [this] (int64_t start, int64_t end)
+        {
+            segmentPlayer.playRegion (start, end);
+        };
+        capturePanel.waveEditor.onAuditionStop = [this]
+        {
+            segmentPlayer.stop();
+        };
+
+        capturePanel.waveEditor.onDisabledChanged = [this] (const std::vector<bool>& d)
+        {
+            currentDisabledSegments = d;
+        };
+
+        capturePanel.waveEditor.onFadesChanged = [this] (const std::vector<float>& fadeIn,
+                                                          const std::vector<float>& fadeOut)
+        {
+            currentFadeInMsPerSeg  = fadeIn;
+            currentFadeOutMsPerSeg = fadeOut;
+        };
+
         // WaveformEditor callback — user edited breakpoints; store and update status.
         // Full re-extraction deferred to export; velocities reflect new boundaries.
         capturePanel.waveEditor.onBreakpointsChanged =
@@ -1069,6 +1136,8 @@ public:
     {
         stopTimer();
         detector.cancel();  // stop background thread before members are torn down
+        segmentPlayer.stop();
+        deviceManager.removeAudioCallback (&audioSourcePlayer);
         deviceManager.removeChangeListener (this);
         deviceManager.removeAudioCallback (&engine);
         // Delete the continuous take WAV now that the editor is about to be destroyed.
@@ -1078,12 +1147,13 @@ public:
 
     int naturalHeight() const
     {
-        // Lower-bound elastic heights for initial window sizing.
-        const int deviceH  = 160;
+        const int deviceH  = (deviceSelector && deviceSelector->getHeight() > 0)
+                              ? deviceSelector->getHeight() : 220;
         const int headerH  = header.naturalHeight (deviceH);
-        const int captureH = CapturePanel::kRecordH + CapturePanel::kGap
-                           + CapturePanel::kMeterH   + CapturePanel::kGap
-                           + CapturePanel::kWaveH    + CapturePanel::kGap + 100;
+        const int captureH = CapturePanel::kRecordH      + CapturePanel::kGap
+                           + CapturePanel::kMeterH      + CapturePanel::kGap
+                           + WaveformEditor::kMinHeight + CapturePanel::kGap
+                           + CapturePanel::kProgressH;
         const int midH     = juce::jmax (captureH, 120);
         return 2 * kPad + headerH + kGap + midH;
     }
@@ -1103,7 +1173,10 @@ public:
                 + kGap    // gap between header and mid
                 + kGap;   // gap below mid
             const int flexAvail = juce::jmax (0, getHeight() - fixedV);
-            const int deviceH   = juce::jlimit (160, 340, 50 + flexAvail * 55 / 100);
+            const int selectorCurrent = (deviceSelector && deviceSelector->getHeight() > 0)
+                                             ? deviceSelector->getHeight() : 0;
+            const int deviceH   = juce::jlimit (200, 520,
+                                      juce::jmax (selectorCurrent, 50 + flexAvail * 55 / 100));
             midH    = juce::jmax (120, flexAvail - deviceH - kGap);
             headerH = SetupHeader::kTitleH + SetupHeader::kSubH + SetupHeader::kGap + deviceH;
         }
@@ -1160,6 +1233,30 @@ public:
         }
         persistDestPath (destDir.getFullPathName());
 
+        // If the user disabled any segments on the current piece, re-extract with
+        // those omitted before handing the hits to exportKit.
+        {
+            const bool anyDisabled = std::any_of (currentDisabledSegments.begin(),
+                                                  currentDisabledSegments.end(),
+                                                  [] (bool b) { return b; });
+            if (anyDisabled && currentContinuousWav.existsAsFile()
+                && lastDetectionResult.succeeded)
+            {
+                auto seg = extractSegments (currentContinuousWav, lastDetectionResult,
+                                            currentDisabledSegments,
+                                            currentFadeInMsPerSeg,
+                                            currentFadeOutMsPerSeg);
+                if (seg.ok)
+                {
+                    auto& piece = captures[(size_t) currentPieceIndex];
+                    piece.hits.clear();
+                    for (auto& h : seg.hits)
+                        piece.hits.push_back (std::move (h));
+                    recompute();
+                }
+            }
+        }
+
         setStatus ("Exporting to " + destDir.getFullPathName() + " ...");
         const ExportResult res = exportKit (kitName, captures, options, destDir, channelLabels);
         setStatus (res.message);
@@ -1200,6 +1297,23 @@ private:
     PieceCapture& currentPiece() { return captures[(size_t) currentPieceIndex]; }
 
     bool isRecording() const { return engine.getMode() == CaptureEngine::Mode::Recording; }
+
+    // Open a new reader from wav and hand it to SegmentPlayer for audition.
+    // Pass an invalid File() to stop playback and clear the reader.
+    void updateSegmentPlayerReader (const juce::File& wav)
+    {
+        segmentPlayer.stop();
+        if (wav.existsAsFile())
+        {
+            auto reader = std::shared_ptr<juce::AudioFormatReader> (
+                segmentFormatManager.createReaderFor (wav));
+            segmentPlayer.setReader (std::move (reader));
+        }
+        else
+        {
+            segmentPlayer.setReader (nullptr);
+        }
+    }
 
     void setStatus (const juce::String& s) { if (onStatusChanged) onStatusChanged (s); }
 
@@ -1268,9 +1382,14 @@ private:
         if (currentContinuousWav.existsAsFile())
         {
             capturePanel.waveEditor.setSource ({}, 0.0, 0);
+            updateSegmentPlayerReader ({});  // stop audition before deleting the WAV
             currentContinuousWav.deleteFile();
             currentContinuousWav = juce::File {};
         }
+        currentDisabledSegments.clear();
+        currentFadeInMsPerSeg.clear();
+        currentFadeOutMsPerSeg.clear();
+        lastDetectionResult = {};
         currentPieceIndex = juce::jlimit (0, (int) captures.size() - 1, index);
         refreshAll();
     }
@@ -1294,13 +1413,18 @@ private:
         if (currentContinuousWav.existsAsFile())
         {
             capturePanel.waveEditor.setSource ({}, 0.0, 0);
+            updateSegmentPlayerReader ({});  // stop audition before deleting the WAV
             currentContinuousWav.deleteFile();
             currentContinuousWav = juce::File {};
         }
 
-        // Fresh take: clear provisional realtime estimates from any prior take
-        // so the live coverage meter starts empty.
+        // Fresh take: clear provisional realtime estimates and segment disabled state
+        // from any prior take so the coverage meter and waveform editor start clean.
         provisionalPeaksDb.clear();
+        currentDisabledSegments.clear();
+        currentFadeInMsPerSeg.clear();
+        currentFadeOutMsPerSeg.clear();
+        lastDetectionResult = {};
 
         engine.setMode (CaptureEngine::Mode::Recording);
         capturePanel.setRecordingState (true);
@@ -1394,6 +1518,12 @@ private:
                                                                   initVels, r.totalSamples);
                 }
 
+                // Store detection result and reset per-segment state for this fresh take.
+                self->lastDetectionResult   = r;
+                self->currentDisabledSegments.clear();
+                self->currentFadeInMsPerSeg.clear();
+                self->currentFadeOutMsPerSeg.clear();
+
                 auto seg = extractSegments (tempWav, r);
 
                 if (! seg.ok)
@@ -1401,6 +1531,7 @@ private:
                     self->setStatus ("Segment extraction failed: " + seg.error);
                     // Keep the WAV alive — editor is still useful for visual review.
                     self->currentContinuousWav = tempWav;
+                    self->updateSegmentPlayerReader (tempWav);
                     return;
                 }
 
@@ -1416,6 +1547,7 @@ private:
                 // Store WAV (don't delete) — WaveformEditor EnergyScanner is still reading it.
                 // Deleted when piece resets or new recording starts (see toggleRecord / destructor).
                 self->currentContinuousWav = tempWav;
+                self->updateSegmentPlayerReader (tempWav);
 
                 self->recompute();
                 self->setStatus ("\"" + piece.name + "\" — "
@@ -1530,6 +1662,8 @@ private:
     // --- member order: device manager and selector before zones ---
     // This ensures zones are destroyed before deviceSelector (and deviceSelector
     // before deviceManager), preventing use-after-free on SetupHeader's raw pointer.
+    // SegmentPlayer / AudioSourcePlayer are removed from the device manager
+    // explicitly in the destructor before member destructors run.
     juce::AudioDeviceManager                             deviceManager;
     std::unique_ptr<juce::AudioDeviceSelectorComponent> deviceSelector;
 
@@ -1541,6 +1675,11 @@ private:
     int                       lastChannelCount = 0;
     CaptureEngine             engine;
     OfflineTransientDetector  detector;
+
+    // Segment audition (FLA-163): format manager + player + JUCE source adapter.
+    juce::AudioFormatManager  segmentFormatManager;
+    SegmentPlayer             segmentPlayer;
+    juce::AudioSourcePlayer   audioSourcePlayer;
     std::vector<PieceCapture> captures;
     std::vector<float>        provisionalPeaksDb;   // live realtime onset peaks (FLA-157)
     int                       currentPieceIndex = 0;
@@ -1553,6 +1692,17 @@ private:
     // WaveformEditor's EnergyScanner and AudioThumbnail still reference it.
     // Deleted on new recording start, piece switch, or app teardown.
     juce::File                currentContinuousWav;
+
+    // Per-segment disable state mirrored from WaveformEditor (FLA-171).
+    // Parallel to breakpoints; cleared on new recording or piece switch.
+    std::vector<bool>                  currentDisabledSegments;
+    // Per-segment fade values mirrored from WaveformEditor drag handles (FLA-173).
+    // Parallel to breakpoints; cleared on new recording or piece switch.
+    std::vector<float>                 currentFadeInMsPerSeg;
+    std::vector<float>                 currentFadeOutMsPerSeg;
+    // Detection result from the last successful offline analysis (FLA-171).
+    // Stored so disabled-segment filtering can re-extract at export time.
+    OfflineTransientDetector::Result   lastDetectionResult;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ForgeContent)
 };

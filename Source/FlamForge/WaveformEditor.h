@@ -52,6 +52,20 @@ public:
     std::function<void (const std::vector<int64_t>& breakpoints,
                         const std::vector<int>&     segmentVelocities)> onBreakpointsChanged;
 
+    // Fired when the user single-clicks inside a segment (FLA-163).
+    // Arguments are the [startSample, endSample) of the clicked segment.
+    std::function<void (int64_t startSample, int64_t endSample)> onSegmentAudition;
+
+    // Fired when the user presses Escape to stop in-progress audition.
+    std::function<void()> onAuditionStop;
+
+    // Fired when a segment's disabled state changes (right-click on segment body).
+    std::function<void (const std::vector<bool>& disabled)> onDisabledChanged;
+
+    // Fired when the user drags a fade handle, with updated per-segment ms values.
+    std::function<void (const std::vector<float>& fadeInMs,
+                        const std::vector<float>& fadeOutMs)> onFadesChanged;
+
     WaveformEditor();
     ~WaveformEditor() override;
 
@@ -81,8 +95,16 @@ public:
     void setExpanded (bool e);
     bool isExpanded() const { return expanded; }
 
+    // Returns a copy of the current disabled-segment state (parallel to breakpoints).
+    std::vector<bool> getDisabledSegments() const { return segmentDisabled; }
+
     // Minimum sensible height so the waveform + controls are readable.
     static constexpr int kMinHeight = 140;
+
+    // Zoom control (zoomFactor 1.0 = full view, max ~32×).
+    // setZoom keeps the sample under centreXPixel fixed during the change.
+    void resetZoom();
+    void setZoom (float factor, float centreXPixel);
 
     // --- juce::Component --------------------------------------------------
     void paint (juce::Graphics& g) override;
@@ -91,6 +113,8 @@ public:
     void mouseDrag (const juce::MouseEvent& e) override;
     void mouseUp (const juce::MouseEvent& e) override;
     void mouseDoubleClick (const juce::MouseEvent& e) override;
+    void mouseWheelMove (const juce::MouseEvent& e, const juce::MouseWheelDetails& wheel) override;
+    bool keyPressed (const juce::KeyPress& key) override;
 
 private:
     // -----------------------------------------------------------------------
@@ -119,13 +143,20 @@ private:
     // --- geometry ---------------------------------------------------------
     // Waveform drawing rectangle (below accordion button, with 2-px padding).
     juce::Rectangle<float> waveRect() const;
+    // Thin strip at the bottom of waveRect showing the minimap.
+    juce::Rectangle<float> minimapRect() const;
     float   sampleToX (int64_t s) const;
     int64_t xToSample (float x) const;
+    void    clampViewOffset();
+    void    paintMinimap (juce::Graphics& g);
 
     // --- interaction helpers ----------------------------------------------
     // Returns the breakpoint index whose marker is within kMarkerGrabPx of x,
     // or -1 if none qualify.
     int  findBreakpointNear (float x) const;
+    // Returns the segment index that contains pixel x (i.e. breakpoints[i] ≤ xToSample(x)
+    // < breakpoints[i+1]), or -1 if x falls before the first breakpoint or out of bounds.
+    int  findSegmentAt (float x) const;
     void insertBreakpoint (int64_t sample);
     void removeBreakpoint (int idx);
 
@@ -150,10 +181,14 @@ private:
     // -----------------------------------------------------------------------
     static constexpr int   kHop              = 256;   // matches OfflineTransientDetector
     static constexpr float kMarkerGrabPx     = 8.0f;  // ±px from line that counts as grab
+    static constexpr int   kFadeHandleRadius = 6;     // px radius of fade-handle circle
     static constexpr float kDeleteDragOffPx  = 40.0f; // vertical drag-off triggers delete
     static constexpr float kAccBtnH          = 22.0f; // height of the accordion toggle row
     static constexpr int   kLaneLabelW       = 52;    // px reserved for channel label
     static constexpr int   kSnapWindowSamples = 512;  // zero-crossing search radius
+    static constexpr float kMaxZoom          = 32.0f; // maximum zoom factor
+    static constexpr float kMinimapH         = 12.0f; // minimap strip height in px
+    static constexpr float kDragPanThreshPx  = 5.0f;  // horizontal drag threshold before converting click to pan
 
     // -----------------------------------------------------------------------
     // Members
@@ -166,6 +201,9 @@ private:
     std::vector<int64_t> breakpoints;
     std::vector<float>   segmentPeaksDb;    // always same size as breakpoints
     std::vector<int>     segmentVelocities; // always same size as breakpoints
+    std::vector<bool>    segmentDisabled;   // always same size as breakpoints
+    std::vector<float>   segmentFadeInMs;   // per-segment fade-in ms; always same size as breakpoints
+    std::vector<float>   segmentFadeOutMs;  // per-segment fade-out ms; always same size as breakpoints
     int64_t              totalSamples = 0;
     double               sampleRate   = 48000.0;
     int                  numChannels  = 1;
@@ -176,13 +214,28 @@ private:
     bool expanded          = false;
     bool snapZeroCrossing  = false;
 
-    // Drag state
+    // Zoom / pan state
+    float zoomFactor     = 1.0f;  // 1.0 = full view, >1.0 = zoomed in
+    float viewOffsetFrac = 0.0f;  // normalised left edge of visible window [0..1]
+
+    // Pan drag state (middle-button, spacebar+left-drag, or deferred-audition left-drag)
+    bool  panDragging            = false;
+    float panDragStartX          = 0.0f;
+    float panDragStartOffsetFrac = 0.0f;
+
+    // Deferred-audition state (plain left-click on a segment; fires on mouseUp unless panned)
+    int  pendingAuditionSegIdx = -1;
+    bool pendingAuditionPanned = false;
+
+    // Breakpoint drag state
     int   draggingIdx  = -1;
     float dragStartX   = 0.0f;
     float dragStartY   = 0.0f;
     bool  dragOffDelete = false;
-    bool  pendingAdd   = false;
-    float pendingAddX  = 0.0f;
+
+    // Fade handle drag state (-1 = not dragging; dragFadeIsIn distinguishes in vs out)
+    int   dragFadeSeg  = -1;
+    bool  dragFadeIsIn = true;
 
     juce::TextButton expandBtn;
 
