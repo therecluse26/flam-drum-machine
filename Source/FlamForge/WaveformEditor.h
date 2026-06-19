@@ -59,6 +59,9 @@ public:
     // Fired when the user presses Escape to stop in-progress audition.
     std::function<void()> onAuditionStop;
 
+    // Fired when a segment's disabled state changes (right-click on segment body).
+    std::function<void (const std::vector<bool>& disabled)> onDisabledChanged;
+
     WaveformEditor();
     ~WaveformEditor() override;
 
@@ -87,6 +90,9 @@ public:
     // Toggle summed ↔ per-mic accordion view.
     void setExpanded (bool e);
     bool isExpanded() const { return expanded; }
+
+    // Returns a copy of the current disabled-segment state (parallel to breakpoints).
+    std::vector<bool> getDisabledSegments() const { return segmentDisabled; }
 
     // Minimum sensible height so the waveform + controls are readable.
     static constexpr int kMinHeight = 140;
@@ -190,6 +196,7 @@ private:
     std::vector<int64_t> breakpoints;
     std::vector<float>   segmentPeaksDb;    // always same size as breakpoints
     std::vector<int>     segmentVelocities; // always same size as breakpoints
+    std::vector<bool>    segmentDisabled;   // always same size as breakpoints
     int64_t              totalSamples = 0;
     double               sampleRate   = 48000.0;
     int                  numChannels  = 1;

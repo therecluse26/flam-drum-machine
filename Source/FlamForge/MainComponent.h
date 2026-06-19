@@ -1107,6 +1107,11 @@ public:
             segmentPlayer.stop();
         };
 
+        capturePanel.waveEditor.onDisabledChanged = [this] (const std::vector<bool>& d)
+        {
+            currentDisabledSegments = d;
+        };
+
         // WaveformEditor callback — user edited breakpoints; store and update status.
         // Full re-extraction deferred to export; velocities reflect new boundaries.
         capturePanel.waveEditor.onBreakpointsChanged =
@@ -1220,6 +1225,28 @@ public:
             return;
         }
         persistDestPath (destDir.getFullPathName());
+
+        // If the user disabled any segments on the current piece, re-extract with
+        // those omitted before handing the hits to exportKit.
+        {
+            const bool anyDisabled = std::any_of (currentDisabledSegments.begin(),
+                                                  currentDisabledSegments.end(),
+                                                  [] (bool b) { return b; });
+            if (anyDisabled && currentContinuousWav.existsAsFile()
+                && lastDetectionResult.succeeded)
+            {
+                auto seg = extractSegments (currentContinuousWav, lastDetectionResult,
+                                            currentDisabledSegments);
+                if (seg.ok)
+                {
+                    auto& piece = captures[(size_t) currentPieceIndex];
+                    piece.hits.clear();
+                    for (auto& h : seg.hits)
+                        piece.hits.push_back (std::move (h));
+                    recompute();
+                }
+            }
+        }
 
         setStatus ("Exporting to " + destDir.getFullPathName() + " ...");
         const ExportResult res = exportKit (kitName, captures, options, destDir, channelLabels);
@@ -1350,6 +1377,8 @@ private:
             currentContinuousWav.deleteFile();
             currentContinuousWav = juce::File {};
         }
+        currentDisabledSegments.clear();
+        lastDetectionResult = {};
         currentPieceIndex = juce::jlimit (0, (int) captures.size() - 1, index);
         refreshAll();
     }
@@ -1378,9 +1407,11 @@ private:
             currentContinuousWav = juce::File {};
         }
 
-        // Fresh take: clear provisional realtime estimates from any prior take
-        // so the live coverage meter starts empty.
+        // Fresh take: clear provisional realtime estimates and segment disabled state
+        // from any prior take so the coverage meter and waveform editor start clean.
         provisionalPeaksDb.clear();
+        currentDisabledSegments.clear();
+        lastDetectionResult = {};
 
         engine.setMode (CaptureEngine::Mode::Recording);
         capturePanel.setRecordingState (true);
@@ -1473,6 +1504,10 @@ private:
                     self->capturePanel.waveEditor.setBreakpoints (r.breakpoints, r.segmentPeaksDb,
                                                                   initVels, r.totalSamples);
                 }
+
+                // Store detection result and reset disabled state for this fresh take.
+                self->lastDetectionResult   = r;
+                self->currentDisabledSegments.clear();
 
                 auto seg = extractSegments (tempWav, r);
 
@@ -1642,6 +1677,13 @@ private:
     // WaveformEditor's EnergyScanner and AudioThumbnail still reference it.
     // Deleted on new recording start, piece switch, or app teardown.
     juce::File                currentContinuousWav;
+
+    // Per-segment disable state mirrored from WaveformEditor (FLA-171).
+    // Parallel to breakpoints; cleared on new recording or piece switch.
+    std::vector<bool>                  currentDisabledSegments;
+    // Detection result from the last successful offline analysis (FLA-171).
+    // Stored so disabled-segment filtering can re-extract at export time.
+    OfflineTransientDetector::Result   lastDetectionResult;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ForgeContent)
 };

@@ -159,6 +159,7 @@ void WaveformEditor::setBreakpoints (const std::vector<int64_t>& bps,
     segmentPeaksDb     = peaksDb;
     segmentVelocities  = segVels;
     totalSamples       = totalSmp;
+    segmentDisabled.assign (bps.size(), false);
     repaint();
 }
 
@@ -290,8 +291,9 @@ void WaveformEditor::insertBreakpoint (int64_t sample)
 
     const int idx = (int) (it - breakpoints.begin());
     breakpoints.insert (it, sample);
-    segmentPeaksDb.insert (segmentPeaksDb.begin() + idx, -60.0f);
+    segmentPeaksDb.insert    (segmentPeaksDb.begin()    + idx, -60.0f);
     segmentVelocities.insert (segmentVelocities.begin() + idx, 64);
+    segmentDisabled.insert   (segmentDisabled.begin()   + idx, false);
 
     recomputeVelocities();
 }
@@ -304,6 +306,8 @@ void WaveformEditor::removeBreakpoint (int idx)
         segmentPeaksDb.erase (segmentPeaksDb.begin() + idx);
     if (idx < (int) segmentVelocities.size())
         segmentVelocities.erase (segmentVelocities.begin() + idx);
+    if (idx < (int) segmentDisabled.size())
+        segmentDisabled.erase (segmentDisabled.begin() + idx);
     if (draggingIdx == idx)
         draggingIdx = -1;
     recomputeVelocities();
@@ -396,11 +400,24 @@ void WaveformEditor::mouseDown (const juce::MouseEvent& e)
         return;
     }
 
-    // Right-click near breakpoint → remove.
+    // Right-click near breakpoint → remove; right-click segment body → toggle disabled.
     if (e.mods.isRightButtonDown())
     {
-        const int idx = findBreakpointNear (e.x);
-        if (idx >= 0) removeBreakpoint (idx);
+        const int bpIdx = findBreakpointNear (e.x);
+        if (bpIdx >= 0)
+        {
+            removeBreakpoint (bpIdx);
+        }
+        else
+        {
+            const int segIdx = findSegmentAt (e.x);
+            if (segIdx >= 0 && segIdx < (int) segmentDisabled.size())
+            {
+                segmentDisabled[segIdx] = ! segmentDisabled[segIdx];
+                if (onDisabledChanged) onDisabledChanged (segmentDisabled);
+                repaint();
+            }
+        }
         return;
     }
 
@@ -689,6 +706,20 @@ void WaveformEditor::paint (juce::Graphics& g)
             fadeOutPath.closeSubPath();
             g.setColour (velocityColour (segmentVelocities[i]).withAlpha (0.30f));
             g.fillPath (fadeOutPath);
+        }
+
+        if (i < (int) segmentDisabled.size() && segmentDisabled[i])
+        {
+            g.saveState();
+            g.reduceClipRegion (juce::Rectangle<int> ((int) x0, (int) wr.getY(),
+                                                      (int) (x1 - x0), (int) wr.getHeight()));
+            g.setColour (juce::Colour (0xaa000000));
+            g.fillRect (juce::Rectangle<float> (x0, wr.getY(), x1 - x0, wr.getHeight()));
+            g.setColour (juce::Colour (0x33ffffff));
+            const float stripeSpacing = 10.0f;
+            for (float sx = x0 - wr.getHeight(); sx < x1 + stripeSpacing; sx += stripeSpacing)
+                g.drawLine (sx, wr.getBottom(), sx + wr.getHeight(), wr.getY(), 1.0f);
+            g.restoreState();
         }
     }
 

@@ -43,10 +43,12 @@ struct SegmentResult
 };
 
 // Slice wavFile at the breakpoints in `detection` into per-hit CapturedHits.
+// disabledSegments: optional parallel vector; segments whose entry is `true` are skipped.
 // fadeInMs: duration of the linear fade-in applied at each cut edge (default 5 ms).
 // Safe to call from any thread (reads the WAV file synchronously).
 SegmentResult extractSegments (const juce::File&                      wavFile,
                                const OfflineTransientDetector::Result& detection,
+                               const std::vector<bool>&                disabledSegments = {},
                                float                                   fadeInMs = 5.0f);
 
 } // namespace flamforge

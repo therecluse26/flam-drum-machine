@@ -356,7 +356,7 @@ static int runSelfTest()
         det.sampleRate      = kSR;
         det.numChannels     = kNCh;
 
-        auto seg = extractSegments (segWav, det, /*fadeInMs=*/5.0f);
+        auto seg = extractSegments (segWav, det);  // disabledSegments={}, fadeInMs=5.0f (defaults)
         say ("segment-extractor: ok=" + juce::String ((int) seg.ok)
              + " hits=" + juce::String ((int) seg.hits.size()));
 

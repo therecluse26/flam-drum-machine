@@ -58,6 +58,7 @@ static juce::AudioBuffer<float> readBlock (juce::AudioFormatReader& reader,
 
 SegmentResult extractSegments (const juce::File&                      wavFile,
                                const OfflineTransientDetector::Result& detection,
+                               const std::vector<bool>&                disabledSegments,
                                float                                   fadeInMs)
 {
     SegmentResult out;
@@ -110,6 +111,9 @@ SegmentResult extractSegments (const juce::File&                      wavFile,
 
     for (int i = 0; i < n; ++i)
     {
+        if (i < (int) disabledSegments.size() && disabledSegments[i])
+            continue;
+
         const int64_t start = bp[(size_t) i];
         const int64_t end   = (i + 1 < n) ? bp[(size_t)(i + 1)] : totalSamples;
         const int64_t len   = end - start;
