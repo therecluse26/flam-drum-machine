@@ -309,6 +309,10 @@ void OfflineTransientDetector::run()
     // segment's peak is unchanged because the dropped span is, by definition,
     // quieter than the gate (and the preceding segment is louder still), so we
     // can prune both vectors in lockstep without re-measuring.
+    //
+    // Phase 7b (FLA-166): also require energy to sustain above gateDb - 3 dB
+    // for at least kMinSustainFrames consecutive frames. Reads the in-RAM
+    // energyDb vector — no additional disk I/O.
     {
         std::vector<int64_t> keptBreakpoints;
         std::vector<float>   keptPeaks;
@@ -317,11 +321,38 @@ void OfflineTransientDetector::run()
 
         for (int seg = 0; seg < numSegments; ++seg)
         {
-            if (result.segmentPeaksDb[(size_t) seg] >= gateDb)
+            if (result.segmentPeaksDb[(size_t) seg] < gateDb)
+                continue;
+
+            // Phase 7b: minimum sustained energy.
+            // Count the longest consecutive run of frames at >= gateDb - 3 dB.
+            // Real hits sustain for ≥15 ms (3+ frames); reverb spikes < 10 ms.
+            const int   startFrame  = (int) (breakpoints[(size_t) seg] / kHopSize);
+            const int   endFrame    = (seg + 1 < numSegments)
+                                          ? (int) (breakpoints[(size_t) (seg + 1)] / kHopSize)
+                                          : N;
+            const float sustainGate = gateDb - 3.0f;
+            int longestRun = 0;
+            int currentRun = 0;
+
+            for (int f = startFrame; f < endFrame; ++f)
             {
-                keptBreakpoints.push_back (breakpoints[(size_t) seg]);
-                keptPeaks.push_back (result.segmentPeaksDb[(size_t) seg]);
+                if (energyDb[(size_t) f] >= sustainGate)
+                {
+                    if (++currentRun > longestRun)
+                        longestRun = currentRun;
+                }
+                else
+                {
+                    currentRun = 0;
+                }
             }
+
+            if (longestRun < kMinSustainFrames)
+                continue;
+
+            keptBreakpoints.push_back (breakpoints[(size_t) seg]);
+            keptPeaks.push_back (result.segmentPeaksDb[(size_t) seg]);
         }
 
         breakpoints.swap (keptBreakpoints);

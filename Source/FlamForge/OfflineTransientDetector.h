@@ -134,8 +134,15 @@ private:
     // unchanged. These constants are the single source of truth for onset
     // gating — the realtime estimator (FLA-157) consumes the same values.
     static constexpr float kAbsoluteFloorDb   = -50.0f; // never treat sub-this as a hit
-    static constexpr float kNoiseMarginDb     = 12.0f;  // a hit must clear the noise floor by this
+    static constexpr float kNoiseMarginDb     = 20.0f;  // a hit must clear the noise floor by this (raised from 12 to suppress reverb-tail spikes — FLA-166)
     static constexpr float kNoiseFloorPercent = 0.10f;  // noise floor = 10th-percentile frame energy
+
+    // --- Phase 7b: minimum sustained energy (FLA-166) -----------------------
+    // After Phase 7, each candidate is additionally required to sustain energy
+    // above gateDb - 3 dB for at least kMinSustainFrames consecutive frames.
+    // kHopSize=256 samples @ 48 kHz ≈ 5.3 ms/frame → 3 frames ≈ 16 ms, which
+    // comfortably passes real hits (≥15 ms) and rejects reverb spikes (<10 ms).
+    static constexpr int kMinSustainFrames = 3;
 
     // --- helpers -----------------------------------------------------------
     static float ampToDb (float amp) noexcept;
