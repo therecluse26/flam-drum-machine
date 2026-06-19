@@ -15,7 +15,9 @@ set(FLAM_L1_ENGINE_SOURCES
     ${CMAKE_SOURCE_DIR}/Source/DSP/TenBandGraphicEQ.cpp
     ${CMAKE_SOURCE_DIR}/Source/DSP/SaturationProcessor.cpp
     ${CMAKE_SOURCE_DIR}/Source/DSP/CompressorProcessor.cpp
-    ${CMAKE_SOURCE_DIR}/Source/DSP/LimiterProcessor.cpp)
+    ${CMAKE_SOURCE_DIR}/Source/DSP/LimiterProcessor.cpp
+    ${CMAKE_SOURCE_DIR}/Source/FlamForge/OfflineTransientDetector.cpp
+    ${CMAKE_SOURCE_DIR}/Source/FlamForge/CaptureEngine.cpp)
 
 juce_add_console_app(FlamL1Tests PRODUCT_NAME "FlamL1Tests")
 
@@ -25,6 +27,8 @@ target_sources(FlamL1Tests
         FlamKitLoaderTest.cpp
         VoiceManagerTest.cpp
         DSPTest.cpp
+        OfflineTransientDetectorTest.cpp
+        CaptureEngineTest.cpp
         ${FLAM_L1_ENGINE_SOURCES})
 
 target_include_directories(FlamL1Tests PRIVATE
@@ -50,6 +54,7 @@ endif()
 target_link_libraries(FlamL1Tests
     PRIVATE
         juce::juce_audio_basics
+        juce::juce_audio_devices
         juce::juce_audio_formats
         juce::juce_core
         juce::juce_dsp

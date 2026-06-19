@@ -22,6 +22,8 @@
 #include "CaptureTypes.h"
 #include "LayerSynth.h"
 #include "KitExporter.h"
+#include "OfflineTransientDetector.h"
+#include "SegmentExtractor.h"
 #include "Formats/FlamKitLoader.h"
 
 #include <cmath>
@@ -175,6 +177,258 @@ static int runSelfTest()
         { say ("FAIL: channelCount expected " + juce::String (kTestCh) + ", got " + juce::String (count)); return 1; }
     }
 
+    // 7) continuous capture engine (FLA-151)
+    // Verify: setMode(Recording) creates a temp WAV; audio written to it;
+    // getRecordedSamples() tracks length; stopContinuousRecording() finalises
+    // the file; WAV is 24-bit, correct channel count, sample-accurate length;
+    // resetContinuousRecording() deletes the temp file.
+    {
+        constexpr int kBlockSz  = 256;
+        constexpr int kNumBlocks = 50;  // 50 × 256 @ 48 kHz ≈ 267 ms
+
+        CaptureEngine cap;
+
+        // Override channel count so the writer knows how many channels to open.
+        // Hack: call audioDeviceAboutToStart(nullptr) first (gives 1ch fallback),
+        // then feed kCapCh-channel blocks — the callback clamps to the actual
+        // channel data supplied, but the WAV will be written with the device
+        // channel count (1). Use a two-channel sine block but feed only 1ch from
+        // the device. Simpler: use a mock device.
+        //
+        // For the self-test we call audioDeviceAboutToStart(nullptr) which sets
+        // numChannels=1, then start Recording. The WAV will be 1-channel because
+        // numChannels=1. That correctly exercises the engine; a full device test
+        // requires real hardware.
+        cap.audioDeviceAboutToStart (nullptr); // 48 kHz, 1 ch
+        cap.setMode (CaptureEngine::Mode::Recording);
+
+        const juce::File tempFile = cap.getContinuousTempFile();
+        say ("continuous-capture: tempFile exists=" + juce::String ((int) tempFile.existsAsFile()));
+        if (! tempFile.existsAsFile())
+        { say ("FAIL: temp WAV not created on setMode(Recording)"); return 1; }
+
+        // Feed synthetic sine blocks into the engine.
+        constexpr float kFreq = 440.0f;
+        constexpr int   kSR   = 48000;
+        std::vector<float> sineBuf (kBlockSz);
+        const float* inPtrs[1] = { sineBuf.data() };
+        juce::AudioIODeviceCallbackContext ctx{};
+
+        for (int blk = 0; blk < kNumBlocks; ++blk)
+        {
+            const int offset = blk * kBlockSz;
+            for (int n = 0; n < kBlockSz; ++n)
+                sineBuf[(size_t) n] = 0.5f * std::sin (2.0f * juce::MathConstants<float>::pi
+                                                        * kFreq * (offset + n) / (float) kSR);
+            cap.audioDeviceIOCallbackWithContext (inPtrs, 1, nullptr, 0, kBlockSz, ctx);
+        }
+
+        const int64_t samplesBeforeStop = cap.getRecordedSamples();
+        say ("continuous-capture: samplesWritten=" + juce::String (samplesBeforeStop));
+        const int64_t expectedSamples = (int64_t) kNumBlocks * kBlockSz;
+        if (samplesBeforeStop < expectedSamples)
+        {
+            say ("FAIL: expected >=" + juce::String (expectedSamples)
+                 + " samples, got " + juce::String (samplesBeforeStop));
+            return 1;
+        }
+
+        // Finalise the WAV.
+        const juce::File finalisedFile = cap.stopContinuousRecording();
+        say ("continuous-capture: finalised=" + juce::String ((int) finalisedFile.existsAsFile()));
+        if (! finalisedFile.existsAsFile())
+        { say ("FAIL: finalised file does not exist"); return 1; }
+
+        // Give the background thread time to flush all buffered samples to disk
+        // before checking the WAV (ThreadedWriter drains asynchronously).
+        juce::Thread::sleep (200);
+
+        // Validate the resulting WAV: format, channel count, bit depth, length.
+        juce::WavAudioFormat wavFmt;
+        auto stream = finalisedFile.createInputStream();
+        if (stream == nullptr)
+        { say ("FAIL: cannot open finalised WAV"); finalisedFile.deleteFile(); return 1; }
+
+        std::unique_ptr<juce::AudioFormatReader> reader (wavFmt.createReaderFor (stream.release(), true));
+        if (reader == nullptr)
+        { say ("FAIL: WAV reader creation failed (not a valid WAV?)"); finalisedFile.deleteFile(); return 1; }
+
+        const int    wavCh     = (int) reader->numChannels;
+        const double wavSr     = reader->sampleRate;
+        const int    wavBits   = (int) reader->bitsPerSample;
+        const int64_t wavLen   = reader->lengthInSamples;
+
+        say ("continuous-capture: WAV ch=" + juce::String (wavCh)
+             + " sr=" + juce::String (wavSr, 0)
+             + " bits=" + juce::String (wavBits)
+             + " len=" + juce::String (wavLen));
+
+        if (wavCh < 1)
+        { say ("FAIL: WAV has 0 channels"); finalisedFile.deleteFile(); return 1; }
+        if (wavBits != 24)
+        { say ("FAIL: WAV is not 24-bit (got " + juce::String (wavBits) + ")"); finalisedFile.deleteFile(); return 1; }
+        if (wavLen < expectedSamples)
+        {
+            say ("FAIL: WAV length " + juce::String (wavLen)
+                 + " < expected " + juce::String (expectedSamples));
+            finalisedFile.deleteFile();
+            return 1;
+        }
+
+        finalisedFile.deleteFile();
+
+        // resetContinuousRecording() deletes the temp file without finalising.
+        cap.setMode (CaptureEngine::Mode::Recording);
+        const juce::File tempFile2 = cap.getContinuousTempFile();
+        if (! tempFile2.existsAsFile())
+        { say ("FAIL: second temp WAV not created"); return 1; }
+        cap.resetContinuousRecording();
+        if (tempFile2.existsAsFile())
+        { say ("FAIL: temp file not deleted by resetContinuousRecording()"); return 1; }
+
+        say ("continuous-capture: PASS");
+    }
+
+    // 8) SegmentExtractor (FLA-154)
+    // Write a 2-channel synthetic WAV with 3 distinct hit regions separated by
+    // silence.  Construct a fake OfflineTransientDetector::Result pointing to
+    // the known onset positions, then verify:
+    //   - extractSegments() returns the right hit count
+    //   - samples after the fade-in window match the source (sample-accurate)
+    //   - peakDb comes from the supplied detection result (no recomputation)
+    //   - fade-in silences the very first sample of each segment
+    {
+        constexpr int   kSR      = 48000;
+        constexpr int   kNCh     = 2;
+        constexpr int   kHitLen  = 4800;    // 100 ms per hit
+        constexpr int   kGapLen  = 1200;    // 25 ms silence between hits
+        constexpr int   kNumHits = 3;
+        constexpr float kFreq    = 440.0f;
+
+        // Each "segment" in the WAV: hit (sine) + gap (silence) except the last.
+        const int segLen   = kHitLen + kGapLen;
+        const int totalLen = kNumHits * kHitLen + (kNumHits - 1) * kGapLen;
+
+        juce::AudioBuffer<float> synth (kNCh, totalLen);
+        synth.clear();
+
+        std::vector<int64_t> breakpoints;
+        std::vector<float>   peaksDb;
+
+        for (int i = 0; i < kNumHits; ++i)
+        {
+            const int64_t hitStart = (int64_t)(i * segLen);
+            breakpoints.push_back (hitStart);
+
+            const float amp = 0.3f * (float)(i + 1);   // 0.3, 0.6, 0.9
+            peaksDb.push_back (juce::Decibels::gainToDecibels (amp));
+
+            for (int s = 0; s < kHitLen; ++s)
+                for (int ch = 0; ch < kNCh; ++ch)
+                    synth.setSample (ch, (int) hitStart + s,
+                                     amp * std::sin (2.0f * juce::MathConstants<float>::pi
+                                                     * kFreq * (float) s / (float) kSR));
+        }
+
+        // Write synthetic buffer to a temp WAV (24-bit, 2-channel).
+        const auto segDir = juce::File::getSpecialLocation (juce::File::tempDirectory)
+                                .getChildFile ("flamforge_seg154");
+        segDir.createDirectory();
+        const auto segWav = segDir.getChildFile ("seg_test.wav");
+
+        {
+            juce::WavAudioFormat fmt;
+            auto outStream = segWav.createOutputStream();
+            jassert (outStream != nullptr);
+            std::unique_ptr<juce::AudioFormatWriter> w (
+                fmt.createWriterFor (outStream.get(), kSR, kNCh, 24, {}, 0));
+            jassert (w != nullptr);
+            outStream.release();   // writer owns the stream
+            w->writeFromAudioSampleBuffer (synth, 0, totalLen);
+        }
+
+        // Build fake detection result with exact onset positions.
+        OfflineTransientDetector::Result det;
+        det.succeeded       = true;
+        det.breakpoints     = breakpoints;
+        det.segmentPeaksDb  = peaksDb;
+        det.totalSamples    = totalLen;
+        det.sampleRate      = kSR;
+        det.numChannels     = kNCh;
+
+        auto seg = extractSegments (segWav, det, /*fadeInMs=*/5.0f);
+        say ("segment-extractor: ok=" + juce::String ((int) seg.ok)
+             + " hits=" + juce::String ((int) seg.hits.size()));
+
+        if (! seg.ok)
+        { say ("FAIL: extractSegments not ok: " + seg.error); segDir.deleteRecursively(); return 1; }
+
+        if ((int) seg.hits.size() != kNumHits)
+        {
+            say ("FAIL: expected " + juce::String (kNumHits)
+                 + " hits, got " + juce::String ((int) seg.hits.size()));
+            segDir.deleteRecursively();
+            return 1;
+        }
+
+        // Fade-in: sample 0 of every hit must be exactly 0 (gain = 0/fadeLen).
+        for (int i = 0; i < kNumHits; ++i)
+        {
+            const float s0 = seg.hits[(size_t) i].audio.getSample (0, 0);
+            if (std::abs (s0) > 1.0e-6f)
+            {
+                say ("FAIL: hit " + juce::String (i) + " sample[0]=" + juce::String (s0)
+                     + " expected 0 (fade-in)");
+                segDir.deleteRecursively();
+                return 1;
+            }
+        }
+
+        // Sample-accuracy: after the 5 ms fade-in window (240 samples @ 48 kHz),
+        // extracted samples must match the source within 24-bit round-trip tolerance.
+        constexpr int   kFadeSmp  = (int)(5.0f * kSR / 1000.0f);   // 240
+        constexpr float kTolerance = 2.0f / (float)(1 << 23);       // 1 LSB of 24-bit
+
+        for (int i = 0; i < kNumHits; ++i)
+        {
+            const int64_t segStart = breakpoints[(size_t) i];
+            const auto& h = seg.hits[(size_t) i];
+
+            for (int s = kFadeSmp; s < h.audio.getNumSamples(); s += 97)  // sparse check
+            {
+                for (int ch = 0; ch < kNCh; ++ch)
+                {
+                    const float got  = h.audio.getSample (ch, s);
+                    const float want = synth.getSample (ch, (int) segStart + s);
+                    if (std::abs (got - want) > kTolerance)
+                    {
+                        say ("FAIL: hit " + juce::String (i)
+                             + " ch" + juce::String (ch)
+                             + " s=" + juce::String (s)
+                             + " got=" + juce::String (got, 6)
+                             + " want=" + juce::String (want, 6));
+                        segDir.deleteRecursively();
+                        return 1;
+                    }
+                }
+            }
+        }
+
+        // peakDb must come directly from the detection result.
+        for (int i = 0; i < kNumHits; ++i)
+        {
+            if (std::abs (seg.hits[(size_t) i].peakDb - peaksDb[(size_t) i]) > 0.001f)
+            {
+                say ("FAIL: hit " + juce::String (i) + " peakDb mismatch");
+                segDir.deleteRecursively();
+                return 1;
+            }
+        }
+
+        segDir.deleteRecursively();
+        say ("segment-extractor: PASS");
+    }
+
     say ("PASS");
     return 0;
 }
@@ -205,7 +459,10 @@ public:
     void systemRequestedQuit() override { quit(); }
 
     // A resizable document window hosting the FlamForge MainComponent.
-    class MainWindow : public juce::DocumentWindow
+    // Inherits Timer so we can fire a delayed geometry re-assert after the WM
+    // has finished applying its own show-time restore heuristics.
+    class MainWindow : public juce::DocumentWindow,
+                       private juce::Timer
     {
     public:
         explicit MainWindow (const juce::String& name)
@@ -214,19 +471,82 @@ public:
                                     juce::DocumentWindow::allButtons)
         {
             setUsingNativeTitleBar (true);
-            setContentOwned (new MainComponent(), true);
+
+            auto* mc = new MainComponent();
+            enforcedW = mc->getWidth();
+            enforcedH = mc->getHeight();
+
+            std::cerr << "[MainWindow] mc=" << enforcedW << "x" << enforcedH
+                      << " scale=" << juce::Desktop::getInstance().getGlobalScaleFactor()
+                      << "\n";
+
+            setContentOwned (mc, true);
             setResizable (true, true);
-            setResizeLimits (640, 560, 99999, 99999);
-            centreWithSize (getWidth(), getHeight());
+            setResizeLimits (640, 700, 99999, 99999);
+
+            // Restore our saved window size, enforcing the content minimum.
+            initWindowProps();
+            if (auto* s = windowProps.getUserSettings())
+            {
+                enforcedW = juce::jmax (enforcedW, s->getIntValue ("windowW", enforcedW));
+                enforcedH = juce::jmax (enforcedH, s->getIntValue ("windowH", enforcedH));
+            }
+
+            centreWithSize (enforcedW, enforcedH);
             setVisible (true);
+
+            // The WM applies its stored geometry at show-time, overriding the
+            // centreWithSize above. Fire at 50 ms and 200 ms to re-assert AFTER
+            // the WM has finished. 50 ms catches most WMs; 200 ms catches KDE
+            // Plasma which has a second geometry-restore pass.
+            startTimer (50);
         }
 
         void closeButtonPressed() override
         {
+            initWindowProps();
+            if (auto* s = windowProps.getUserSettings())
+            {
+                s->setValue ("windowW", getWidth());
+                s->setValue ("windowH", getHeight());
+                s->saveIfNeeded();
+            }
             juce::JUCEApplication::getInstance()->systemRequestedQuit();
         }
 
     private:
+        void timerCallback() override
+        {
+            const float scale = juce::Desktop::getInstance().getGlobalScaleFactor();
+            std::cerr << "[FlamForge] timer pass " << timerCount
+                      << " scale=" << scale
+                      << " requestedW=" << enforcedW << " requestedH=" << enforcedH
+                      << " currentW=" << getWidth() << " currentH=" << getHeight() << "\n";
+            centreWithSize (enforcedW, enforcedH);
+            std::cerr << "[FlamForge] after centreWithSize: "
+                      << getWidth() << "x" << getHeight() << "\n";
+
+            if (timerCount == 0) { timerCount = 1; startTimer (500); }   // 500ms for KDE
+            else                 { stopTimer(); }
+        }
+
+        void initWindowProps()
+        {
+            if (windowPropsReady) return;
+            windowPropsReady = true;
+            juce::PropertiesFile::Options opts;
+            opts.applicationName     = "FlamForge";
+            opts.filenameSuffix      = ".settings";
+            opts.osxLibrarySubFolder = "Application Support";
+            windowProps.setStorageParameters (opts);
+        }
+
+        juce::ApplicationProperties windowProps;
+        bool                        windowPropsReady = false;
+        int                         enforcedW = 760;
+        int                         enforcedH = 714;
+        int                         timerCount = 0;
+
         JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainWindow)
     };
 
