@@ -84,6 +84,11 @@ public:
     // Minimum sensible height so the waveform + controls are readable.
     static constexpr int kMinHeight = 140;
 
+    // Zoom control (zoomFactor 1.0 = full view, max ~32×).
+    // setZoom keeps the sample under centreXPixel fixed during the change.
+    void resetZoom();
+    void setZoom (float factor, float centreXPixel);
+
     // --- juce::Component --------------------------------------------------
     void paint (juce::Graphics& g) override;
     void resized() override;
@@ -91,6 +96,7 @@ public:
     void mouseDrag (const juce::MouseEvent& e) override;
     void mouseUp (const juce::MouseEvent& e) override;
     void mouseDoubleClick (const juce::MouseEvent& e) override;
+    void mouseWheelMove (const juce::MouseEvent& e, const juce::MouseWheelDetails& wheel) override;
 
 private:
     // -----------------------------------------------------------------------
@@ -119,8 +125,12 @@ private:
     // --- geometry ---------------------------------------------------------
     // Waveform drawing rectangle (below accordion button, with 2-px padding).
     juce::Rectangle<float> waveRect() const;
+    // Thin strip at the bottom of waveRect showing the minimap.
+    juce::Rectangle<float> minimapRect() const;
     float   sampleToX (int64_t s) const;
     int64_t xToSample (float x) const;
+    void    clampViewOffset();
+    void    paintMinimap (juce::Graphics& g);
 
     // --- interaction helpers ----------------------------------------------
     // Returns the breakpoint index whose marker is within kMarkerGrabPx of x,
@@ -154,6 +164,8 @@ private:
     static constexpr float kAccBtnH          = 22.0f; // height of the accordion toggle row
     static constexpr int   kLaneLabelW       = 52;    // px reserved for channel label
     static constexpr int   kSnapWindowSamples = 512;  // zero-crossing search radius
+    static constexpr float kMaxZoom          = 32.0f; // maximum zoom factor
+    static constexpr float kMinimapH         = 12.0f; // minimap strip height in px
 
     // -----------------------------------------------------------------------
     // Members
@@ -176,7 +188,16 @@ private:
     bool expanded          = false;
     bool snapZeroCrossing  = false;
 
-    // Drag state
+    // Zoom / pan state
+    float zoomFactor     = 1.0f;  // 1.0 = full view, >1.0 = zoomed in
+    float viewOffsetFrac = 0.0f;  // normalised left edge of visible window [0..1]
+
+    // Pan drag state (middle-button or spacebar + left-drag)
+    bool  panDragging            = false;
+    float panDragStartX          = 0.0f;
+    float panDragStartOffsetFrac = 0.0f;
+
+    // Breakpoint drag state
     int   draggingIdx  = -1;
     float dragStartX   = 0.0f;
     float dragStartY   = 0.0f;

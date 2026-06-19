@@ -122,6 +122,10 @@ void WaveformEditor::setSource (const juce::File& f, double sr, int numCh)
     numChannels = numCh;
     currentFile = f;
 
+    // Always reset zoom/pan so a new source starts at the full view.
+    zoomFactor     = 1.0f;
+    viewOffsetFrac = 0.0f;
+
     scanner.stopThread (2000);
     energyEnvelope.clear();
 
@@ -185,19 +189,68 @@ juce::Rectangle<float> WaveformEditor::waveRect() const
     return getLocalBounds().toFloat().withTrimmedTop (kAccBtnH).reduced (2.0f, 2.0f);
 }
 
+juce::Rectangle<float> WaveformEditor::minimapRect() const
+{
+    auto r = waveRect();
+    return r.removeFromBottom (kMinimapH);
+}
+
+// Both coordinate helpers account for the current zoom/pan state:
+//   visibleStart = viewOffsetFrac * totalSamples
+//   visibleEnd   = visibleStart + totalSamples / zoomFactor
+// Samples outside the visible window map to pixel positions outside waveRect —
+// they are naturally clipped by JUCE's painter clipping, so segment fills and
+// breakpoints outside the visible window simply do not appear.
 float WaveformEditor::sampleToX (int64_t s) const
 {
     if (totalSamples <= 0) return 0.0f;
-    const auto r = waveRect();
-    return r.getX() + (float) s / (float) totalSamples * r.getWidth();
+    const auto  r            = waveRect();
+    const float visibleFrac  = 1.0f / zoomFactor;
+    const float frac         = (float) s / (float) totalSamples;
+    return r.getX() + (frac - viewOffsetFrac) / visibleFrac * r.getWidth();
 }
 
 int64_t WaveformEditor::xToSample (float x) const
 {
     if (totalSamples <= 0) return 0;
-    const auto r = waveRect();
-    const float t = juce::jlimit (0.0f, 1.0f, (x - r.getX()) / r.getWidth());
-    return (int64_t) (t * (float) totalSamples);
+    const auto  r           = waveRect();
+    const float visibleFrac = 1.0f / zoomFactor;
+    const float t           = (x - r.getX()) / r.getWidth();   // 0..1 across visible window
+    const float sampleFrac  = juce::jlimit (0.0f, 1.0f, viewOffsetFrac + t * visibleFrac);
+    return (int64_t) (sampleFrac * (float) totalSamples);
+}
+
+void WaveformEditor::clampViewOffset()
+{
+    const float maxOffset = juce::jmax (0.0f, 1.0f - 1.0f / zoomFactor);
+    viewOffsetFrac = juce::jlimit (0.0f, maxOffset, viewOffsetFrac);
+}
+
+// ---------------------------------------------------------------------------
+// Zoom API
+// ---------------------------------------------------------------------------
+void WaveformEditor::resetZoom()
+{
+    zoomFactor     = 1.0f;
+    viewOffsetFrac = 0.0f;
+    repaint();
+}
+
+void WaveformEditor::setZoom (float factor, float centreXPixel)
+{
+    const float newZoom = juce::jlimit (1.0f, kMaxZoom, factor);
+    if (newZoom == zoomFactor) return;
+
+    const auto  r = waveRect();
+    // Compute the sample fraction currently under the cursor (pre-zoom).
+    const float relX              = centreXPixel - r.getX();
+    const float sampleFracAtCursor = viewOffsetFrac + (relX / r.getWidth()) * (1.0f / zoomFactor);
+
+    // Update zoom and reposition so the same sample fraction stays under the cursor.
+    zoomFactor     = newZoom;
+    viewOffsetFrac = sampleFracAtCursor - (relX / r.getWidth()) * (1.0f / zoomFactor);
+    clampViewOffset();
+    repaint();
 }
 
 // ---------------------------------------------------------------------------
@@ -307,6 +360,29 @@ void WaveformEditor::mouseDown (const juce::MouseEvent& e)
     const auto wr = waveRect();
     if (! wr.contains (e.position)) return;
 
+    // Minimap click → jump view (higher priority than breakpoint logic).
+    const auto mr = minimapRect();
+    if (mr.contains (e.position))
+    {
+        const float clickFrac  = (e.x - mr.getX()) / mr.getWidth();
+        const float halfWindow = 0.5f / zoomFactor;
+        viewOffsetFrac = juce::jlimit (0.0f,
+                                       juce::jmax (0.0f, 1.0f - 1.0f / zoomFactor),
+                                       clickFrac - halfWindow);
+        repaint();
+        return;
+    }
+
+    // Pan mode: middle button OR spacebar + left button.
+    const bool spaceDown = juce::KeyPress::isKeyCurrentlyDown (juce::KeyPress::spaceKey);
+    if (e.mods.isMiddleButtonDown() || (e.mods.isLeftButtonDown() && spaceDown))
+    {
+        panDragging            = true;
+        panDragStartX          = e.x;
+        panDragStartOffsetFrac = viewOffsetFrac;
+        return;
+    }
+
     if (e.mods.isRightButtonDown())
     {
         const int idx = findBreakpointNear (e.x);
@@ -329,6 +405,18 @@ void WaveformEditor::mouseDown (const juce::MouseEvent& e)
 
 void WaveformEditor::mouseDrag (const juce::MouseEvent& e)
 {
+    // Pan drag takes full priority over breakpoint operations.
+    if (panDragging)
+    {
+        const float dx = e.x - panDragStartX;
+        const auto  r  = waveRect();
+        // Dragging right moves the content right (shows earlier samples), so subtract.
+        viewOffsetFrac = panDragStartOffsetFrac - dx / r.getWidth() / zoomFactor;
+        clampViewOffset();
+        repaint();
+        return;
+    }
+
     if (draggingIdx >= 0)
     {
         // Vertical drag-off → mark for delete on release
@@ -363,6 +451,12 @@ void WaveformEditor::mouseUp (const juce::MouseEvent& e)
 {
     juce::ignoreUnused (e);
 
+    if (panDragging)
+    {
+        panDragging = false;
+        return;
+    }
+
     if (draggingIdx >= 0)
     {
         if (dragOffDelete)
@@ -381,9 +475,36 @@ void WaveformEditor::mouseUp (const juce::MouseEvent& e)
 
 void WaveformEditor::mouseDoubleClick (const juce::MouseEvent& e)
 {
+    // Double-click on the minimap resets zoom to 1×.
+    if (minimapRect().contains (e.position))
+    {
+        resetZoom();
+        return;
+    }
+
     const auto wr = waveRect();
     if (! wr.contains (e.position)) return;
     insertBreakpoint (xToSample (e.x));
+}
+
+void WaveformEditor::mouseWheelMove (const juce::MouseEvent& e,
+                                     const juce::MouseWheelDetails& wheel)
+{
+    const auto wr = waveRect();
+    if (! wr.contains (e.position)) return;
+
+    if (wheel.deltaY != 0.0f)
+    {
+        // Vertical scroll → zoom centred on cursor
+        setZoom (zoomFactor * (1.0f + wheel.deltaY * 0.5f), e.x);
+    }
+    else if (wheel.deltaX != 0.0f)
+    {
+        // Horizontal scroll (two-finger swipe on trackpads) → pan
+        viewOffsetFrac -= wheel.deltaX * (1.0f / zoomFactor) * 0.2f;
+        clampViewOffset();
+        repaint();
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -418,7 +539,9 @@ void WaveformEditor::paint (juce::Graphics& g)
         return;
     }
 
-    const double totalSec  = (double) totalSamples / sampleRate;
+    const double totalSec       = (double) totalSamples / sampleRate;
+    const double visibleStartSec = viewOffsetFrac * totalSec;
+    const double visibleEndSec   = visibleStartSec + totalSec / (double) zoomFactor;
     const int    numLanes  = (expanded && numChannels > 1) ? numChannels : 1;
     const float  laneH     = wr.getHeight() / (float) numLanes;
 
@@ -432,18 +555,19 @@ void WaveformEditor::paint (juce::Graphics& g)
         g.setColour (juce::Colour (0xff14171c));
         g.fillRect (laneR);
 
-        // Waveform (muted blue-grey; segment fills go on top)
+        // Waveform (muted blue-grey; segment fills go on top).
+        // Pass visibleStartSec/visibleEndSec so JUCE renders only the zoomed window.
         g.setColour (juce::Colour (0xff4a5568));
         const auto waveDrawR = laneR.reduced (0.0f, 2.0f).toNearestInt();
 
         if (expanded && numLanes > 1 && thumbnail.getNumChannels() > 0)
         {
             const int ch = juce::jlimit (0, thumbnail.getNumChannels() - 1, lane);
-            thumbnail.drawChannel (g, waveDrawR, 0.0, totalSec, ch, 1.0f);
+            thumbnail.drawChannel (g, waveDrawR, visibleStartSec, visibleEndSec, ch, 1.0f);
         }
         else
         {
-            thumbnail.drawChannels (g, waveDrawR, 0.0, totalSec, 1.0f);
+            thumbnail.drawChannels (g, waveDrawR, visibleStartSec, visibleEndSec, 1.0f);
         }
 
         // Channel label (expanded view only)
@@ -531,12 +655,61 @@ void WaveformEditor::paint (juce::Graphics& g)
                         juce::Justification::centredLeft);
         }
     }
+
+    // --- Minimap -----------------------------------------------------------
+    paintMinimap (g);
 }
 
 void WaveformEditor::resized()
 {
     expandBtn.setBounds (getLocalBounds().removeFromTop ((int) kAccBtnH)
                                          .withTrimmedRight (2));
+}
+
+// ---------------------------------------------------------------------------
+// Minimap
+// ---------------------------------------------------------------------------
+void WaveformEditor::paintMinimap (juce::Graphics& g)
+{
+    const auto mr = minimapRect();
+
+    // Dark background so the minimap is always readable over the waveform.
+    g.setColour (juce::Colour (0xff0a0c0f).withAlpha (0.88f));
+    g.fillRect (mr);
+
+    // Full-duration waveform thumbnail at reduced opacity.
+    if (thumbnail.getTotalLength() > 0.0)
+    {
+        const double totalSec = (double) totalSamples / sampleRate;
+        g.setColour (juce::Colour (0xff4a5568).withAlpha (0.55f));
+        thumbnail.drawChannels (g, mr.reduced (0.0f, 1.0f).toNearestInt(),
+                                0.0, totalSec, 1.0f);
+    }
+
+    // Highlight rect showing the current view window.
+    {
+        const float windowX = mr.getX() + viewOffsetFrac * mr.getWidth();
+        const float windowW = mr.getWidth() / zoomFactor;
+        g.setColour (juce::Colours::white.withAlpha (0.18f));
+        g.fillRect (juce::Rectangle<float> (windowX, mr.getY(), windowW, mr.getHeight()));
+        // Window border
+        g.setColour (juce::Colours::white.withAlpha (0.45f));
+        g.drawRect (juce::Rectangle<float> (windowX, mr.getY(), windowW, mr.getHeight()), 1.0f);
+    }
+
+    // Zoom level label (double-click minimap to reset).
+    if (zoomFactor > 1.01f)
+    {
+        g.setColour (juce::Colours::white.withAlpha (0.50f));
+        g.setFont (juce::Font (juce::FontOptions (8.5f)));
+        g.drawText (juce::String (zoomFactor, 1) + "\xc3\x97",   // UTF-8 ×
+                    mr.withTrimmedRight (2.0f),
+                    juce::Justification::centredRight);
+    }
+
+    // Top border to visually separate minimap from the waveform.
+    g.setColour (juce::Colour (0xff23272e));
+    g.fillRect (juce::Rectangle<float> (mr.getX(), mr.getY(), mr.getWidth(), 1.0f));
 }
 
 // ---------------------------------------------------------------------------
