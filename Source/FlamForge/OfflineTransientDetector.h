@@ -68,6 +68,10 @@ public:
         int          numChannels  = 0;
         bool         succeeded    = false;
         juce::String error;
+
+        // Diagnostics from the absolute energy gate (FLA-158 / D9).
+        float        noiseFloorDb = -100.0f; // estimated noise floor (dBFS)
+        float        gateDb       = -100.0f; // onset keep-threshold actually applied
     };
 
     using CompletionFn = std::function<void (Result)>;
@@ -98,6 +102,16 @@ public:
 
     bool isRunning() const { return isThreadRunning(); }
 
+    // --- shared onset gating (FLA-158 / D9) --------------------------------
+    // The absolute dBFS threshold a candidate onset must clear to be treated as
+    // a real strike, given an estimated noise floor. Single source of truth so
+    // the realtime estimator (FLA-157) gates identically. Pure, header-inline,
+    // RT-safe (no allocation) — safe to call from the audio thread.
+    static float onsetGateDb (float noiseFloorDb) noexcept
+    {
+        return juce::jmax (kAbsoluteFloorDb, noiseFloorDb + kNoiseMarginDb);
+    }
+
 private:
     // juce::Thread entry point — runs the detection algorithm.
     void run() override;
@@ -107,6 +121,20 @@ private:
     static constexpr int   kMedianHalfWindowFrames = 20;   // 41-frame (~0.22 s) sliding window
     static constexpr float kMinInterOnsetMs        = 80.0f; // suppress double-triggers < 80 ms
     static constexpr int   kBackSearchFrames       = 8;    // look-back window for onset alignment
+
+    // --- absolute energy gate (FLA-158 / D9) -------------------------------
+    // The relative ODF threshold alone over-segments: in the near-silent gaps
+    // between real strikes the dBFS envelope is jumpy and the local median
+    // threshold collapses, so room noise registers as onsets (94 hits from ~6
+    // strikes). The gate below is an *absolute* reference the noise floor
+    // cannot move: a detected onset is kept only if the segment it begins peaks
+    // above max(noiseFloor + margin, kAbsoluteFloorDb). Rejected onsets merge
+    // into the preceding (louder) segment, so surviving velocities are
+    // unchanged. These constants are the single source of truth for onset
+    // gating — the realtime estimator (FLA-157) consumes the same values.
+    static constexpr float kAbsoluteFloorDb   = -50.0f; // never treat sub-this as a hit
+    static constexpr float kNoiseMarginDb     = 12.0f;  // a hit must clear the noise floor by this
+    static constexpr float kNoiseFloorPercent = 0.10f;  // noise floor = 10th-percentile frame energy
 
     // --- helpers -----------------------------------------------------------
     static float ampToDb (float amp) noexcept;

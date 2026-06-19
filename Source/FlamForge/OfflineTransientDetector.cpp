@@ -154,6 +154,18 @@ void OfflineTransientDetector::run()
         return;
     }
 
+    // --- Noise-floor estimate (for the absolute energy gate, Phase 7) -------
+    // Low percentile of the per-frame energy envelope: a robust stand-in for
+    // the room/preamp noise floor that ignores the loud strike frames.
+    float noiseFloorDb = -100.0f;
+    {
+        std::vector<float> sorted (energyDb);
+        std::sort (sorted.begin(), sorted.end());
+        const int idx = juce::jlimit (0, N - 1, (int) std::floor (kNoiseFloorPercent * (N - 1)));
+        noiseFloorDb = sorted[(size_t) idx];
+    }
+    const float gateDb = onsetGateDb (noiseFloorDb);
+
     // --- Phase 2: onset detection function (ODF) ----------------------------
     // Half-wave rectified first difference of the dBFS envelope.
     // Positive values mark energy *increases*; decay tails are suppressed.
@@ -264,7 +276,35 @@ void OfflineTransientDetector::run()
         result.segmentPeaksDb[(size_t) seg] = ampToDb (segPeak);
     }
 
-    result.succeeded = true;
+    // --- Phase 7: absolute energy gate (FLA-158 / D9) -----------------------
+    // Drop onsets whose segment never rises above the gate — these are
+    // noise-floor flutter in the silent gaps between real strikes, not hits.
+    // A dropped onset's span merges into the preceding (louder) segment; that
+    // segment's peak is unchanged because the dropped span is, by definition,
+    // quieter than the gate (and the preceding segment is louder still), so we
+    // can prune both vectors in lockstep without re-measuring.
+    {
+        std::vector<int64_t> keptBreakpoints;
+        std::vector<float>   keptPeaks;
+        keptBreakpoints.reserve (breakpoints.size());
+        keptPeaks.reserve (breakpoints.size());
+
+        for (int seg = 0; seg < numSegments; ++seg)
+        {
+            if (result.segmentPeaksDb[(size_t) seg] >= gateDb)
+            {
+                keptBreakpoints.push_back (breakpoints[(size_t) seg]);
+                keptPeaks.push_back (result.segmentPeaksDb[(size_t) seg]);
+            }
+        }
+
+        breakpoints.swap (keptBreakpoints);
+        result.segmentPeaksDb.swap (keptPeaks);
+    }
+
+    result.noiseFloorDb = noiseFloorDb;
+    result.gateDb       = gateDb;
+    result.succeeded    = true;
     if (completionFn) completionFn (std::move (result));
 }
 
