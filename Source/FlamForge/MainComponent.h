@@ -707,10 +707,10 @@ public:
     WaveformEditor  waveEditor;  // C4 — interactive waveform + breakpoint editor
     std::function<void()> onRecord;
 
-    static constexpr int kRecordH = 56;
-    static constexpr int kMeterH  = 90;
-    static constexpr int kWaveH   = 200;  // waveform + breakpoint editor
-    static constexpr int kGap     = 12;
+    static constexpr int kRecordH   = 56;
+    static constexpr int kMeterH    = 90;
+    static constexpr int kProgressH = 150;  // header + bins + 3 stat rows
+    static constexpr int kGap       = 12;
 
     CapturePanel()
     {
@@ -747,11 +747,19 @@ public:
         b.removeFromTop (kGap);
         meterRow.setBounds (b.removeFromTop (kMeterH));
         b.removeFromTop (kGap);
-        waveEditor.setBounds (b.removeFromTop (juce::jmax (WaveformEditor::kMinHeight,
-                                                            juce::jmin (kWaveH, b.getHeight() / 2))));
-        b.removeFromTop (kGap);
-        if (b.getHeight() >= 40)
-            progress.setBounds (b);
+
+        // CaptureProgress pinned to bottom at a fixed height.
+        // Guard: never shrink waveform below its minimum usable size.
+        const int progH = juce::jmin (kProgressH,
+                                      juce::jmax (0, b.getHeight() - WaveformEditor::kMinHeight - kGap));
+        if (progH >= 40)
+        {
+            progress.setBounds (b.removeFromBottom (progH));
+            b.removeFromBottom (kGap);
+        }
+
+        // WaveformEditor gets all remaining height.
+        waveEditor.setBounds (b.withHeight (juce::jmax (WaveformEditor::kMinHeight, b.getHeight())));
     }
 
 private:
@@ -1105,9 +1113,10 @@ public:
         // Lower-bound elastic heights for initial window sizing.
         const int deviceH  = 160;
         const int headerH  = header.naturalHeight (deviceH);
-        const int captureH = CapturePanel::kRecordH + CapturePanel::kGap
-                           + CapturePanel::kMeterH   + CapturePanel::kGap
-                           + CapturePanel::kWaveH    + CapturePanel::kGap + 100;
+        const int captureH = CapturePanel::kRecordH      + CapturePanel::kGap
+                           + CapturePanel::kMeterH      + CapturePanel::kGap
+                           + WaveformEditor::kMinHeight + CapturePanel::kGap
+                           + CapturePanel::kProgressH;
         const int midH     = juce::jmax (captureH, 120);
         return 2 * kPad + headerH + kGap + midH;
     }
