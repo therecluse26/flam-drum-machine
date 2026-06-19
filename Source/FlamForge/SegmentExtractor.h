@@ -27,8 +27,8 @@ namespace flamforge
 // input channels are preserved intact in a single N-channel AudioBuffer per
 // hit, maintaining inter-mic phase coherence (invariant D3a of FLA-150).
 //
-// A short linear fade-in is applied at the leading edge of every cut to
-// suppress transient clicking from hard sample boundaries.
+// A short linear fade-in (default 1 ms) is applied at the leading edge of every cut
+// to suppress transient clicking from hard sample boundaries.
 //
 // hit.peakDb is taken directly from detection.segmentPeaksDb[i] (already
 // measured by the detector — no second pass, no requantization).
@@ -44,11 +44,15 @@ struct SegmentResult
 
 // Slice wavFile at the breakpoints in `detection` into per-hit CapturedHits.
 // disabledSegments: optional parallel vector; segments whose entry is `true` are skipped.
-// fadeInMs: duration of the linear fade-in applied at each cut edge (default 5 ms).
+// fadeInMsPerSeg:  per-segment fade-in duration in ms (fallback 1.0 ms — short enough
+//                  to be inaudible on transients while still suppressing cut-edge clicks).
+// fadeOutMsPerSeg: per-segment fade-out duration in ms (fallback: 5% of segment duration,
+//                  clamped [2 ms, 200 ms]).
 // Safe to call from any thread (reads the WAV file synchronously).
 SegmentResult extractSegments (const juce::File&                      wavFile,
                                const OfflineTransientDetector::Result& detection,
                                const std::vector<bool>&                disabledSegments = {},
-                               float                                   fadeInMs = 5.0f);
+                               const std::vector<float>&               fadeInMsPerSeg   = {},
+                               const std::vector<float>&               fadeOutMsPerSeg  = {});
 
 } // namespace flamforge

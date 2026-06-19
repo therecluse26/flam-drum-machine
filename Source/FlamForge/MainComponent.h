@@ -1112,6 +1112,13 @@ public:
             currentDisabledSegments = d;
         };
 
+        capturePanel.waveEditor.onFadesChanged = [this] (const std::vector<float>& fadeIn,
+                                                          const std::vector<float>& fadeOut)
+        {
+            currentFadeInMsPerSeg  = fadeIn;
+            currentFadeOutMsPerSeg = fadeOut;
+        };
+
         // WaveformEditor callback — user edited breakpoints; store and update status.
         // Full re-extraction deferred to export; velocities reflect new boundaries.
         capturePanel.waveEditor.onBreakpointsChanged =
@@ -1236,7 +1243,9 @@ public:
                 && lastDetectionResult.succeeded)
             {
                 auto seg = extractSegments (currentContinuousWav, lastDetectionResult,
-                                            currentDisabledSegments);
+                                            currentDisabledSegments,
+                                            currentFadeInMsPerSeg,
+                                            currentFadeOutMsPerSeg);
                 if (seg.ok)
                 {
                     auto& piece = captures[(size_t) currentPieceIndex];
@@ -1378,6 +1387,8 @@ private:
             currentContinuousWav = juce::File {};
         }
         currentDisabledSegments.clear();
+        currentFadeInMsPerSeg.clear();
+        currentFadeOutMsPerSeg.clear();
         lastDetectionResult = {};
         currentPieceIndex = juce::jlimit (0, (int) captures.size() - 1, index);
         refreshAll();
@@ -1411,6 +1422,8 @@ private:
         // from any prior take so the coverage meter and waveform editor start clean.
         provisionalPeaksDb.clear();
         currentDisabledSegments.clear();
+        currentFadeInMsPerSeg.clear();
+        currentFadeOutMsPerSeg.clear();
         lastDetectionResult = {};
 
         engine.setMode (CaptureEngine::Mode::Recording);
@@ -1505,9 +1518,11 @@ private:
                                                                   initVels, r.totalSamples);
                 }
 
-                // Store detection result and reset disabled state for this fresh take.
+                // Store detection result and reset per-segment state for this fresh take.
                 self->lastDetectionResult   = r;
                 self->currentDisabledSegments.clear();
+                self->currentFadeInMsPerSeg.clear();
+                self->currentFadeOutMsPerSeg.clear();
 
                 auto seg = extractSegments (tempWav, r);
 
@@ -1681,6 +1696,10 @@ private:
     // Per-segment disable state mirrored from WaveformEditor (FLA-171).
     // Parallel to breakpoints; cleared on new recording or piece switch.
     std::vector<bool>                  currentDisabledSegments;
+    // Per-segment fade values mirrored from WaveformEditor drag handles (FLA-173).
+    // Parallel to breakpoints; cleared on new recording or piece switch.
+    std::vector<float>                 currentFadeInMsPerSeg;
+    std::vector<float>                 currentFadeOutMsPerSeg;
     // Detection result from the last successful offline analysis (FLA-171).
     // Stored so disabled-segment filtering can re-extract at export time.
     OfflineTransientDetector::Result   lastDetectionResult;

@@ -160,6 +160,17 @@ void WaveformEditor::setBreakpoints (const std::vector<int64_t>& bps,
     segmentVelocities  = segVels;
     totalSamples       = totalSmp;
     segmentDisabled.assign (bps.size(), false);
+
+    // Initialise per-segment fade arrays with defaults.
+    segmentFadeInMs.assign (bps.size(), 1.0f);
+    segmentFadeOutMs.resize (bps.size());
+    for (int i = 0; i < (int) bps.size(); ++i)
+    {
+        const int64_t segEnd = (i + 1 < (int) bps.size()) ? bps[(size_t)(i + 1)] : totalSmp;
+        const double  durMs  = (double)(segEnd - bps[(size_t) i]) / sampleRate * 1000.0;
+        segmentFadeOutMs[(size_t) i] = (float) juce::jlimit (2.0, 200.0, durMs * 0.05);
+    }
+
     repaint();
 }
 
@@ -295,6 +306,14 @@ void WaveformEditor::insertBreakpoint (int64_t sample)
     segmentVelocities.insert (segmentVelocities.begin() + idx, 64);
     segmentDisabled.insert   (segmentDisabled.begin()   + idx, false);
 
+    // Fade defaults for the new segment (proportional fade-out based on new segment length).
+    const int64_t segEnd   = (idx + 1 < (int) breakpoints.size())
+                           ? breakpoints[(size_t)(idx + 1)] : totalSamples;
+    const double  durMs    = (double)(segEnd - sample) / sampleRate * 1000.0;
+    const float   defFadeOut = (float) juce::jlimit (2.0, 200.0, durMs * 0.05);
+    segmentFadeInMs.insert  (segmentFadeInMs.begin()  + idx, 1.0f);
+    segmentFadeOutMs.insert (segmentFadeOutMs.begin() + idx, defFadeOut);
+
     recomputeVelocities();
 }
 
@@ -308,8 +327,14 @@ void WaveformEditor::removeBreakpoint (int idx)
         segmentVelocities.erase (segmentVelocities.begin() + idx);
     if (idx < (int) segmentDisabled.size())
         segmentDisabled.erase (segmentDisabled.begin() + idx);
+    if (idx < (int) segmentFadeInMs.size())
+        segmentFadeInMs.erase (segmentFadeInMs.begin() + idx);
+    if (idx < (int) segmentFadeOutMs.size())
+        segmentFadeOutMs.erase (segmentFadeOutMs.begin() + idx);
     if (draggingIdx == idx)
         draggingIdx = -1;
+    if (dragFadeSeg == idx)
+        dragFadeSeg = -1;
     recomputeVelocities();
 }
 
@@ -430,19 +455,63 @@ void WaveformEditor::mouseDown (const juce::MouseEvent& e)
         return;
     }
 
-    // Plain left-click: drag breakpoint if near one; otherwise defer audition to
-    // mouseUp so a horizontal drag can be intercepted as a pan gesture first.
+    // Plain left-click: drag breakpoint if near one; otherwise check fade handles,
+    // then defer audition to mouseUp so a horizontal drag can become a pan first.
     draggingIdx   = findBreakpointNear (e.x);
     dragStartX    = e.x;
     dragStartY    = e.y;
     dragOffDelete = false;
+    dragFadeSeg   = -1;
 
     if (draggingIdx < 0)
     {
-        pendingAuditionSegIdx  = findSegmentAt (e.x);
-        pendingAuditionPanned  = false;
-        panDragStartX          = e.x;
-        panDragStartOffsetFrac = viewOffsetFrac;
+        // Priority 2: fade handle hit-test.
+        // Each handle center is at (x0 + fadeInPx, wr.getY() + kFadeHandleRadius)
+        // for fade-in, and (x1 - fadeOutPx, wr.getY() + kFadeHandleRadius) for fade-out.
+        const auto  wr      = waveRect();
+        const float hitRad  = (float) kFadeHandleRadius * 2.0f; // generous hit radius
+        const float hitRad2 = hitRad * hitRad;
+
+        for (int i = 0; i < (int) breakpoints.size() && dragFadeSeg < 0; ++i)
+        {
+            const int64_t segEnd = (i + 1 < (int) breakpoints.size())
+                                 ? breakpoints[(size_t)(i + 1)] : totalSamples;
+            const float x0 = sampleToX (breakpoints[i]);
+            const float x1 = sampleToX (segEnd);
+
+            // Fade-in handle
+            const float thisFadeInMs = (i < (int) segmentFadeInMs.size())
+                                     ? segmentFadeInMs[(size_t) i] : 1.0f;
+            const int   fadeInSmp = (int) std::round ((double) thisFadeInMs * sampleRate / 1000.0);
+            const float hiX = x0 + (sampleToX (breakpoints[i] + fadeInSmp) - x0);
+            const float hiY = wr.getY() + (float) kFadeHandleRadius;
+            {
+                const float dx = e.x - hiX, dy = e.y - hiY;
+                if (dx * dx + dy * dy <= hitRad2) { dragFadeSeg = i; dragFadeIsIn = true; }
+            }
+
+            // Fade-out handle
+            if (dragFadeSeg < 0)
+            {
+                const float thisFadeOutMs = (i < (int) segmentFadeOutMs.size())
+                                          ? segmentFadeOutMs[(size_t) i]
+                                          : 1.0f; // fallback ignored — array always populated
+                const int   fadeOutSmp = (int) std::round ((double) thisFadeOutMs * sampleRate / 1000.0);
+                const float hoX = x1 - (sampleToX (segEnd) - sampleToX (segEnd - fadeOutSmp));
+                const float hoY = wr.getY() + (float) kFadeHandleRadius;
+                const float dx = e.x - hoX, dy = e.y - hoY;
+                if (dx * dx + dy * dy <= hitRad2) { dragFadeSeg = i; dragFadeIsIn = false; }
+            }
+        }
+
+        if (dragFadeSeg < 0)
+        {
+            // Priority 4: defer audition (fires on mouseUp unless panned).
+            pendingAuditionSegIdx  = findSegmentAt (e.x);
+            pendingAuditionPanned  = false;
+            panDragStartX          = e.x;
+            panDragStartOffsetFrac = viewOffsetFrac;
+        }
     }
 }
 
@@ -470,6 +539,31 @@ void WaveformEditor::mouseDrag (const juce::MouseEvent& e)
             panDragging           = true;
             // panDragStartX / panDragStartOffsetFrac already set in mouseDown
         }
+        return;
+    }
+
+    // Fade handle drag: adjust per-segment fade-in or fade-out from current x position.
+    if (dragFadeSeg >= 0)
+    {
+        const int64_t bp     = breakpoints[(size_t) dragFadeSeg];
+        const int64_t segEnd = (dragFadeSeg + 1 < (int) breakpoints.size())
+                             ? breakpoints[(size_t)(dragFadeSeg + 1)] : totalSamples;
+
+        if (dragFadeIsIn)
+        {
+            const int64_t dragSmp   = juce::jlimit (bp, segEnd, xToSample (e.x));
+            const float   newFadeMs = (float)(dragSmp - bp) * 1000.0f / (float) sampleRate;
+            segmentFadeInMs[(size_t) dragFadeSeg] = juce::jlimit (0.5f, 500.0f, newFadeMs);
+        }
+        else
+        {
+            const int64_t dragSmp   = juce::jlimit (bp, segEnd, xToSample (e.x));
+            const float   newFadeMs = (float)(segEnd - dragSmp) * 1000.0f / (float) sampleRate;
+            segmentFadeOutMs[(size_t) dragFadeSeg] = juce::jlimit (0.5f, 500.0f, newFadeMs);
+        }
+
+        if (onFadesChanged) onFadesChanged (segmentFadeInMs, segmentFadeOutMs);
+        repaint();
         return;
     }
 
@@ -521,6 +615,12 @@ void WaveformEditor::mouseUp (const juce::MouseEvent& e)
     if (panDragging)
     {
         panDragging = false;
+        return;
+    }
+
+    if (dragFadeSeg >= 0)
+    {
+        dragFadeSeg = -1;
         return;
     }
 
@@ -669,7 +769,6 @@ void WaveformEditor::paint (juce::Graphics& g)
     g.drawRoundedRectangle (wr.expanded (1.0f), 2.0f, 1.0f);
 
     // --- Segment velocity fills + fade envelope overlay (drawn over waveform) ----
-    const int fadeInSmp = (int) std::round (5.0 * sampleRate / 1000.0);
     for (int i = 0; i < (int) breakpoints.size(); ++i)
     {
         const int64_t segEnd = (i + 1 < (int) breakpoints.size())
@@ -682,9 +781,13 @@ void WaveformEditor::paint (juce::Graphics& g)
             g.setColour (velocityColour (segmentVelocities[i]).withAlpha (0.20f));
             g.fillRect (juce::Rectangle<float> (x0, wr.getY(), x1 - x0, wr.getHeight()));
 
-            // Fade-in triangle (left edge): mirrors SegmentExtractor 5 ms fade-in.
-            const float fadeInPx = sampleToX (breakpoints[i] + fadeInSmp)
+            // Fade-in triangle (left edge): matches per-segment fade-in ms.
+            const float thisSegFadeInMs = (i < (int) segmentFadeInMs.size())
+                                        ? segmentFadeInMs[(size_t) i] : 1.0f;
+            const int   fadeInSmp = (int) std::round ((double) thisSegFadeInMs * sampleRate / 1000.0);
+            const float fadeInPx  = sampleToX (breakpoints[i] + fadeInSmp)
                                   - sampleToX (breakpoints[i]);
+
             juce::Path fadeInPath;
             fadeInPath.startNewSubPath (x0, wr.getBottom());
             fadeInPath.lineTo (x0, wr.getY());
@@ -693,10 +796,19 @@ void WaveformEditor::paint (juce::Graphics& g)
             g.setColour (velocityColour (segmentVelocities[i]).withAlpha (0.30f));
             g.fillPath (fadeInPath);
 
-            // Fade-out triangle (right edge): mirrors SegmentExtractor fade-out formula exactly.
-            const double segDurMs   = (double)(segEnd - breakpoints[i]) / sampleRate * 1000.0;
-            const double fadeOutMs  = juce::jlimit (2.0, 200.0, segDurMs * 0.05);
-            const int    fadeOutSmp = (int) std::round (fadeOutMs * sampleRate / 1000.0);
+            // Drag handle: small circle at the tip of the fade-in triangle.
+            const float hiX = x0 + fadeInPx;
+            const float hiY = wr.getY() + (float) kFadeHandleRadius;
+            g.setColour (velocityColour (segmentVelocities[i]).brighter (0.4f).withAlpha (0.75f));
+            g.fillEllipse (hiX - (float) kFadeHandleRadius, hiY - (float) kFadeHandleRadius,
+                           (float) kFadeHandleRadius * 2.0f, (float) kFadeHandleRadius * 2.0f);
+
+            // Fade-out triangle (right edge): matches per-segment fade-out ms.
+            const double segDurMs = (double)(segEnd - breakpoints[i]) / sampleRate * 1000.0;
+            const float  thisSegFadeOutMs = (i < (int) segmentFadeOutMs.size())
+                                          ? segmentFadeOutMs[(size_t) i]
+                                          : (float) juce::jlimit (2.0, 200.0, segDurMs * 0.05);
+            const int    fadeOutSmp = (int) std::round ((double) thisSegFadeOutMs * sampleRate / 1000.0);
             const float  fadeOutPx  = sampleToX (segEnd) - sampleToX (segEnd - fadeOutSmp);
 
             juce::Path fadeOutPath;
@@ -706,6 +818,13 @@ void WaveformEditor::paint (juce::Graphics& g)
             fadeOutPath.closeSubPath();
             g.setColour (velocityColour (segmentVelocities[i]).withAlpha (0.30f));
             g.fillPath (fadeOutPath);
+
+            // Drag handle: small circle at the tip of the fade-out triangle.
+            const float hoX = x1 - fadeOutPx;
+            const float hoY = wr.getY() + (float) kFadeHandleRadius;
+            g.setColour (velocityColour (segmentVelocities[i]).brighter (0.4f).withAlpha (0.75f));
+            g.fillEllipse (hoX - (float) kFadeHandleRadius, hoY - (float) kFadeHandleRadius,
+                           (float) kFadeHandleRadius * 2.0f, (float) kFadeHandleRadius * 2.0f);
         }
 
         if (i < (int) segmentDisabled.size() && segmentDisabled[i])

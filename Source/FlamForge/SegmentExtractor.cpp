@@ -59,7 +59,8 @@ static juce::AudioBuffer<float> readBlock (juce::AudioFormatReader& reader,
 SegmentResult extractSegments (const juce::File&                      wavFile,
                                const OfflineTransientDetector::Result& detection,
                                const std::vector<bool>&                disabledSegments,
-                               float                                   fadeInMs)
+                               const std::vector<float>&               fadeInMsPerSeg,
+                               const std::vector<float>&               fadeOutMsPerSeg)
 {
     SegmentResult out;
 
@@ -101,9 +102,6 @@ SegmentResult extractSegments (const juce::File&                      wavFile,
     const double  sampleRate   = reader->sampleRate;
     const int     numCh        = (int) reader->numChannels;
 
-    // Fade-in ramp length: 5 ms default, clamped to at most half the segment.
-    const int fadeInSmp = (int) std::round (fadeInMs * sampleRate / 1000.0);
-
     const auto& bp = detection.breakpoints;
     const int   n  = (int) bp.size();
 
@@ -131,8 +129,12 @@ SegmentResult extractSegments (const juce::File&                      wavFile,
             return out;
         }
 
+        // Per-segment fade-in; fallback 1 ms (inaudible on transients, suppresses click).
+        const float segFadeInMs = (i < (int) fadeInMsPerSeg.size())
+                                ? fadeInMsPerSeg[(size_t) i] : 1.0f;
+        const int fadeInSmp = (int) std::round ((double) segFadeInMs * sampleRate / 1000.0);
+
         // Linear fade-in: 0 → 1 over the first fadeInSmp samples.
-        // Suppresses transient clicking from the hard cut boundary.
         const int fade = juce::jmin (fadeInSmp, safeLen);
         for (int s = 0; s < fade; ++s)
         {
@@ -141,9 +143,11 @@ SegmentResult extractSegments (const juce::File&                      wavFile,
                 buf.setSample (ch, s, buf.getSample (ch, s) * g);
         }
 
-        // Proportional fade-out: 5% of segment duration, clamped [2 ms, 200 ms].
-        const double segDurMs   = (double) safeLen / sampleRate * 1000.0;
-        const double fadeOutMs  = juce::jlimit (2.0, 200.0, segDurMs * 0.05);
+        // Per-segment fade-out; fallback proportional (5% of duration, clamped [2 ms, 200 ms]).
+        const double segDurMs = (double) safeLen / sampleRate * 1000.0;
+        const double fadeOutMs = (i < (int) fadeOutMsPerSeg.size())
+                               ? (double) fadeOutMsPerSeg[(size_t) i]
+                               : juce::jlimit (2.0, 200.0, segDurMs * 0.05);
         const int    fadeOutSmp = (int) std::round (fadeOutMs * sampleRate / 1000.0);
         // Ensure fade-out does not overlap fade-in region.
         const int fadeOut = juce::jmin (fadeOutSmp, safeLen - fade);

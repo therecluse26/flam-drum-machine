@@ -62,6 +62,10 @@ public:
     // Fired when a segment's disabled state changes (right-click on segment body).
     std::function<void (const std::vector<bool>& disabled)> onDisabledChanged;
 
+    // Fired when the user drags a fade handle, with updated per-segment ms values.
+    std::function<void (const std::vector<float>& fadeInMs,
+                        const std::vector<float>& fadeOutMs)> onFadesChanged;
+
     WaveformEditor();
     ~WaveformEditor() override;
 
@@ -177,6 +181,7 @@ private:
     // -----------------------------------------------------------------------
     static constexpr int   kHop              = 256;   // matches OfflineTransientDetector
     static constexpr float kMarkerGrabPx     = 8.0f;  // ±px from line that counts as grab
+    static constexpr int   kFadeHandleRadius = 6;     // px radius of fade-handle circle
     static constexpr float kDeleteDragOffPx  = 40.0f; // vertical drag-off triggers delete
     static constexpr float kAccBtnH          = 22.0f; // height of the accordion toggle row
     static constexpr int   kLaneLabelW       = 52;    // px reserved for channel label
@@ -197,6 +202,8 @@ private:
     std::vector<float>   segmentPeaksDb;    // always same size as breakpoints
     std::vector<int>     segmentVelocities; // always same size as breakpoints
     std::vector<bool>    segmentDisabled;   // always same size as breakpoints
+    std::vector<float>   segmentFadeInMs;   // per-segment fade-in ms; always same size as breakpoints
+    std::vector<float>   segmentFadeOutMs;  // per-segment fade-out ms; always same size as breakpoints
     int64_t              totalSamples = 0;
     double               sampleRate   = 48000.0;
     int                  numChannels  = 1;
@@ -225,6 +232,10 @@ private:
     float dragStartX   = 0.0f;
     float dragStartY   = 0.0f;
     bool  dragOffDelete = false;
+
+    // Fade handle drag state (-1 = not dragging; dragFadeIsIn distinguishes in vs out)
+    int   dragFadeSeg  = -1;
+    bool  dragFadeIsIn = true;
 
     juce::TextButton expandBtn;
 
