@@ -120,7 +120,8 @@ private:
     static constexpr int   kHopSize               = 256;   // energy frame in samples
     static constexpr int   kMedianHalfWindowFrames = 20;   // 41-frame (~0.22 s) sliding window
     static constexpr float kMinInterOnsetMs        = 80.0f; // suppress double-triggers < 80 ms
-    static constexpr int   kBackSearchFrames       = 8;    // look-back window for onset alignment
+    static constexpr int   kBackSearchFrames       = 40;   // ≈213 ms at 48 kHz — covers slow attacks
+    static constexpr float kOnsetRiseDb            = 6.0f; // dB above noise floor = "signal has started"
 
     // --- absolute energy gate (FLA-158 / D9) -------------------------------
     // The relative ODF threshold alone over-segments: in the near-silent gaps

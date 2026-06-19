@@ -211,23 +211,49 @@ void OfflineTransientDetector::run()
     }
 
     // --- Phase 5: onset back-search -----------------------------------------
-    // Walk backward from each ODF peak to find the local energy minimum, which
-    // marks the true onset frame (the drum stick impact start, not the peak).
+    // Two-pass search walking backward up to kBackSearchFrames (≈213 ms) from
+    // each ODF peak to align the breakpoint with the true start of energy rise.
+    //
+    // Pass 1 (primary): find the last "quiet" frame whose energy is below
+    //   noiseFloor + kOnsetRiseDb — the onset begins at j+1.  Works for both
+    //   sharp transients (1-2 frames) and slow attacks (floor tom, bass drum).
+    //
+    // Pass 2 (fallback): if no quiet frame is found (previous hit still loud
+    //   throughout the window), use the minimum-energy frame — identical to the
+    //   previous behaviour but over the extended 213 ms window.
 
     auto& breakpoints = result.breakpoints;
     breakpoints.reserve (peakFrames.size());
 
+    const float onsetThreshDb = noiseFloorDb + kOnsetRiseDb;
+
     for (int peakFrame : peakFrames)
     {
-        int   onsetFrame = peakFrame;
-        float minEnergy  = energyDb[(size_t) peakFrame];
+        int  onsetFrame = peakFrame;
+        bool foundQuiet = false;
 
+        // Pass 1: last frame below the onset threshold = true pre-onset silence
         for (int j = peakFrame - 1; j >= std::max (0, peakFrame - kBackSearchFrames); --j)
         {
-            if (energyDb[(size_t) j] < minEnergy)
+            if (energyDb[(size_t) j] < onsetThreshDb)
             {
-                minEnergy  = energyDb[(size_t) j];
-                onsetFrame = j + 1; // onset = first frame after local minimum
+                onsetFrame = j + 1;
+                foundQuiet = true;
+                break;
+            }
+        }
+
+        // Pass 2: no quiet frame found — fall back to minimum-energy criterion
+        if (! foundQuiet)
+        {
+            float minEnergy = energyDb[(size_t) peakFrame];
+            for (int j = peakFrame - 1; j >= std::max (0, peakFrame - kBackSearchFrames); --j)
+            {
+                if (energyDb[(size_t) j] < minEnergy)
+                {
+                    minEnergy  = energyDb[(size_t) j];
+                    onsetFrame = j + 1;
+                }
             }
         }
 
