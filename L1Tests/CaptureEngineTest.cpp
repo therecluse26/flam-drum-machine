@@ -41,29 +41,37 @@ public:
 
     void runTest() override
     {
-        beginTest ("six strikes emit six realtime onset events with correct peaks");
+        beginTest ("six strikes over a LOUD noise floor still emit six onsets");
 
         flamforge::CaptureEngine eng;
-        eng.audioDeviceAboutToStart (nullptr); // 48 kHz, 1 ch, release window set
+        eng.audioDeviceAboutToStart (nullptr); // 48 kHz, 1 ch, onset windows set
         eng.setMode (flamforge::CaptureEngine::Mode::Recording);
 
         constexpr int   kBlock     = 512;
         constexpr int   kNumHits   = 6;
-        constexpr float kHitAmp    = 0.5f;   // ~ -6 dBFS, above the -45 arm floor
-        constexpr int   kLoudBlks  = 4;      // strike body
-        constexpr int   kQuietBlks = 16;     // > 120 ms release at 48 kHz / 512
+        constexpr float kHitAmp    = 0.5f;    // ~ -6 dBFS strikes
+        // Noise floor ~ -42 dBFS — deliberately ABOVE the old -45 dBFS arm
+        // threshold. The previous level-gate detector never "released" here and
+        // emitted ZERO events (the real-app bug, FLA-150). The rise-based
+        // detector must still find every strike.
+        constexpr float kNoiseAmp  = 0.0079f; // ~ -42 dBFS
+        constexpr int   kLoudBlks  = 4;       // strike body
+        constexpr int   kQuietBlks = 16;      // gap (noise) between strikes
+
+        // Lead-in noise so the detector is primed at the noise floor, not silence.
+        for (int i = 0; i < 6; ++i) feedBlock (eng, kNoiseAmp, kBlock);
 
         for (int h = 0; h < kNumHits; ++h)
         {
-            for (int i = 0; i < kLoudBlks;  ++i) feedBlock (eng, kHitAmp, kBlock);
-            for (int i = 0; i < kQuietBlks; ++i) feedBlock (eng, 0.0f,    kBlock);
+            for (int i = 0; i < kLoudBlks;  ++i) feedBlock (eng, kHitAmp,   kBlock);
+            for (int i = 0; i < kQuietBlks; ++i) feedBlock (eng, kNoiseAmp, kBlock);
         }
 
         flamforge::OnsetEvent events[64];
         const int got = eng.drainOnsets (events, 64);
 
-        logMessage ("drained " + juce::String (got) + " onset events (expected "
-                    + juce::String (kNumHits) + ")");
+        logMessage ("drained " + juce::String (got) + " onset events over a -42 dBFS"
+                    + " noise floor (expected " + juce::String (kNumHits) + ")");
 
         expectEquals (got, kNumHits, "wrong number of realtime onset events");
 

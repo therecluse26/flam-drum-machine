@@ -118,6 +118,10 @@ void CaptureEngine::audioDeviceAboutToStart (juce::AudioIODevice* device)
     activeChannels.store (numChannels, std::memory_order_relaxed);
     releaseSamples = (int) std::ceil (kReleaseMs * 0.001 * sampleRate);
 
+    // Realtime onset estimator windows, in samples at the current rate.
+    rtRefractorySamples = juce::jmax (1, (int) std::ceil (kRefractoryMs * 0.001 * sampleRate));
+    rtPeakHoldSamples   = juce::jmax (1, (int) std::ceil (kPeakHoldMs   * 0.001 * sampleRate));
+
     calibArmed     = false;
     calibRunPeakDb = -100.0f;
     calibSilence   = 0;
@@ -181,13 +185,17 @@ void CaptureEngine::startContinuousRecording()
 
     // Reset the realtime onset estimator for the new take. The FIFO is drained
     // and the audio-thread tracking state cleared before continuousWriterPtr is
-    // published, so the audio thread starts clean.
+    // published, so the audio thread starts clean. rtLastOnsetSample starts well
+    // below 0 so the very first strike is never suppressed by the refractory.
     onsetFifo.reset();
-    rtOnsetArmed   = false;
-    rtOnsetPeakDb  = -100.0f;
-    rtOnsetSilence = 0;
-    rtOnsetStart   = 0;
-    rtSamplePos    = 0;
+    rtPrimed          = false;
+    rtPrevBlkDb       = -100.0f;
+    rtOnsetHold       = false;
+    rtOnsetPeakDb     = -100.0f;
+    rtOnsetHoldLeft   = 0;
+    rtOnsetStart      = 0;
+    rtLastOnsetSample = -(int64_t) rtRefractorySamples - 1;
+    rtSamplePos       = 0;
 
     if (numChannels <= 0)
         return;
@@ -334,36 +342,43 @@ void CaptureEngine::audioDeviceIOCallbackWithContext (const float* const* inputC
     }
 
     // --- realtime onset estimator (advisory; feeds the live coverage meter) -
-    // Detect each strike from the block-peak envelope and emit one OnsetEvent
-    // per strike, on decay. RT-safe: reads only blkDb, pushes a 16-byte event
+    // Rise-based: a strike is a sharp jump in the block-peak envelope, which the
+    // noise floor cannot sustain — so this fires regardless of how loud the room
+    // is. On onset we peak-hold briefly to capture the true strike level, then
+    // emit one OnsetEvent. RT-safe: reads only blkDb, pushes a 16-byte event
     // into a lock-free FIFO — never copies, windows, or splits audio. Runs
     // before the writer push so it ticks even if the writer is momentarily null.
     {
-        if (blkDb > kOnsetArmDb)
+        if (rtPrimed && ! rtOnsetHold)
         {
-            if (! rtOnsetArmed)
+            // Looking for a strike: a sharp rise above the previous block.
+            const float rise = blkDb - rtPrevBlkDb;
+            if (rise >= kOnsetRiseDb
+                && blkDb >= kOnsetFloorDb
+                && (rtSamplePos - rtLastOnsetSample) >= rtRefractorySamples)
             {
-                rtOnsetArmed  = true;
-                rtOnsetStart  = rtSamplePos;
-                rtOnsetPeakDb = blkDb;
+                rtOnsetHold     = true;
+                rtOnsetStart    = rtSamplePos;
+                rtOnsetPeakDb   = blkDb;
+                rtOnsetHoldLeft = rtPeakHoldSamples;
             }
-            else
-            {
-                rtOnsetPeakDb = juce::jmax (rtOnsetPeakDb, blkDb);
-            }
-            rtOnsetSilence = 0;
         }
-        else if (rtOnsetArmed)
+        else if (rtOnsetHold)
         {
-            rtOnsetSilence += numSamples;
-            if (rtOnsetSilence >= releaseSamples)
+            // Capturing the strike peak, then emit.
+            rtOnsetPeakDb   = juce::jmax (rtOnsetPeakDb, blkDb);
+            rtOnsetHoldLeft -= numSamples;
+            if (rtOnsetHoldLeft <= 0)
             {
                 pushOnset (rtOnsetStart, rtOnsetPeakDb);
-                rtOnsetArmed   = false;
-                rtOnsetPeakDb  = -100.0f;
-                rtOnsetSilence = 0;
+                rtLastOnsetSample = rtOnsetStart;
+                rtOnsetHold       = false;
+                rtOnsetPeakDb     = -100.0f;
             }
         }
+
+        rtPrimed     = true;     // first block only seeds rtPrevBlkDb (no rise)
+        rtPrevBlkDb  = blkDb;
         rtSamplePos += numSamples;
     }
 

@@ -113,13 +113,21 @@ private:
     static constexpr float kCalibrateDb = -45.0f; // "real hit" floor for calibration
     static constexpr double kReleaseMs  = 120.0;   // calibration silence threshold
 
-    // Realtime onset estimator (FLA-157 / D10). A strike "arms" when the block
-    // peak clears kOnsetArmDb (the same -45 dBFS "real hit" floor calibration
-    // uses) and is emitted once it decays for kReleaseMs. The FIFO is sized far
-    // above the strike rate any human can produce; on overflow events are
-    // dropped (advisory meter, not the authoritative path).
-    static constexpr float kOnsetArmDb   = -45.0f;
-    static constexpr int   kOnsetFifoCap = 512;
+    // Realtime onset estimator (FLA-157 / D10). Transient/rise based, NOT a
+    // fixed level gate: a strike is detected when the block-peak dBFS jumps by
+    // at least kOnsetRiseDb above the previous block (and clears an absolute
+    // floor). This is robust to the noise floor — a fixed "arm above X then
+    // wait for silence" scheme emits nothing when the mic noise floor sits
+    // above X (it never "releases"), which is exactly why the meter stayed
+    // dead on real input. After an onset we peak-hold for kPeakHoldMs to
+    // capture the true strike peak, then emit; kRefractoryMs suppresses
+    // re-triggers on the same hit. The FIFO is sized far above any human strike
+    // rate; on overflow events are dropped (advisory meter, not authoritative).
+    static constexpr float  kOnsetRiseDb    = 6.0f;   // min block-to-block dB jump
+    static constexpr float  kOnsetFloorDb   = -55.0f; // ignore rises below this
+    static constexpr double kRefractoryMs   = 70.0;   // min spacing between onsets
+    static constexpr double kPeakHoldMs     = 35.0;   // peak-capture window after onset
+    static constexpr int    kOnsetFifoCap   = 512;
 
     // --- helpers -----------------------------------------------------------
     float blockPeakDb (const float* const* in, int numCh, int numSamples) const;
@@ -184,13 +192,18 @@ private:
     juce::AbstractFifo            onsetFifo { kOnsetFifoCap };
     std::array<OnsetEvent, kOnsetFifoCap> onsetBuf {};
 
-    // Audio-thread onset tracking (Recording mode only). Mirrors the calibrate
-    // arm/peak/release pattern; rtSamplePos is the running sample clock.
-    bool    rtOnsetArmed   = false;
-    float   rtOnsetPeakDb  = -100.0f;
-    int     rtOnsetSilence = 0;
-    int64_t rtOnsetStart   = 0;
-    int64_t rtSamplePos    = 0;
+    // Audio-thread onset tracking (Recording mode only). Rise-based detector
+    // with a peak-hold window; rtSamplePos is the running sample clock.
+    bool    rtPrimed           = false;   // first Recording block seeds rtPrevBlkDb
+    float   rtPrevBlkDb        = -100.0f; // previous block peak (for the rise test)
+    bool    rtOnsetHold        = false;   // inside the peak-hold window
+    float   rtOnsetPeakDb      = -100.0f; // peak captured since the onset
+    int     rtOnsetHoldLeft    = 0;       // samples remaining in the hold window
+    int64_t rtOnsetStart       = 0;       // sample pos of the current onset
+    int64_t rtLastOnsetSample  = -1;      // sample pos of the last emitted onset
+    int64_t rtSamplePos        = 0;       // running sample clock since record start
+    int     rtRefractorySamples = 3360;   // set from sample rate in aboutToStart
+    int     rtPeakHoldSamples   = 1680;   // set from sample rate in aboutToStart
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (CaptureEngine)
 };
