@@ -124,6 +124,13 @@ public:
                                                          .withMultipliedBrightness (0.28f);
                 g.setColour (c);
                 g.fillRoundedRectangle (bin, 2.0f);
+
+                if (n > 0 && binW > 14.0f)
+                {
+                    g.setColour (juce::Colours::white.withAlpha (n >= 6 ? 0.85f : 0.70f));
+                    g.setFont (juce::Font (juce::FontOptions (9.5f)));
+                    g.drawText (juce::String (n), bin, juce::Justification::centred, false);
+                }
             }
 
             if (hitsCount == 0)
