@@ -27,6 +27,20 @@ struct CapturedHit
 };
 
 // ---------------------------------------------------------------------------
+// OnsetEvent — one realtime strike estimate, lifted off the audio thread via a
+// lock-free FIFO (FLA-157 / D10). It carries no audio: just where the strike
+// began and how loud it peaked. The message thread maps `peakDb` to a velocity
+// bin to drive the live Velocity Coverage meter while the player is recording.
+// This is advisory/provisional — authoritative velocities come from the offline
+// detector once recording stops.
+// ---------------------------------------------------------------------------
+struct OnsetEvent
+{
+    int64_t samplePos = 0;        // strike onset, in samples from recording start
+    float   peakDb     = -100.0f; // loudest block dBFS across the strike
+};
+
+// ---------------------------------------------------------------------------
 // Calibration — maps a measured peak (dBFS) to a MIDI velocity (1..127).
 //
 // `softestDb` is the player's quietest deliberate hit, `loudestDb` the hardest.

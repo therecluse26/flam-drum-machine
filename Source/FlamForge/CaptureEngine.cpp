@@ -148,9 +148,46 @@ float CaptureEngine::blockPeakDb (const float* const* in, int numCh, int numSamp
     return ampToDb (peak);
 }
 
+// --- realtime onset FIFO ---------------------------------------------------
+
+void CaptureEngine::pushOnset (int64_t samplePos, float peakDb) noexcept
+{
+    int s1, n1, s2, n2;
+    onsetFifo.prepareToWrite (1, s1, n1, s2, n2);
+    if (n1 > 0)      onsetBuf[(size_t) s1] = { samplePos, peakDb };
+    else if (n2 > 0) onsetBuf[(size_t) s2] = { samplePos, peakDb };
+    onsetFifo.finishedWrite (n1 + n2 >= 1 ? 1 : 0); // 0 if full → drop
+}
+
+int CaptureEngine::drainOnsets (OnsetEvent* dst, int maxCount) noexcept
+{
+    if (dst == nullptr || maxCount <= 0)
+        return 0;
+
+    int s1, n1, s2, n2;
+    const int want = juce::jmin (maxCount, onsetFifo.getNumReady());
+    onsetFifo.prepareToRead (want, s1, n1, s2, n2);
+
+    int k = 0;
+    for (int i = 0; i < n1; ++i) dst[k++] = onsetBuf[(size_t) (s1 + i)];
+    for (int i = 0; i < n2; ++i) dst[k++] = onsetBuf[(size_t) (s2 + i)];
+    onsetFifo.finishedRead (n1 + n2);
+    return k;
+}
+
 void CaptureEngine::startContinuousRecording()
 {
     stopAndFlushWriter (true); // discard any previous take
+
+    // Reset the realtime onset estimator for the new take. The FIFO is drained
+    // and the audio-thread tracking state cleared before continuousWriterPtr is
+    // published, so the audio thread starts clean.
+    onsetFifo.reset();
+    rtOnsetArmed   = false;
+    rtOnsetPeakDb  = -100.0f;
+    rtOnsetSilence = 0;
+    rtOnsetStart   = 0;
+    rtSamplePos    = 0;
 
     if (numChannels <= 0)
         return;
@@ -294,6 +331,40 @@ void CaptureEngine::audioDeviceIOCallbackWithContext (const float* const* inputC
             }
         }
         return;
+    }
+
+    // --- realtime onset estimator (advisory; feeds the live coverage meter) -
+    // Detect each strike from the block-peak envelope and emit one OnsetEvent
+    // per strike, on decay. RT-safe: reads only blkDb, pushes a 16-byte event
+    // into a lock-free FIFO — never copies, windows, or splits audio. Runs
+    // before the writer push so it ticks even if the writer is momentarily null.
+    {
+        if (blkDb > kOnsetArmDb)
+        {
+            if (! rtOnsetArmed)
+            {
+                rtOnsetArmed  = true;
+                rtOnsetStart  = rtSamplePos;
+                rtOnsetPeakDb = blkDb;
+            }
+            else
+            {
+                rtOnsetPeakDb = juce::jmax (rtOnsetPeakDb, blkDb);
+            }
+            rtOnsetSilence = 0;
+        }
+        else if (rtOnsetArmed)
+        {
+            rtOnsetSilence += numSamples;
+            if (rtOnsetSilence >= releaseSamples)
+            {
+                pushOnset (rtOnsetStart, rtOnsetPeakDb);
+                rtOnsetArmed   = false;
+                rtOnsetPeakDb  = -100.0f;
+                rtOnsetSilence = 0;
+            }
+        }
+        rtSamplePos += numSamples;
     }
 
     // --- Recording: continuous write via lock-free ring buffer -------------

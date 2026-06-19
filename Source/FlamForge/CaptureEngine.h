@@ -70,6 +70,14 @@ public:
     // Legacy stub — returns empty. Kept for code compiled against old API.
     std::vector<CapturedHit> drainNewHits() { return {}; }
 
+    // --- realtime onset estimator (FLA-157 / D10) --------------------------
+    // While Recording, the audio thread detects each strike and pushes a tiny
+    // OnsetEvent into a lock-free FIFO (no alloc / lock / I/O). Drain on the
+    // message thread (e.g. from a 30 Hz timer) to drive the live coverage
+    // meter. Copies up to maxCount events into dst and returns how many were
+    // written. Advisory only — never windows, copies, or splits audio.
+    int drainOnsets (OnsetEvent* dst, int maxCount) noexcept;
+
     // --- continuous-capture API (Recording mode) ----------------------------
 
     // Path to the active temp WAV being written. Invalid File() when idle.
@@ -105,8 +113,20 @@ private:
     static constexpr float kCalibrateDb = -45.0f; // "real hit" floor for calibration
     static constexpr double kReleaseMs  = 120.0;   // calibration silence threshold
 
+    // Realtime onset estimator (FLA-157 / D10). A strike "arms" when the block
+    // peak clears kOnsetArmDb (the same -45 dBFS "real hit" floor calibration
+    // uses) and is emitted once it decays for kReleaseMs. The FIFO is sized far
+    // above the strike rate any human can produce; on overflow events are
+    // dropped (advisory meter, not the authoritative path).
+    static constexpr float kOnsetArmDb   = -45.0f;
+    static constexpr int   kOnsetFifoCap = 512;
+
     // --- helpers -----------------------------------------------------------
     float blockPeakDb (const float* const* in, int numCh, int numSamples) const;
+
+    // Push one realtime onset event into the lock-free FIFO. Audio-thread only;
+    // no allocation. Silently drops if the FIFO is full.
+    void pushOnset (int64_t samplePos, float peakDb) noexcept;
 
     // Internal: stop and flush the writer. If deleteFile=true, removes the temp
     // WAV. Returns the file path regardless (caller may ignore it).
@@ -158,6 +178,19 @@ private:
 
     // Incremented on audio thread; read on message thread.
     std::atomic<int64_t> continuousRecordedSamples { 0 };
+
+    // --- realtime onset estimator state ------------------------------------
+    // FIFO: audio thread (producer) → message thread (consumer), single each.
+    juce::AbstractFifo            onsetFifo { kOnsetFifoCap };
+    std::array<OnsetEvent, kOnsetFifoCap> onsetBuf {};
+
+    // Audio-thread onset tracking (Recording mode only). Mirrors the calibrate
+    // arm/peak/release pattern; rtSamplePos is the running sample clock.
+    bool    rtOnsetArmed   = false;
+    float   rtOnsetPeakDb  = -100.0f;
+    int     rtOnsetSilence = 0;
+    int64_t rtOnsetStart   = 0;
+    int64_t rtSamplePos    = 0;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (CaptureEngine)
 };

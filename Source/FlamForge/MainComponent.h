@@ -1298,6 +1298,10 @@ private:
             currentContinuousWav = juce::File {};
         }
 
+        // Fresh take: clear provisional realtime estimates from any prior take
+        // so the live coverage meter starts empty.
+        provisionalPeaksDb.clear();
+
         engine.setMode (CaptureEngine::Mode::Recording);
         capturePanel.setRecordingState (true);
         setStatus ("Recording \"" + currentPiece().name + "\" - play it soft to hard.");
@@ -1405,6 +1409,10 @@ private:
                 for (auto& h : seg.hits)
                     piece.hits.push_back (std::move (h));
 
+                // Reconcile: authoritative hits now drive the meter; drop the
+                // provisional realtime estimates so counts aren't double-shown.
+                self->provisionalPeaksDb.clear();
+
                 // Store WAV (don't delete) — WaveformEditor EnergyScanner is still reading it.
                 // Deleted when piece resets or new recording starts (see toggleRecord / destructor).
                 self->currentContinuousWav = tempWav;
@@ -1418,12 +1426,17 @@ private:
 
     void timerCallback() override
     {
-        auto newHits = engine.drainNewHits();
-        if (isRecording() && ! newHits.empty())
+        // Drain realtime onset events (FLA-157 / D10) into the provisional peak
+        // list that drives the live coverage meter while recording. These are
+        // advisory; the offline detector reconciles them to authoritative
+        // velocities once recording stops (see the detection callback below,
+        // which clears provisionalPeaksDb).
+        if (isRecording())
         {
-            auto& piece = currentPiece();
-            for (auto& h : newHits)
-                piece.hits.push_back (std::move (h));
+            OnsetEvent ev[64];
+            int got = engine.drainOnsets (ev, 64);
+            for (int i = 0; i < got; ++i)
+                provisionalPeaksDb.push_back (ev[i].peakDb);
         }
         recompute();
 
@@ -1448,22 +1461,43 @@ private:
     void recompute()
     {
         auto& piece = currentPiece();
-        float softDb = 1.0e9f, loudDb = -1.0e9f;
-        for (const auto& h : piece.hits)
+        const bool rec = isRecording();
+
+        // While recording, the meter is driven by the provisional realtime peaks
+        // (advisory, no audio). Once stopped, it reflects the authoritative
+        // audio-backed hits the offline detector produced.
+        std::vector<float> peaks;
+        if (rec)
         {
-            softDb = juce::jmin (softDb, h.peakDb);
-            loudDb = juce::jmax (loudDb, h.peakDb);
+            peaks = provisionalPeaksDb;
         }
-        const bool hasRange = piece.hits.size() >= 2 && loudDb > softDb;
-        for (auto& h : piece.hits)
-            h.midiVelocity = hasRange ? mapPeakToVelocity (h.peakDb, softDb, loudDb) : 100;
+        else
+        {
+            peaks.reserve (piece.hits.size());
+            for (const auto& h : piece.hits) peaks.push_back (h.peakDb);
+        }
+
+        float softDb = 1.0e9f, loudDb = -1.0e9f;
+        for (float p : peaks)
+        {
+            softDb = juce::jmin (softDb, p);
+            loudDb = juce::jmax (loudDb, p);
+        }
+        const bool hasRange = peaks.size() >= 2 && loudDb > softDb;
 
         std::vector<int> vels;
-        vels.reserve (piece.hits.size());
-        for (const auto& h : piece.hits) vels.push_back (h.midiVelocity);
+        vels.reserve (peaks.size());
+        for (float p : peaks)
+            vels.push_back (hasRange ? mapPeakToVelocity (p, softDb, loudDb) : 100);
+
+        // Keep authoritative hit velocities in sync for the export/synth path
+        // (peaks and piece.hits are parallel only when not recording).
+        if (! rec)
+            for (size_t i = 0; i < piece.hits.size() && i < vels.size(); ++i)
+                piece.hits[i].midiVelocity = vels[i];
 
         int layers = 0, rr = 0;
-        if (! piece.hits.empty())
+        if (! rec && ! piece.hits.empty())
         {
             const auto out = synthesizePiece (piece, options);
             if (! out.articulations.empty())
@@ -1476,12 +1510,12 @@ private:
             }
         }
 
-        capturePanel.progress.setAll ((int) piece.hits.size(), hasRange, softDb, loudDb,
+        capturePanel.progress.setAll ((int) peaks.size(), hasRange, softDb, loudDb,
                                       layers, rr, vels);
 
-        if (isRecording())
+        if (rec)
             setStatus ("Recording \"" + piece.name + "\" - "
-                       + juce::String ((int) piece.hits.size())
+                       + juce::String ((int) peaks.size())
                        + " hits. Click STOP when coverage looks good.");
     }
 
@@ -1508,6 +1542,7 @@ private:
     CaptureEngine             engine;
     OfflineTransientDetector  detector;
     std::vector<PieceCapture> captures;
+    std::vector<float>        provisionalPeaksDb;   // live realtime onset peaks (FLA-157)
     int                       currentPieceIndex = 0;
     SynthOptions              options;
     juce::String              kitName = "FlamForge Kit";
