@@ -430,10 +430,12 @@ public:
         // Shown only when collapsed; summarises device + channel count + export path.
         summaryBar.setFont (juce::Font (juce::FontOptions (13.0f)));
         summaryBar.setColour (juce::Label::textColourId, juce::Colours::white.withAlpha (0.8f));
-        summaryBar.setText ("> Setup", juce::dontSendNotification);
+        summaryBar.setText (juce::String (juce::CharPointer_UTF8 ("\xe2\x96\xbc  Audio Settings")),
+                            juce::dontSendNotification);
         summaryBar.setInterceptsMouseClicks (false, false);
         summaryBar.setVisible (false);
         addAndMakeVisible (summaryBar);
+        applyVisibility();
     }
 
     // Called once from ForgeContent's constructor body after deviceSelector is created.
@@ -474,12 +476,26 @@ public:
             setExpanded (! expanded);
     }
 
+    void mouseEnter (const juce::MouseEvent&) override
+    {
+        hovered = true;
+        if (! expanded) repaint();
+    }
+
+    void mouseExit (const juce::MouseEvent&) override
+    {
+        hovered = false;
+        if (! expanded) repaint();
+    }
+
     void paint (juce::Graphics& g) override
     {
         if (! expanded)
         {
-            g.setColour (juce::Colour (0xff1b1f25));
+            g.setColour (hovered ? juce::Colour (0xff252a32) : juce::Colour (0xff1b1f25));
             g.fillRoundedRectangle (getLocalBounds().toFloat(), 4.0f);
+            g.setColour (juce::Colour (0xff3a3f48));
+            g.drawRoundedRectangle (getLocalBounds().toFloat().reduced (0.5f), 4.0f, 1.0f);
         }
     }
 
@@ -514,7 +530,8 @@ private:
         summaryBar.setVisible (! expanded);
     }
 
-    bool expanded = true;
+    bool expanded = false;
+    bool hovered  = false;
     bool handlingChildBoundsChange = false;
     juce::Label title, subtitle, summaryBar;
     juce::AudioDeviceSelectorComponent* deviceSel = nullptr;
