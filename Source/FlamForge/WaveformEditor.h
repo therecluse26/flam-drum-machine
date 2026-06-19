@@ -177,6 +177,7 @@ private:
     static constexpr int   kSnapWindowSamples = 512;  // zero-crossing search radius
     static constexpr float kMaxZoom          = 32.0f; // maximum zoom factor
     static constexpr float kMinimapH         = 12.0f; // minimap strip height in px
+    static constexpr float kDragPanThreshPx  = 5.0f;  // horizontal drag threshold before converting click to pan
 
     // -----------------------------------------------------------------------
     // Members
@@ -203,10 +204,14 @@ private:
     float zoomFactor     = 1.0f;  // 1.0 = full view, >1.0 = zoomed in
     float viewOffsetFrac = 0.0f;  // normalised left edge of visible window [0..1]
 
-    // Pan drag state (middle-button or spacebar + left-drag)
+    // Pan drag state (middle-button, spacebar+left-drag, or deferred-audition left-drag)
     bool  panDragging            = false;
     float panDragStartX          = 0.0f;
     float panDragStartOffsetFrac = 0.0f;
+
+    // Deferred-audition state (plain left-click on a segment; fires on mouseUp unless panned)
+    int  pendingAuditionSegIdx = -1;
+    bool pendingAuditionPanned = false;
 
     // Breakpoint drag state
     int   draggingIdx  = -1;

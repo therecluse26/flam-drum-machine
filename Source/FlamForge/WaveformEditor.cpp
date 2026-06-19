@@ -413,7 +413,8 @@ void WaveformEditor::mouseDown (const juce::MouseEvent& e)
         return;
     }
 
-    // Plain left-click: drag breakpoint if near one, otherwise audition the segment.
+    // Plain left-click: drag breakpoint if near one; otherwise defer audition to
+    // mouseUp so a horizontal drag can be intercepted as a pan gesture first.
     draggingIdx   = findBreakpointNear (e.x);
     dragStartX    = e.x;
     dragStartY    = e.y;
@@ -421,13 +422,10 @@ void WaveformEditor::mouseDown (const juce::MouseEvent& e)
 
     if (draggingIdx < 0)
     {
-        const int segIdx = findSegmentAt (e.x);
-        if (segIdx >= 0 && onSegmentAudition)
-        {
-            const int64_t segEnd = (segIdx + 1 < (int) breakpoints.size())
-                                 ? breakpoints[segIdx + 1] : totalSamples;
-            onSegmentAudition (breakpoints[segIdx], segEnd);
-        }
+        pendingAuditionSegIdx  = findSegmentAt (e.x);
+        pendingAuditionPanned  = false;
+        panDragStartX          = e.x;
+        panDragStartOffsetFrac = viewOffsetFrac;
     }
 }
 
@@ -442,6 +440,19 @@ void WaveformEditor::mouseDrag (const juce::MouseEvent& e)
         viewOffsetFrac = panDragStartOffsetFrac - dx / r.getWidth() / zoomFactor;
         clampViewOffset();
         repaint();
+        return;
+    }
+
+    // Deferred-audition: check if drag has exceeded pan threshold yet.
+    // Until it does, suppress any other drag action; once exceeded, activate pan mode.
+    if (pendingAuditionSegIdx >= 0 && ! pendingAuditionPanned)
+    {
+        if (std::fabs (e.x - panDragStartX) > kDragPanThreshPx)
+        {
+            pendingAuditionPanned = true;
+            panDragging           = true;
+            // panDragStartX / panDragStartOffsetFrac already set in mouseDown
+        }
         return;
     }
 
@@ -473,6 +484,22 @@ void WaveformEditor::mouseDrag (const juce::MouseEvent& e)
 void WaveformEditor::mouseUp (const juce::MouseEvent& e)
 {
     juce::ignoreUnused (e);
+
+    // Deferred-audition: fire audition if the click never became a pan, then clean up.
+    if (pendingAuditionSegIdx >= 0)
+    {
+        if (! pendingAuditionPanned && onSegmentAudition)
+        {
+            const int64_t segEnd = (pendingAuditionSegIdx + 1 < (int) breakpoints.size())
+                                 ? breakpoints[(size_t) (pendingAuditionSegIdx + 1)]
+                                 : totalSamples;
+            onSegmentAudition (breakpoints[(size_t) pendingAuditionSegIdx], segEnd);
+        }
+        pendingAuditionSegIdx = -1;
+        pendingAuditionPanned = false;
+        panDragging           = false;
+        return;
+    }
 
     if (panDragging)
     {
