@@ -483,8 +483,15 @@ public:
         }
     }
 
+    void childBoundsChanged (juce::Component* child) override
+    {
+        if (handlingChildBoundsChange || child != deviceSel) return;
+        if (onCollapseToggled) onCollapseToggled();
+    }
+
     void resized() override
     {
+        juce::ScopedValueSetter<bool> guard (handlingChildBoundsChange, true);
         auto b = getLocalBounds();
         if (! expanded)
         {
@@ -508,6 +515,7 @@ private:
     }
 
     bool expanded = true;
+    bool handlingChildBoundsChange = false;
     juce::Label title, subtitle, summaryBar;
     juce::AudioDeviceSelectorComponent* deviceSel = nullptr;
 
@@ -1110,8 +1118,8 @@ public:
 
     int naturalHeight() const
     {
-        // Lower-bound elastic heights for initial window sizing.
-        const int deviceH  = 160;
+        const int deviceH  = (deviceSelector && deviceSelector->getHeight() > 0)
+                              ? deviceSelector->getHeight() : 220;
         const int headerH  = header.naturalHeight (deviceH);
         const int captureH = CapturePanel::kRecordH      + CapturePanel::kGap
                            + CapturePanel::kMeterH      + CapturePanel::kGap
@@ -1136,7 +1144,10 @@ public:
                 + kGap    // gap between header and mid
                 + kGap;   // gap below mid
             const int flexAvail = juce::jmax (0, getHeight() - fixedV);
-            const int deviceH   = juce::jlimit (160, 340, 50 + flexAvail * 55 / 100);
+            const int selectorCurrent = (deviceSelector && deviceSelector->getHeight() > 0)
+                                             ? deviceSelector->getHeight() : 0;
+            const int deviceH   = juce::jlimit (200, 520,
+                                      juce::jmax (selectorCurrent, 50 + flexAvail * 55 / 100));
             midH    = juce::jmax (120, flexAvail - deviceH - kGap);
             headerH = SetupHeader::kTitleH + SetupHeader::kSubH + SetupHeader::kGap + deviceH;
         }
