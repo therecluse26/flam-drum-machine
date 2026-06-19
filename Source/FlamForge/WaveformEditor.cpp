@@ -651,7 +651,8 @@ void WaveformEditor::paint (juce::Graphics& g)
     g.setColour (juce::Colour (0xff23272e));
     g.drawRoundedRectangle (wr.expanded (1.0f), 2.0f, 1.0f);
 
-    // --- Segment velocity fills (drawn over waveform) ----------------------
+    // --- Segment velocity fills + fade envelope overlay (drawn over waveform) ----
+    const int fadeInSmp = (int) std::round (5.0 * sampleRate / 1000.0);
     for (int i = 0; i < (int) breakpoints.size(); ++i)
     {
         const int64_t segEnd = (i + 1 < (int) breakpoints.size())
@@ -663,6 +664,31 @@ void WaveformEditor::paint (juce::Graphics& g)
         {
             g.setColour (velocityColour (segmentVelocities[i]).withAlpha (0.20f));
             g.fillRect (juce::Rectangle<float> (x0, wr.getY(), x1 - x0, wr.getHeight()));
+
+            // Fade-in triangle (left edge): mirrors SegmentExtractor 5 ms fade-in.
+            const float fadeInPx = sampleToX (breakpoints[i] + fadeInSmp)
+                                  - sampleToX (breakpoints[i]);
+            juce::Path fadeInPath;
+            fadeInPath.startNewSubPath (x0, wr.getBottom());
+            fadeInPath.lineTo (x0, wr.getY());
+            fadeInPath.lineTo (x0 + fadeInPx, wr.getY());
+            fadeInPath.closeSubPath();
+            g.setColour (velocityColour (segmentVelocities[i]).withAlpha (0.30f));
+            g.fillPath (fadeInPath);
+
+            // Fade-out triangle (right edge): mirrors SegmentExtractor fade-out formula exactly.
+            const double segDurMs   = (double)(segEnd - breakpoints[i]) / sampleRate * 1000.0;
+            const double fadeOutMs  = juce::jlimit (2.0, 200.0, segDurMs * 0.05);
+            const int    fadeOutSmp = (int) std::round (fadeOutMs * sampleRate / 1000.0);
+            const float  fadeOutPx  = sampleToX (segEnd) - sampleToX (segEnd - fadeOutSmp);
+
+            juce::Path fadeOutPath;
+            fadeOutPath.startNewSubPath (x1, wr.getBottom());
+            fadeOutPath.lineTo (x1, wr.getY());
+            fadeOutPath.lineTo (x1 - fadeOutPx, wr.getY());
+            fadeOutPath.closeSubPath();
+            g.setColour (velocityColour (segmentVelocities[i]).withAlpha (0.30f));
+            g.fillPath (fadeOutPath);
         }
     }
 

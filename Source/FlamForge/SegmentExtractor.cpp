@@ -137,6 +137,22 @@ SegmentResult extractSegments (const juce::File&                      wavFile,
                 buf.setSample (ch, s, buf.getSample (ch, s) * g);
         }
 
+        // Proportional fade-out: 5% of segment duration, clamped [2 ms, 200 ms].
+        const double segDurMs   = (double) safeLen / sampleRate * 1000.0;
+        const double fadeOutMs  = juce::jlimit (2.0, 200.0, segDurMs * 0.05);
+        const int    fadeOutSmp = (int) std::round (fadeOutMs * sampleRate / 1000.0);
+        // Ensure fade-out does not overlap fade-in region.
+        const int fadeOut = juce::jmin (fadeOutSmp, safeLen - fade);
+
+        for (int s = 0; s < fadeOut; ++s)
+        {
+            const float gain = static_cast<float> (fadeOut - 1 - s)
+                             / static_cast<float> (fadeOut);
+            const int   idx  = safeLen - fadeOut + s;
+            for (int ch = 0; ch < numCh; ++ch)
+                buf.setSample (ch, idx, buf.getSample (ch, idx) * gain);
+        }
+
         CapturedHit hit;
         hit.audio        = std::move (buf);
         hit.sampleRate   = sampleRate;
